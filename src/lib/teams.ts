@@ -1,6 +1,6 @@
 import { cache } from "react";
-import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
-import { getPlayers, getTeamRow, type PlayerRow, type TeamRow } from "./store";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { findTeamIdByJoinKey, getPlayers, getTeamRow, type PlayerRow, type TeamRow } from "./store";
 
 export type Player = { id: string; name: string };
 export type Team = TeamRow & {
@@ -41,6 +41,32 @@ export function verifySecret(secret: string, stored: string | null): boolean {
   const a = Buffer.from(hash, "hex");
   const b = scryptSync(normalise(secret), salt, 32);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+// Join codes are shared with every family, so besides the salted hash (used to
+// verify) we keep an unsalted lookup hash so the landing page can find a team
+// from its code alone. Codes are unique across teams.
+export function joinCodeKey(code: string): string {
+  return createHash("sha256").update(`sidelnr-join:${normalise(code)}`).digest("hex");
+}
+
+export async function teamIdForJoinCode(code: string): Promise<string | null> {
+  return code.trim() ? findTeamIdByJoinKey(joinCodeKey(code)) : null;
+}
+
+// New join-code columns for a team: set a new code, clear it, or keep the current one.
+export async function joinCodeFields(
+  teamId: string,
+  change: { code: string; clear: boolean },
+  current: Pick<TeamRow, "join_code_hash" | "join_code_key"> | null,
+): Promise<{ join_code_hash: string | null; join_code_key: string | null } | { error: string }> {
+  if (change.clear) return { join_code_hash: null, join_code_key: null };
+  const code = change.code.trim();
+  if (!code) return { join_code_hash: current?.join_code_hash ?? null, join_code_key: current?.join_code_key ?? null };
+  if (code.length < 4) return { error: "Join code needs at least 4 characters." };
+  const owner = await teamIdForJoinCode(code);
+  if (owner && owner !== teamId) return { error: "That join code is already used by another team — pick a different one." };
+  return { join_code_hash: hashSecret(code), join_code_key: joinCodeKey(code) };
 }
 
 // Codes are typed on phones: ignore case and stray spaces.

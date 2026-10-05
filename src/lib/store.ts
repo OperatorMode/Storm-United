@@ -37,6 +37,7 @@ export type TeamRow = {
   logo_url: string | null;
   admin_pin_hash: string | null;
   join_code_hash: string | null;
+  join_code_key: string | null; // unsalted lookup hash of the join code (see teams.ts)
   meet_minutes: number;
   goalie_enabled: boolean;
 };
@@ -91,6 +92,7 @@ const LOCAL_SEED: LocalDb = {
       logo_url: "/brand/crest.svg",
       admin_pin_hash: null,
       join_code_hash: null,
+      join_code_key: null,
       meet_minutes: 30,
       goalie_enabled: true,
     },
@@ -126,7 +128,7 @@ const strip = <T extends { team_id: string }>({ team_id: _, ...rest }: T) => res
 // ---------- teams & players ----------
 
 const TEAM_COLS =
-  "id, name, league_name, division, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, meet_minutes, goalie_enabled";
+  "id, name, league_name, division, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled";
 
 export async function listTeams(): Promise<TeamRow[]> {
   const s = db();
@@ -138,6 +140,13 @@ export async function getTeamRow(id: string): Promise<TeamRow | null> {
   const s = db();
   if (!s) return (await readLocal()).teams.find((t) => t.id === id) ?? null;
   return check(await s.from("teams").select(TEAM_COLS).eq("id", id).maybeSingle());
+}
+
+export async function findTeamIdByJoinKey(key: string): Promise<string | null> {
+  const s = db();
+  if (!s) return (await readLocal()).teams.find((t) => t.join_code_key === key)?.id ?? null;
+  const row = check(await s.from("teams").select("id").eq("join_code_key", key).maybeSingle()) as { id: string } | null;
+  return row?.id ?? null;
 }
 
 export async function upsertTeam(team: TeamRow): Promise<void> {
