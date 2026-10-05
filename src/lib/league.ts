@@ -3,6 +3,7 @@ import { getManualScores, listCompetitionRows, listLeagues, type CompetitionRow,
 import { now as clockNow } from "./clock";
 import { loadTpp } from "./sources/tpp";
 import { loadManual } from "./sources/manual";
+import { syncIfStale } from "./feeds";
 import type { SourceData } from "./sources/types";
 
 // League → Competition → fixtures. A team belongs to one competition; the
@@ -40,6 +41,7 @@ const loadSource = cache(async (competitionId: string): Promise<SourceData> => {
     case "tpp":
       return loadTpp(c.source_key ?? "");
     case "manual":
+      syncIfStale(c); // fixtures from a link: refresh in the background when stale
       return loadManual(c.id);
     default:
       return { teams: [], games: [], byes: [] };

@@ -24,6 +24,7 @@ import {
   zonedTime,
 } from "@/lib/fixtures";
 import type { CompetitionRow } from "@/lib/store";
+import { readFeed, saveFeedSettings, syncCompetitionFeed, type FeedSettings, type FeedType } from "@/lib/feeds";
 
 const TZ = "Australia/Perth"; // display is Perth-only for now; per-league timezones come later
 
@@ -121,7 +122,7 @@ export async function saveCompetitionSettings(competitionId: string, _: unknown,
   if (!c) return { error: "Not authorised." };
   const comp = competitionRow(c.id, c.league_id, (k) => String(formData.get(k) ?? "").trim());
   if ("error" in comp) return { error: comp.error };
-  await upsertCompetition({ ...comp, kind: c.kind, source_key: c.source_key });
+  await upsertCompetition({ ...c, ...comp, kind: c.kind, source_key: c.source_key });
   refreshAll();
   return { ok: true };
 }
@@ -217,4 +218,74 @@ export async function importFixturesCsv(competitionId: string, _: unknown, formD
   await addCompetitionTeams(competitionId, fixtures.flatMap((f) => [f.home, f.away]));
   refreshAll();
   return { ok: true, count: merged.length, errors };
+}
+
+// ---------- fixtures from a link ----------
+
+function feedFromForm(formData: FormData): FeedSettings | { error: string } {
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const type = get("feed_type") as FeedType;
+  if (!["csv", "ics", "web"].includes(type)) return { error: "Pick the kind of link." };
+  const url = get("feed_url");
+  if (!url) return { error: "Paste the link." };
+  return { type, url, filter: get("feed_filter") || null, team: get("feed_team") || null };
+}
+
+const PREVIEW_TIME = new Intl.DateTimeFormat("en-AU", {
+  timeZone: TZ,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+// Reads the link without saving anything, so the admin can check it first.
+export async function previewFeedAction(competitionId: string, _: unknown, formData: FormData) {
+  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  const feed = feedFromForm(formData);
+  if ("error" in feed) return { error: feed.error };
+  try {
+    const { fixtures, errors } = await readFeed(feed);
+    if (!fixtures.length) return { error: errors[0] ?? "No fixtures found at that link." };
+    const teams = new Set(fixtures.flatMap((f) => [f.home, f.away]));
+    return {
+      preview: true,
+      count: fixtures.length,
+      teams: teams.size,
+      sample: fixtures.slice(0, 8).map((f) => {
+        const score = f.home_score !== null && f.away_score !== null ? ` ${f.home_score}–${f.away_score}` : "";
+        return `${f.round ? `Rd ${f.round} · ` : ""}${PREVIEW_TIME.format(new Date(f.kickoff))} · ${f.home} v ${f.away}${score}`;
+      }),
+      errors,
+    };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Couldn’t read that link." };
+  }
+}
+
+export async function connectFeedAction(competitionId: string, _: unknown, formData: FormData) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  const feed = feedFromForm(formData);
+  if ("error" in feed) return { error: feed.error };
+  await saveFeedSettings(c, feed);
+  const res = await syncCompetitionFeed(competitionId, true);
+  refreshAll();
+  if (!res.count) return { error: res.errors[0] ?? "No fixtures found at that link." };
+  return { ok: true, count: res.count };
+}
+
+export async function syncNowAction(competitionId: string) {
+  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  const res = await syncCompetitionFeed(competitionId, true);
+  refreshAll();
+  return res.count ? { ok: true, count: res.count } : { error: res.errors[0] ?? "Nothing synced." };
+}
+
+export async function disconnectFeedAction(competitionId: string) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return;
+  await saveFeedSettings(c, null); // fixtures already imported stay
+  refreshAll();
 }
