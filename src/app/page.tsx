@@ -9,6 +9,7 @@ import {
   formatDay,
   formatDdmmyyyy,
   getLeagueData,
+  meetingTime,
   nextGame,
   opponent,
   ourScore,
@@ -225,7 +226,18 @@ function NextGame({ game, myStatus }: { game: Game | null; myStatus: AttendanceS
     <div className="mt-6">
       <div className="text-xs uppercase tracking-widest text-white/50">Next game · Round {game.round}</div>
       <div className="mt-1 text-[1.65rem] font-semibold leading-tight">vs {opponent(game)}</div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-zinc-950">
+        <div>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Meeting time</div>
+          <div className="text-xl font-semibold leading-tight">{meetingTime(game)}</div>
+        </div>
+        <div className="text-right text-xs text-zinc-500">
+          Warm-up &amp;
+          <br />
+          short practice
+        </div>
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
         <Stat label="When" value={formatDay(game.kickoff)} />
         <Stat label="Kick-off" value={game.time} />
         <Stat label="Pitch" value={`${game.pitch} · ${home ? "Home" : "Away"}`} />
@@ -337,7 +349,7 @@ function Fixtures({
                 Rd {round} · {game.home === TEAM ? "vs" : "@"} {opponent(game)}
               </div>
               <div className="text-xs text-zinc-500">
-                {formatDay(game.kickoff)} · {game.time} · Pitch {game.pitch}
+                {formatDay(game.kickoff)} · Meet {meetingTime(game)} · KO {game.time} · Pitch {game.pitch}
               </div>
             </div>
             <div className="shrink-0 text-right">

@@ -182,6 +182,18 @@ const DAY = new Intl.DateTimeFormat("en-AU", {
 export function formatDay(d: Date): string {
   return DAY.format(d);
 }
+
+// Team meets 30 min before kick-off for warm-up and a short practice.
+export const MEET_BEFORE_MS = 30 * 60 * 1000;
+const TIME = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "Australia/Perth",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+export function meetingTime(g: Game): string {
+  return TIME.format(new Date(g.kickoff.getTime() - MEET_BEFORE_MS)).replace(/\s*([ap])\.?m\.?/i, " $1m").toLowerCase();
+}
 export function formatDdmmyyyy(date: string): string {
   return formatDay(perthKickoff(date, "12:00 pm"));
 }
