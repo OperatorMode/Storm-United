@@ -43,16 +43,31 @@ export type TeamRow = {
 export type PlayerRow = { id: string; name: string; sort: number; active: boolean };
 
 type Scoped<T> = T & { team_id: string };
-type LocalDb = {
+export type LocalDb = {
   teams: TeamRow[];
   players: Scoped<PlayerRow>[];
   attendance: Scoped<AttendanceRow>[];
   ballots: Scoped<BallotRow>[];
   scores: Scoped<{ game_id: string; home: number; away: number }>[];
+  // Messaging (see messages.ts); optional so older local files still load.
+  announcements?: { id: string; team_id: string; body: string; created_at: string }[];
+  acks?: { announcement_id: string; player_id: string; created_at: string }[];
+  chat?: { id: string; team_id: string; author_id: string; body: string; created_at: string }[];
+  subs?: PushSubRow[];
+};
+
+export type PushSubRow = {
+  endpoint: string;
+  team_id: string;
+  author_id: string | null;
+  p256dh: string;
+  auth: string;
+  notify_board: boolean;
+  notify_chat: boolean;
 };
 
 let supabase: SupabaseClient | null = null;
-function db(): SupabaseClient | null {
+export function db(): SupabaseClient | null {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
@@ -89,19 +104,19 @@ const LOCAL_SEED: LocalDb = {
 };
 
 const LOCAL_FILE = path.join(process.cwd(), ".data", "local-db.json");
-async function readLocal(): Promise<LocalDb> {
+export async function readLocal(): Promise<LocalDb> {
   try {
     return { ...structuredClone(LOCAL_SEED), ...JSON.parse(await fs.readFile(LOCAL_FILE, "utf8")) };
   } catch {
     return structuredClone(LOCAL_SEED);
   }
 }
-async function writeLocal(data: LocalDb) {
+export async function writeLocal(data: LocalDb) {
   await fs.mkdir(path.dirname(LOCAL_FILE), { recursive: true });
   await fs.writeFile(LOCAL_FILE, JSON.stringify(data, null, 2));
 }
 
-function check<T>(res: { data: T | null; error: { message: string } | null }): T {
+export function check<T>(res: { data: T | null; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message);
   return res.data as T;
 }

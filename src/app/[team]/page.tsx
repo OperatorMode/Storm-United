@@ -20,6 +20,8 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JoinGate } from "@/components/JoinGate";
+import { TabBar } from "@/components/TabBar";
+import { tabData } from "@/lib/tabs";
 import { firstName, getTeam, playerName, type Team } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
 import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
@@ -38,6 +40,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
     getBallots(team.id),
     currentVoter(team),
   ]);
+  const tabs = await tabData(team.id, voter);
   const us = team.league_name;
   const PLAYERS = team.players;
   const nameOf = (id: string) => playerName(team, id);
@@ -52,7 +55,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   const openVoting = played.filter((g) => votingState(g, now) === "open");
 
   return (
-    <div className="mx-auto max-w-md pb-10">
+    <div className="mx-auto max-w-md pb-24">
       <header className="jersey px-4 pb-6 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
@@ -222,6 +225,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           </Link>
         </p>
       </main>
+      <TabBar teamId={team.id} active="home" {...tabs} />
     </div>
   );
 }
