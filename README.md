@@ -1,36 +1,27 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Storm United
 
-## Getting Started
+Team app for Storm United (U10, TPP 6 A-Side League 2026): next game, attendance, 3-2-1 MVP voting and the live ladder. Mobile-first Next.js app, hosted on Vercel.
 
-First, run the development server:
+## How it works
+
+- **Fixtures & ladder** come straight from the league site: the draw from `tpp-6aside.netlify.app/data.js`, results from the league's public Firebase feed. Nothing to enter by hand.
+- **No logins.** Parents pick their child once ("I'm Zane's parent"), and a cookie remembers it on that phone.
+- **Attendance:** each family marks Can play / Maybe / Can't make it for the next game, or any later game from the fixtures list.
+- **MVP:** voting opens at kick-off and closes 48h later. Each family (and the coach) ranks a top 3 (3/2/1 points). You can't vote for your own child or for a player marked "Can't make it". After voting closes, each game's MVP is shown. **The season tally is only on `/admin`.**
+- **`/admin`** (PIN): season MVP tally, votes per game (and who hasn't voted), backup score entry if the league is slow to post.
+
+## Setup
+
+1. Create a Supabase project and run `supabase/schema.sql` in the SQL editor.
+2. In Vercel, set the env vars from `.env.example`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PIN`.
+
+## Local dev
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without Supabase env vars, local dev stores data in `.data/local-db.json`. Set `DEMO_NOW` (ISO timestamp, e.g. `2026-10-13T08:00:00+08:00`) to time-travel for testing; it's ignored in production.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Players are listed in `src/lib/players.ts` as first name + last initial only, because the repo is public.
