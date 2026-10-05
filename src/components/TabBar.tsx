@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 
 export const chatSeenKey = (teamId: string) => `su_chat_seen_${teamId}`;
 
-// Bottom navigation: Home · Board · Chat, with unread badges.
+// Bottom navigation: Home · Board · Chat · Manager, with unread badges.
+// Manager opens Manager’s Corner (PIN-protected), so parents can safely see it.
 // Board badge = announcements this family hasn't acknowledged (from the server).
 // Chat badge = messages newer than the last time this phone opened the chat.
 export function TabBar({
@@ -15,7 +16,7 @@ export function TabBar({
   latestChatAt,
 }: {
   teamId: string;
-  active: "home" | "board" | "chat";
+  active: "home" | "board" | "chat" | "manager";
   boardUnread: number;
   latestChatAt: string | null;
 }) {
@@ -34,11 +35,12 @@ export function TabBar({
     { key: "home", href: `/${teamId}`, label: "Home", icon: HomeIcon, badge: 0 },
     { key: "board", href: `/${teamId}/board`, label: "Board", icon: BoardIcon, badge: boardUnread },
     { key: "chat", href: `/${teamId}/chat`, label: "Chat", icon: ChatIcon, badge: chatUnread ? -1 : 0 },
+    { key: "manager", href: `/${teamId}/admin`, label: "Manager", icon: WhistleIcon, badge: 0 },
   ] as const;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className="mx-auto grid max-w-md grid-cols-3">
+      <ul className="mx-auto grid max-w-md grid-cols-4">
         {tabs.map((t) => {
           const on = t.key === active;
           return (
@@ -78,6 +80,14 @@ function BoardIcon() {
     <svg {...iconProps} viewBox="0 0 24 24" aria-hidden>
       <path d="M4 5h16v11H8l-4 4z" />
       <path d="M8 9h8M8 12h5" />
+    </svg>
+  );
+}
+function WhistleIcon() {
+  return (
+    <svg {...iconProps} viewBox="0 0 24 24" aria-hidden>
+      <circle cx="9" cy="14" r="5" />
+      <path d="M12.5 10.5 21 7v4l-6.5 2M4 9V4M2 6h4" />
     </svg>
   );
 }

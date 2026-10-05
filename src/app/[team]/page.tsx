@@ -17,7 +17,6 @@ import {
   votingState,
   type Game,
 } from "@/lib/league";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JoinGate } from "@/components/JoinGate";
 import { TabBar } from "@/components/TabBar";
@@ -219,10 +218,6 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           <a href="https://tpp-6aside.netlify.app/" className="underline">
             The Proper Player
           </a>
-          {" · "}
-          <Link href={`/${team.id}/admin`} className="underline">
-            Admin
-          </Link>
         </p>
       </main>
       <TabBar teamId={team.id} active="home" {...tabs} />
