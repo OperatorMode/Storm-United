@@ -6,6 +6,7 @@ import { loadManual } from "./sources/manual";
 import { syncIfStale } from "./feeds";
 import type { SourceData } from "./sources/types";
 import { DEFAULT_TZ, formatTime } from "./time";
+import { isPoolStage } from "./events";
 
 // League → Competition → fixtures. A team belongs to one competition; the
 // competition's league says where fixtures and results come from (its
@@ -64,6 +65,7 @@ export type Game = {
   round: number | null;
   time: string; // "5:45 pm"
   pitch: string | null;
+  stage: string | null; // events: "Pool A", "Final"…
   home: string;
   away: string;
   kickoff: Date;
@@ -89,6 +91,7 @@ export type LeagueData = {
   ourGames: Game[];
   byeRounds: { round: number; date: Date | null }[];
   ladder: LadderRow[];
+  ladderTitle: string | null; // an event's pool, e.g. "Pool A"
 };
 
 // `team.league_name` is the team as named in its competition's fixtures.
@@ -114,6 +117,7 @@ export async function getLeagueData(team: {
         round: g.round,
         time: g.timeLabel,
         pitch: g.pitch,
+        stage: g.stage ?? null,
         home: g.home,
         away: g.away,
         kickoff: g.kickoff,
@@ -124,22 +128,48 @@ export async function getLeagueData(team: {
     })
     .sort((a, b) => a.kickoff.getTime() - b.kickoff.getTime());
 
+  const rules = {
+    win: competition?.points_win ?? 3,
+    draw: competition?.points_draw ?? 1,
+    lastRound: competition?.ladder_last_round ?? null,
+  };
+  const ourGames = games.filter((g) => g.home === us || g.away === us);
+
+  // Events: the table is our pool's, and there are no byes.
+  if (competition?.kind === "tournament") {
+    const pool = ourGames.find((g) => isPoolStage(g.stage))?.stage ?? null;
+    const table = pool ? poolTables(games, rules).find((t) => t.stage === pool) : undefined;
+    return { competition, tz: competitionTz(competition), ourGames, byeRounds: [], ladder: table?.rows ?? [], ladderTitle: pool };
+  }
+
   return {
     competition,
     tz: competitionTz(competition),
-    ourGames: games.filter((g) => g.home === us || g.away === us),
+    ourGames,
     byeRounds: source.byes.filter((b) => b.team === us).map(({ round, date }) => ({ round, date })),
-    ladder: buildLadder(source.teams, games, {
-      win: competition?.points_win ?? 3,
-      draw: competition?.points_draw ?? 1,
-      lastRound: competition?.ladder_last_round ?? null,
-    }),
+    ladder: buildLadder(source.teams, games, rules),
+    ladderTitle: null,
   };
+}
+
+/** One table per pool (events), in pool order. */
+export function poolTables(
+  games: Pick<Game, "stage" | "home" | "away" | "score" | "round">[],
+  rules: { win: number; draw: number },
+): { stage: string; rows: LadderRow[] }[] {
+  const stages = [...new Set(games.filter((g) => isPoolStage(g.stage)).map((g) => g.stage!))].sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  );
+  return stages.map((stage) => {
+    const inPool = games.filter((g) => g.stage === stage);
+    const teams = [...new Set(inPool.flatMap((g) => [g.home, g.away]))];
+    return { stage, rows: buildLadder(teams, inPool, { ...rules, lastRound: null }) };
+  });
 }
 
 function buildLadder(
   teams: string[],
-  games: Game[],
+  games: Pick<Game, "home" | "away" | "score" | "round">[],
   rules: { win: number; draw: number; lastRound: number | null },
 ): LadderRow[] {
   const rows = new Map<string, LadderRow>(
@@ -203,4 +233,11 @@ export function competitionTz(c: Competition | null | undefined): string {
 // Teams meet a set number of minutes before kick-off (warm-up / practice).
 export function meetingTime(g: Game, minutesBefore: number, tz = DEFAULT_TZ): string {
   return formatTime(new Date(g.kickoff.getTime() - minutesBefore * 60 * 1000), tz);
+}
+
+/** "Rd 3" (or "Round 3"), or an event game's stage, e.g. "Pool A" / "Final". */
+export function roundLabel(g: { round: number | null; stage?: string | null }, long = false): string {
+  if (g.stage) return g.stage;
+  if (g.round === null) return "";
+  return long ? `Round ${g.round}` : `Rd ${g.round}`;
 }

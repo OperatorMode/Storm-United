@@ -10,8 +10,8 @@ export default async function NewLeaguePage() {
   if (!(await currentManagerId())) redirect("/login?next=/account/leagues/new");
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <Link href="/account" className="text-sm text-zinc-500">
-        ← My teams
+      <Link href="/account/leagues" className="text-sm text-zinc-500">
+        ← My leagues
       </Link>
       <div>
         <h1 className="text-xl font-semibold">Add your league</h1>

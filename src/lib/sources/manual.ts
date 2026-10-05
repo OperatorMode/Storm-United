@@ -17,6 +17,7 @@ export async function loadManual(competitionId: string, tz: string): Promise<Sou
       kickoff,
       timeLabel: f.status === "postponed" ? "Postponed" : formatTime(kickoff, tz),
       pitch: f.pitch,
+      stage: f.stage,
       home: f.home,
       away: f.away,
       score: f.home_score !== null && f.away_score !== null ? { home: f.home_score, away: f.away_score } : null,

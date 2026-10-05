@@ -29,6 +29,7 @@ import {
   zonedTime,
 } from "@/lib/fixtures";
 import type { CompetitionRow } from "@/lib/store";
+import { isPoolStage, parsePools, schedulePools } from "@/lib/events";
 import { readFeed, saveFeedSettings, syncCompetitionFeed, type FeedSettings, type FeedType } from "@/lib/feeds";
 
 
@@ -159,12 +160,13 @@ export async function addFixtureAction(competitionId: string, _: unknown, formDa
   if (!time) return { error: "Enter a kick-off time, e.g. 5:45 pm." };
   if (!home || !away || home === away) return { error: "Pick two different teams." };
   const round = get("round");
+  const stage = get("stage") || null;
   await saveFixtures([
     {
       id: newFixtureId(),
       competition_id: competitionId,
       round: round ? Number(round) : null,
-      stage: null,
+      stage,
       kickoff: zonedTime(date, time, competitionTz(c)).toISOString(),
       pitch: get("pitch") || null,
       home,
@@ -174,7 +176,8 @@ export async function addFixtureAction(competitionId: string, _: unknown, formDa
       status: "scheduled",
     },
   ]);
-  await addCompetitionTeams(competitionId, [home, away]);
+  // Finals games may use placeholders ("Winner Pool A") until pools finish.
+  if (!stage || isPoolStage(stage)) await addCompetitionTeams(competitionId, [home, away]);
   refreshAll();
   return { ok: true };
 }
@@ -332,4 +335,106 @@ export async function saveLeagueTimezone(competitionId: string, _: unknown, form
   await updateLeague(c.league_id, { timezone: tz });
   refreshAll();
   return { ok: true, timezone: tz };
+}
+
+// ---------- events (one-day carnivals) ----------
+
+export async function createEventAction(_: unknown, formData: FormData) {
+  const managerId = await currentManagerId();
+  if (!managerId) return { error: "Sign in first." };
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const name = get("league_name");
+  if (!name) return { error: "Give your event a name." };
+  const date = parseDate(get("season"));
+  if (!date) return { error: "Pick the event date." };
+  const website = get("website");
+  if (website && !/^https?:\/\//i.test(website)) return { error: "Website should start with https://" };
+
+  const leagueId = await uniqueId(name, leagueIdExists);
+  const competitionId = await uniqueId(`${leagueId}-${get("competition_name") || "main"}`, competitionIdExists);
+  const comp = competitionRow(competitionId, leagueId, get);
+  if ("error" in comp) return { error: comp.error };
+
+  await createLeague(
+    {
+      id: leagueId,
+      name,
+      short_name: get("short_name") || null,
+      website: website || null,
+      venue: get("venue") || null,
+      source: "manual",
+      timezone: isTimezone(get("timezone")) ? get("timezone") : "UTC",
+      created_by: managerId,
+    },
+    managerId,
+  );
+  // The event's date lives in `season` ("yyyy-mm-dd") so the draw generator can default to it.
+  await upsertCompetition({ ...comp, kind: "tournament", season: date, ladder_last_round: null, finals_date: null });
+  revalidatePath("/account");
+  redirect(`/account/competitions/${competitionId}?new=1`);
+}
+
+export async function addEventDivisionAction(leagueId: string, _: unknown, formData: FormData) {
+  const managerId = await currentManagerId();
+  if (!(await isSuperAdmin()) && !(managerId && (await adminLeagueIds(managerId)).includes(leagueId))) {
+    return { error: "You’re not an admin of this event." };
+  }
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const id = await uniqueId(`${leagueId}-${get("competition_name") || "division"}`, competitionIdExists);
+  const comp = competitionRow(id, leagueId, get);
+  if ("error" in comp) return { error: comp.error };
+  const sibling = (await listCompetitions()).find((c) => c.league_id === leagueId);
+  await upsertCompetition({ ...comp, kind: "tournament", season: sibling?.season ?? null, ladder_last_round: null, finals_date: null });
+  revalidatePath("/account");
+  redirect(`/account/competitions/${id}?new=1`);
+}
+
+// Builds every pool's round-robin and lays it out across the pitches.
+export async function generatePoolsAction(competitionId: string, _: unknown, formData: FormData) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const pools = parsePools(get("pools"));
+  const date = parseDate(get("date"));
+  const start = parseTime(get("start"));
+  const slot = Number(get("slot_minutes"));
+  const pitchInput = get("pitches");
+  const pitches = /^\d+$/.test(pitchInput)
+    ? Array.from({ length: Number(pitchInput) }, (_, i) => String(i + 1))
+    : pitchInput.split(",").map((p) => p.trim()).filter(Boolean);
+
+  if (!pools.length) return { error: "Type the teams, one per line (start each pool with “Pool A”, “Pool B”…)." };
+  const tooSmall = pools.find((p) => p.teams.length < 2);
+  if (tooSmall) return { error: `${tooSmall.name} needs at least two teams.` };
+  if (!date) return { error: "Pick the event date." };
+  if (!start) return { error: "Enter the first kick-off, e.g. 9:00 am." };
+  if (!Number.isInteger(slot) || slot < 5 || slot > 240) return { error: "Minutes per game should be 5–240 (include changeover)." };
+  if (!pitches.length || pitches.length > 50) return { error: "Enter how many pitches (e.g. 4) or their names (e.g. 1, 2, Main)." };
+
+  const existing = await listFixtures(competitionId);
+  const oldPool = existing.filter((f) => isPoolStage(f.stage));
+  if (oldPool.length && get("replace") !== "yes") {
+    return { error: `There are already ${oldPool.length} pool games. Tick “Replace the existing pool games” to redo the draw.` };
+  }
+  for (const f of oldPool) await deleteFixture(competitionId, f.id);
+
+  const draw = schedulePools({ pools, date, start, slotMinutes: slot, pitches, timeZone: competitionTz(c) });
+  await saveFixtures(mergeImported(competitionId, oldPool, draw));
+  await addCompetitionTeams(competitionId, pools.flatMap((p) => p.teams));
+  refreshAll();
+  const last = draw.at(-1);
+  return { ok: true, count: draw.length, finish: last ? formatWhen(last.kickoff, competitionTz(c)) : null };
+}
+
+// Fills in a finals game's teams once the pools are decided.
+export async function setFixtureTeamsAction(competitionId: string, fixtureId: string, home: string, away: string) {
+  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  const fixture = (await listFixtures(competitionId)).find((f) => f.id === fixtureId);
+  if (!fixture) return { error: "Game not found." };
+  home = home.trim();
+  away = away.trim();
+  if (!home || !away || home === away) return { error: "Pick two different teams." };
+  await saveFixtures([{ ...fixture, home, away }]);
+  refreshAll();
+  return { ok: true };
 }

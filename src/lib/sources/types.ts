@@ -7,6 +7,7 @@ export type SourceGame = {
   kickoff: Date;
   timeLabel: string; // as shown, e.g. "5:45 pm"
   pitch: string | null;
+  stage?: string | null; // e.g. "Pool A", "Final" (events)
   home: string;
   away: string;
   score: { home: number; away: number } | null;

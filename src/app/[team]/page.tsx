@@ -6,6 +6,7 @@ import { BallotForm } from "@/components/BallotForm";
 import {
   competitionLabel,
   competitionTz,
+  roundLabel,
   VOTING_WINDOW_MS,
   formatDay,
   formatIsoDate,
@@ -34,7 +35,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ competition, tz, ourGames, byeRounds, ladder }, attendance, ballots, voter, tabs] = await Promise.all([
+  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle }, attendance, ballots, voter, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
@@ -85,7 +86,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
         )}
 
         {next && (
-          <Card title="Attendance" aside={`Rd ${next.round} · ${formatDay(next.kickoff, tz)}`}>
+          <Card title="Attendance" aside={`${roundLabel(next)} · ${formatDay(next.kickoff, tz)}`}>
             {myChild && next.kickoff.getTime() > now.getTime() && (
               <div className="mb-4">
                 <p className="mb-2 text-sm font-medium">Can {firstName(nameOf(myChild))} make it?</p>
@@ -144,7 +145,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                   <li key={g.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                     <div className="min-w-0">
                       <div className="truncate font-medium">
-                        Rd {g.round} vs {opponent(g, us)}
+                        {roundLabel(g)} vs {opponent(g, us)}
                       </div>
                       <div className="text-xs text-zinc-500">{formatDay(g.kickoff, tz)}</div>
                     </div>
@@ -164,7 +165,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           )}
         </Card>
 
-        <Card title="Ladder" aside={competition?.name}>
+        <Card title={ladderTitle ?? "Ladder"} aside={competition?.name}>
           <div className="-mx-4 overflow-x-auto px-4">
             <table className="w-full text-sm tabular-nums">
               <thead>
@@ -264,7 +265,7 @@ function NextGame({
   const home = game.home === team.league_name;
   return (
     <div className="mt-6">
-      <div className="text-xs uppercase tracking-widest text-on-team/50">Next game · Round {game.round}</div>
+      <div className="text-xs uppercase tracking-widest text-on-team/50">Next game · {roundLabel(game, true)}</div>
       <div className="mt-1 text-[1.65rem] font-semibold leading-tight">vs {opponent(game, team.league_name)}</div>
       {team.meet_minutes > 0 && (
       <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-zinc-950">
@@ -400,7 +401,7 @@ function Fixtures({
           <div className="flex items-center justify-between gap-3 py-2.5 text-sm">
             <div className="min-w-0">
               <div className="truncate font-medium">
-                Rd {round} · {game.home === us ? "vs" : "@"} {opponent(game, us)}
+                {roundLabel(game)} · {game.home === us ? "vs" : "@"} {opponent(game, us)}
               </div>
               <div className="text-xs text-zinc-500">
                 {formatDay(game.kickoff, tz)}

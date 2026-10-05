@@ -7,7 +7,7 @@ import { isHexColor } from "./theme";
 // managers (self-serve). Permission checks happen in the calling action.
 
 // Paths that already mean something in the app and can't be team links.
-const RESERVED = new Set(["super", "api", "brand", "icons", "uploads", "_next", "admin", "account", "login", "auth"]);
+const RESERVED = new Set(["super", "api", "brand", "icons", "uploads", "_next", "admin", "account", "login", "auth", "events"]);
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 export type TeamFormOptions = {

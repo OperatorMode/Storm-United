@@ -10,6 +10,7 @@ import {
   FeedPanel,
   ImportCsvForm,
   LeagueTimezoneForm,
+  PoolDrawForm,
   ResultRow,
   TeamsEditor,
 } from "../../leagues/LeagueForms";
@@ -17,6 +18,7 @@ import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
 import { formatTime } from "@/lib/time";
+import { isPoolStage } from "@/lib/events";
 import { listTeams } from "@/lib/store";
 import { now as clockNow } from "@/lib/clock";
 
@@ -65,13 +67,22 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const upcoming = fixtures.filter((f) => new Date(f.kickoff).getTime() > now);
   const past = fixtures.filter((f) => new Date(f.kickoff).getTime() <= now).reverse();
   const tz = competitionTz(competition);
+  const event = competition.kind === "tournament";
+  const poolGames = fixtures.filter((f) => isPoolStage(f.stage)).length;
+  // Event finals games can have their teams filled in later.
+  const teamsFor = (f: { stage: string | null }) => (event && !isPoolStage(f.stage) ? teams : undefined);
   const when = (iso: string) => `${formatDay(new Date(iso), tz)}, ${formatTime(new Date(iso), tz)}`;
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <Link href="/account" className="text-sm text-zinc-500">
-        ← My teams
-      </Link>
+      <div className="flex items-center justify-between text-sm text-zinc-500">
+        <Link href={event ? "/account/events" : "/account/leagues"}>← {event ? "My events" : "My leagues"}</Link>
+        {event && (
+          <Link href={`/events/${competition.league_id}`} className="underline">
+            Public page ↗
+          </Link>
+        )}
+      </div>
       <div>
         <div className="text-xs uppercase tracking-widest text-zinc-400">{competition.league.name}</div>
         <h1 className="text-xl font-semibold">{competition.name}</h1>
@@ -90,7 +101,29 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         )}
       </div>
 
-      {isNew && (
+      {isNew && event && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <div className="font-semibold">🎉 {competition.name} is set up</div>
+          <p className="mt-1">
+            Next: type the pools below and build the draw, then add any finals. Share the public page with everyone on the
+            day — results update live. Teams on Sidelnr can pick “{competition.league.name} · {competition.name}” as their
+            competition.
+          </p>
+        </div>
+      )}
+
+      {event && (
+        <Card title="Pools & draw" aside={poolGames ? `${poolGames} pool games` : undefined}>
+          <PoolDrawForm
+            competitionId={id}
+            teams={teams}
+            defaultDate={competition.season && /^\d{4}-\d{2}-\d{2}$/.test(competition.season) ? competition.season : ""}
+            existingPoolGames={poolGames}
+          />
+        </Card>
+      )}
+
+      {isNew && !event && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <div className="font-semibold">🎉 {competition.name} is set up</div>
           <p className="mt-1">
@@ -104,6 +137,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         <TeamsEditor competitionId={id} teams={teams} />
       </Card>
 
+      {!event && (
       <Card title="Fixtures from a link" aside="Auto-updating">
         <FeedPanel
           competitionId={id}
@@ -123,13 +157,19 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           }
         />
       </Card>
+      )}
 
       <Card title="Import fixtures" aside="CSV / spreadsheet">
         <ImportCsvForm competitionId={id} />
       </Card>
 
-      <Card title="Add a fixture">
-        <AddFixtureForm competitionId={id} teams={teams} />
+      <Card title={event ? "Add a finals game" : "Add a fixture"}>
+        <AddFixtureForm
+          competitionId={id}
+          teams={teams}
+          event={event}
+          defaultDate={event && competition.season && /^\d{4}-\d{2}-\d{2}$/.test(competition.season) ? competition.season : undefined}
+        />
       </Card>
 
       <Card title="Results" aside={past.length ? "Enter scores after each game" : undefined}>
@@ -138,7 +178,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         ) : (
           <ul className="divide-y divide-zinc-100">
             {past.map((f) => (
-              <ResultRow key={f.id} competitionId={id} fixture={f} when={when(f.kickoff)} />
+              <ResultRow key={f.id} competitionId={id} fixture={f} when={when(f.kickoff)} teams={teamsFor(f)} />
             ))}
           </ul>
         )}
@@ -150,22 +190,22 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         ) : (
           <ul className="divide-y divide-zinc-100">
             {upcoming.map((f) => (
-              <ResultRow key={f.id} competitionId={id} fixture={f} when={when(f.kickoff)} />
+              <ResultRow key={f.id} competitionId={id} fixture={f} when={when(f.kickoff)} teams={teamsFor(f)} />
             ))}
           </ul>
         )}
       </Card>
 
-      <Card title="Competition settings">
-        <CompetitionSettingsForm competitionId={id} initial={competition} />
+      <Card title={event ? "Division settings" : "Competition settings"}>
+        <CompetitionSettingsForm competitionId={id} initial={competition} event={event} />
       </Card>
 
       <Card title="Timezone" aside={tz.replaceAll("_", " ")}>
         <LeagueTimezoneForm competitionId={id} initial={tz} />
       </Card>
 
-      <Card title={`Add a competition to ${competition.league.short_name ?? competition.league.name}`}>
-        <AddCompetitionForm leagueId={competition.league_id} />
+      <Card title={`Add a ${event ? "division" : "competition"} to ${competition.league.short_name ?? competition.league.name}`}>
+        <AddCompetitionForm leagueId={competition.league_id} event={event} />
       </Card>
 
       <Card title="Danger zone">
