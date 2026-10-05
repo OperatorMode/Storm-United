@@ -3,10 +3,12 @@ import Link from "next/link";
 import { Card } from "@/components/Card";
 import { AdminLogin } from "./AdminLogin";
 import { ScoreForm } from "./ScoreForm";
+import { GoalieAssign } from "./GoalieAssign";
 import { adminLogout } from "./actions";
 import { isAdmin } from "@/lib/session";
 import { formatDay, getLeagueData, opponent, votingState } from "@/lib/league";
-import { getBallots, getManualScores } from "@/lib/store";
+import { getAttendance, getBallots, getManualScores } from "@/lib/store";
+import { goaliesForGame, goalieTally } from "@/lib/goalies";
 import { tally, winners } from "@/lib/mvp";
 import { PLAYERS, playerName } from "@/lib/players";
 import { now as clockNow } from "@/lib/clock";
@@ -24,9 +26,17 @@ export default async function AdminPage() {
     );
   }
 
-  const [{ ourGames }, ballots, manual] = await Promise.all([getLeagueData(), getBallots(), getManualScores()]);
+  const [{ ourGames }, ballots, manual, attendance] = await Promise.all([
+    getLeagueData(),
+    getBallots(),
+    getManualScores(),
+    getAttendance(),
+  ]);
   const now = clockNow();
   const played = ourGames.filter((g) => g.kickoff.getTime() <= now.getTime());
+
+  const goalieRows = goalieTally(attendance, played);
+  const SLOT = { "1st": "1st", "2nd": "2nd", full: "FT" } as const;
 
   const season = tally(ballots);
   const gameWins = new Map<string, number>();
@@ -69,6 +79,60 @@ export default async function AdminPage() {
             ))}
           </tbody>
         </table>
+      </Card>
+
+      <Card title="Goalie tally" aside="Played games · full game = 2 halves">
+        {goalieRows.every((r) => r.halves === 0) ? (
+          <p className="text-sm text-zinc-500">No goalies recorded for played games yet.</p>
+        ) : (
+          <table className="w-full text-sm tabular-nums">
+            <thead>
+              <tr className="text-left text-xs text-zinc-500">
+                <th className="py-1.5 font-medium">Player</th>
+                <th className="py-1.5 font-medium">Games</th>
+                <th className="py-1.5 text-right font-medium">Halves</th>
+              </tr>
+            </thead>
+            <tbody>
+              {goalieRows.map((r) => (
+                <tr key={r.playerId} className="border-t border-zinc-100 align-top">
+                  <td className="py-2 pr-2">{playerName(r.playerId)}</td>
+                  <td className="py-2 text-xs text-zinc-600">
+                    {r.games.length ? r.games.map((g) => `Rd ${g.round} ${SLOT[g.goalie]}`).join(" · ") : "—"}
+                  </td>
+                  <td className="py-2 text-right font-semibold">{r.halves}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+
+      <Card title="Assign goalies" aside="Overrides parents' ticks">
+        <ul className="space-y-4">
+          {ourGames.map((g) => {
+            const { first, second } = goaliesForGame(attendance, g.id);
+            const clash = first.length > 1 || second.length > 1;
+            const players = PLAYERS.map((p) => ({
+              ...p,
+              out: attendance.some((a) => a.game_id === g.id && a.player_id === p.id && a.status === "no"),
+            }));
+            const names = (ids: string[]) => ids.map((id) => playerName(id).split(" ")[0]).join(", ") || "none";
+            return (
+              <li key={g.id}>
+                <div className="mb-1 text-xs text-zinc-500">
+                  Rd {g.round} vs {opponent(g)} · {formatDay(g.kickoff)}
+                </div>
+                <GoalieAssign gameId={g.id} players={players} first={first[0] ?? null} second={second[0] ?? null} />
+                {clash && (
+                  <div className="mt-1 text-xs text-amber-700">
+                    Several volunteers — 1st: {names(first)} · 2nd: {names(second)}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
       </Card>
 
       <Card title="Votes by game">
