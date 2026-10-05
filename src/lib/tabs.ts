@@ -21,14 +21,4 @@ export async function tabData(team: Team) {
   }
 }
 
-const WHEN = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Perth",
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "numeric",
-  minute: "2-digit",
-});
-export function formatWhen(iso: string): string {
-  return WHEN.format(new Date(iso));
-}
+export { formatWhen } from "./time";

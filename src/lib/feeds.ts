@@ -17,7 +17,8 @@ import {
   zonedTime,
   type ImportedFixture,
 } from "./fixtures";
-import { check, db, readLocal, writeLocal, type CompetitionRow } from "./store";
+import { check, db, listLeagues, readLocal, writeLocal, type CompetitionRow } from "./store";
+import { DEFAULT_TZ } from "./time";
 
 // Fixtures from a link, synced into the fixtures table:
 //  - csv: a CSV link or a Google Sheet (same columns as the upload template)
@@ -27,7 +28,6 @@ import { check, db, readLocal, writeLocal, type CompetitionRow } from "./store";
 // stale, or on demand ("Sync now").
 
 export type FeedType = "csv" | "ics" | "web";
-const TZ = "Australia/Perth";
 const STALE_MS: Record<FeedType, number> = { csv: 10 * 60_000, ics: 10 * 60_000, web: 60 * 60_000 };
 const MAX_BYTES = 3 * 1024 * 1024;
 const MAX_PAGE_CHARS = 150_000;
@@ -92,16 +92,16 @@ export function sheetCsvUrl(raw: string): string {
 
 // ---------- calendars (ICS) ----------
 
-function icsDate(value: string, params: string): Date | null {
+function icsDate(value: string, params: string, fallbackTz: string): Date | null {
   const m = value.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?$/);
   if (!m) return null;
   const [, y, mo, d, h = "00", mi = "00", , z] = m;
   if (z) return new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi));
   const tz = params.match(/TZID=([^;:]+)/)?.[1];
-  return zonedTime(`${y}-${mo}-${d}`, `${h}:${mi}`, tz ?? TZ);
+  return zonedTime(`${y}-${mo}-${d}`, `${h}:${mi}`, tz ?? fallbackTz);
 }
 
-export function fixturesFromIcs(text: string, ourTeam: string | null): { fixtures: ImportedFixture[]; errors: string[] } {
+export function fixturesFromIcs(text: string, ourTeam: string | null, tz: string): { fixtures: ImportedFixture[]; errors: string[] } {
   const lines = text.replace(/\r\n[ \t]/g, "").replace(/\n[ \t]/g, "").split(/\r?\n/); // unfold
   const fixtures: ImportedFixture[] = [];
   const errors: string[] = [];
@@ -110,7 +110,7 @@ export function fixturesFromIcs(text: string, ourTeam: string | null): { fixture
     if (line === "BEGIN:VEVENT") ev = {};
     else if (line === "END:VEVENT" && ev) {
       const summary = (ev.SUMMARY?.value ?? "").replace(/\\,/g, ",").replace(/\\n/g, " ").trim();
-      const start = ev.DTSTART ? icsDate(ev.DTSTART.value, ev.DTSTART.params) : null;
+      const start = ev.DTSTART ? icsDate(ev.DTSTART.value, ev.DTSTART.params, tz) : null;
       if (ev.STATUS?.value === "CANCELLED" || !start || !summary) {
         ev = null;
         continue;
@@ -183,7 +183,7 @@ const Extracted = z.object({
   problem: z.string().nullable().describe("If the fixtures couldn't be found, a short reason; otherwise null"),
 });
 
-async function fixturesFromWebPage(pageText: string, url: string, filter: string | null) {
+async function fixturesFromWebPage(pageText: string, url: string, filter: string | null, tz: string) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("Website reading isn’t set up yet (no ANTHROPIC_API_KEY).");
   if (pageText.length < 40) {
     throw new Error("That page has no readable fixtures — it may load them with JavaScript. Try its CSV or calendar export instead.");
@@ -232,7 +232,7 @@ ${pageText}
     fixtures.push({
       round: f.round,
       stage: f.stage,
-      kickoff: zonedTime(date, time, TZ).toISOString(),
+      kickoff: zonedTime(date, time, tz).toISOString(),
       pitch: f.pitch,
       home: f.home.trim(),
       away: f.away.trim(),
@@ -251,6 +251,7 @@ export type FeedSettings = { type: FeedType; url: string; filter: string | null;
 // page skip the (paid) AI read: returns `unchanged: true`.
 export async function readFeed(
   feed: FeedSettings,
+  tz: string,
   previousHash: string | null = null,
 ): Promise<{ fixtures: ImportedFixture[]; errors: string[]; hash: string | null; unchanged?: boolean }> {
   if (feed.type === "csv") {
@@ -258,17 +259,17 @@ export async function readFeed(
     if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
       throw new Error("That link opens a web page, not a CSV. For Google Sheets: Share → Anyone with the link can view.");
     }
-    return { ...fixturesFromCsv(text, TZ), hash: null };
+    return { ...fixturesFromCsv(text, tz), hash: null };
   }
   if (feed.type === "ics") {
     const text = await fetchText(feed.url.replace(/^webcal:/i, "https:"));
     if (!text.includes("BEGIN:VCALENDAR")) throw new Error("That link isn’t a calendar (ICS) file.");
-    return { ...fixturesFromIcs(text, feed.team), hash: null };
+    return { ...fixturesFromIcs(text, feed.team, tz), hash: null };
   }
   const pageText = htmlToText(await fetchText(feed.url));
   const hash = createHash("sha256").update(`${feed.filter ?? ""}|${pageText}`).digest("hex");
   if (previousHash && hash === previousHash) return { fixtures: [], errors: [], hash, unchanged: true };
-  return { ...(await fixturesFromWebPage(pageText, feed.url, feed.filter)), hash };
+  return { ...(await fixturesFromWebPage(pageText, feed.url, feed.filter, tz)), hash };
 }
 
 // ---------- syncing into a competition ----------
@@ -295,7 +296,8 @@ export async function syncCompetitionFeed(competitionId: string, force = false):
   const now = new Date().toISOString();
   try {
     const feed = { type: c.feed_type, url: c.feed_url, filter: c.feed_filter ?? null, team: c.feed_team ?? null };
-    const res = await readFeed(feed, force ? null : (c.feed_hash ?? null));
+    const tz = (await listLeagues()).find((l) => l.id === c.league_id)?.timezone || DEFAULT_TZ;
+    const res = await readFeed(feed, tz, force ? null : (c.feed_hash ?? null));
     if (res.unchanged) {
       await markSynced(competitionId, { feed_synced_at: now, feed_error: null });
       return { count: 0, errors: [] };

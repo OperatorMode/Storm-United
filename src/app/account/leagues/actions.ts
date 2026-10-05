@@ -3,14 +3,18 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
-import { getCompetition } from "@/lib/league";
+import { competitionTz, getCompetition, listCompetitions } from "@/lib/league";
+import { formatWhen, isTimezone } from "@/lib/time";
+import { listTeams } from "@/lib/store";
 import { slugify } from "@/lib/teams";
 import {
   addCompetitionTeams,
   adminLeagueIds,
   competitionIdExists,
   createLeague,
+  deleteCompetitionRow,
   deleteFixture,
+  deleteLeagueRow,
   fixturesFromCsv,
   leagueIdExists,
   listFixtures,
@@ -20,13 +24,14 @@ import {
   parseTime,
   removeCompetitionTeam,
   saveFixtures,
+  updateLeague,
   upsertCompetition,
   zonedTime,
 } from "@/lib/fixtures";
 import type { CompetitionRow } from "@/lib/store";
+import { isPoolStage, parsePools, schedulePools } from "@/lib/events";
 import { readFeed, saveFeedSettings, syncCompetitionFeed, type FeedSettings, type FeedType } from "@/lib/feeds";
 
-const TZ = "Australia/Perth"; // display is Perth-only for now; per-league timezones come later
 
 // Fixture/result changes show up on every team page in the competition.
 const refreshAll = () => revalidatePath("/", "layout");
@@ -93,7 +98,7 @@ export async function createLeagueAction(_: unknown, formData: FormData) {
       website: website || null,
       venue: get("venue") || null,
       source: "manual",
-      timezone: TZ,
+      timezone: isTimezone(get("timezone")) ? get("timezone") : "UTC",
       created_by: managerId,
     },
     managerId,
@@ -144,7 +149,8 @@ export async function removeTeamAction(competitionId: string, name: string) {
 }
 
 export async function addFixtureAction(competitionId: string, _: unknown, formData: FormData) {
-  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
   const get = (k: string) => String(formData.get(k) ?? "").trim();
   const date = parseDate(get("date"));
   const time = parseTime(get("time"));
@@ -154,13 +160,14 @@ export async function addFixtureAction(competitionId: string, _: unknown, formDa
   if (!time) return { error: "Enter a kick-off time, e.g. 5:45 pm." };
   if (!home || !away || home === away) return { error: "Pick two different teams." };
   const round = get("round");
+  const stage = get("stage") || null;
   await saveFixtures([
     {
       id: newFixtureId(),
       competition_id: competitionId,
       round: round ? Number(round) : null,
-      stage: null,
-      kickoff: zonedTime(date, time, TZ).toISOString(),
+      stage,
+      kickoff: zonedTime(date, time, competitionTz(c)).toISOString(),
       pitch: get("pitch") || null,
       home,
       away,
@@ -169,7 +176,8 @@ export async function addFixtureAction(competitionId: string, _: unknown, formDa
       status: "scheduled",
     },
   ]);
-  await addCompetitionTeams(competitionId, [home, away]);
+  // Finals games may use placeholders ("Winner Pool A") until pools finish.
+  if (!stage || isPoolStage(stage)) await addCompetitionTeams(competitionId, [home, away]);
   refreshAll();
   return { ok: true };
 }
@@ -203,7 +211,8 @@ export async function deleteFixtureAction(competitionId: string, fixtureId: stri
 }
 
 export async function importFixturesCsv(competitionId: string, _: unknown, formData: FormData) {
-  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
   const file = formData.get("file");
   let text = String(formData.get("pasted") ?? "");
   if (file instanceof File && file.size > 0) {
@@ -211,7 +220,7 @@ export async function importFixturesCsv(competitionId: string, _: unknown, formD
     text = await file.text();
   }
   if (!text.trim()) return { error: "Choose a CSV file or paste the fixtures." };
-  const { fixtures, errors } = fixturesFromCsv(text, TZ);
+  const { fixtures, errors } = fixturesFromCsv(text, competitionTz(c));
   if (!fixtures.length) return { error: errors[0] ?? "No fixtures found.", errors };
   const merged = mergeImported(competitionId, await listFixtures(competitionId), fixtures);
   await saveFixtures(merged);
@@ -231,22 +240,16 @@ function feedFromForm(formData: FormData): FeedSettings | { error: string } {
   return { type, url, filter: get("feed_filter") || null, team: get("feed_team") || null };
 }
 
-const PREVIEW_TIME = new Intl.DateTimeFormat("en-AU", {
-  timeZone: TZ,
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-  hour: "numeric",
-  minute: "2-digit",
-});
 
 // Reads the link without saving anything, so the admin can check it first.
 export async function previewFeedAction(competitionId: string, _: unknown, formData: FormData) {
-  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  const tz = competitionTz(c);
   const feed = feedFromForm(formData);
   if ("error" in feed) return { error: feed.error };
   try {
-    const { fixtures, errors } = await readFeed(feed);
+    const { fixtures, errors } = await readFeed(feed, tz);
     if (!fixtures.length) return { error: errors[0] ?? "No fixtures found at that link." };
     const teams = new Set(fixtures.flatMap((f) => [f.home, f.away]));
     return {
@@ -255,7 +258,7 @@ export async function previewFeedAction(competitionId: string, _: unknown, formD
       teams: teams.size,
       sample: fixtures.slice(0, 8).map((f) => {
         const score = f.home_score !== null && f.away_score !== null ? ` ${f.home_score}–${f.away_score}` : "";
-        return `${f.round ? `Rd ${f.round} · ` : ""}${PREVIEW_TIME.format(new Date(f.kickoff))} · ${f.home} v ${f.away}${score}`;
+        return `${f.round ? `Rd ${f.round} · ` : ""}${formatWhen(f.kickoff, tz)} · ${f.home} v ${f.away}${score}`;
       }),
       errors,
     };
@@ -288,4 +291,150 @@ export async function disconnectFeedAction(competitionId: string) {
   if (!c) return;
   await saveFeedSettings(c, null); // fixtures already imported stay
   refreshAll();
+}
+
+// ---------- deleting (triple-checked: impact shown, name typed, final confirm) ----------
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+async function sidelnrTeamsIn(competitionIds: string[]) {
+  return (await listTeams()).filter((t) => t.competition_id && competitionIds.includes(t.competition_id));
+}
+
+export async function deleteCompetitionAction(competitionId: string, typedName: string) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  if (!sameName(typedName, c.name)) return { error: `Type “${c.name}” exactly to confirm.` };
+  const teams = await sidelnrTeamsIn([c.id]);
+  if (teams.length) return { error: `Still used by ${teams.map((t) => t.name).join(", ")}. Those teams must be moved or deleted first.` };
+  await deleteCompetitionRow(c.id);
+  refreshAll();
+  const rest = (await listCompetitions()).filter((x) => x.league_id === c.league_id);
+  redirect(rest.length ? `/account/competitions/${rest[0].id}?deleted=1` : `/account/leagues?deleted=1`);
+}
+
+export async function deleteLeagueAction(competitionId: string, typedName: string) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  if (!sameName(typedName, c.league.name)) return { error: `Type “${c.league.name}” exactly to confirm.` };
+  const comps = (await listCompetitions()).filter((x) => x.league_id === c.league_id).map((x) => x.id);
+  const teams = await sidelnrTeamsIn(comps);
+  if (teams.length) return { error: `Still used by ${teams.map((t) => t.name).join(", ")}. Those teams must be moved or deleted first.` };
+  const isEvent = (await listCompetitions()).filter((x) => x.league_id === c.league_id).every((x) => x.kind === "tournament");
+  await deleteLeagueRow(c.league_id);
+  refreshAll();
+  redirect(isEvent ? "/account/events?deleted=1" : "/account/leagues?deleted=1");
+}
+
+// The league's timezone: kick-off times are entered and shown in it.
+export async function saveLeagueTimezone(competitionId: string, _: unknown, formData: FormData) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  const tz = String(formData.get("timezone") ?? "");
+  if (!isTimezone(tz)) return { error: "Pick a timezone from the list." };
+  await updateLeague(c.league_id, { timezone: tz });
+  refreshAll();
+  return { ok: true, timezone: tz };
+}
+
+// ---------- events (one-day carnivals) ----------
+
+export async function createEventAction(_: unknown, formData: FormData) {
+  const managerId = await currentManagerId();
+  if (!managerId) return { error: "Sign in first." };
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const name = get("league_name");
+  if (!name) return { error: "Give your event a name." };
+  const date = parseDate(get("season"));
+  if (!date) return { error: "Pick the event date." };
+  const website = get("website");
+  if (website && !/^https?:\/\//i.test(website)) return { error: "Website should start with https://" };
+
+  const leagueId = await uniqueId(name, leagueIdExists);
+  const competitionId = await uniqueId(`${leagueId}-${get("competition_name") || "main"}`, competitionIdExists);
+  const comp = competitionRow(competitionId, leagueId, get);
+  if ("error" in comp) return { error: comp.error };
+
+  await createLeague(
+    {
+      id: leagueId,
+      name,
+      short_name: get("short_name") || null,
+      website: website || null,
+      venue: get("venue") || null,
+      source: "manual",
+      timezone: isTimezone(get("timezone")) ? get("timezone") : "UTC",
+      created_by: managerId,
+    },
+    managerId,
+  );
+  // The event's date lives in `season` ("yyyy-mm-dd") so the draw generator can default to it.
+  await upsertCompetition({ ...comp, kind: "tournament", season: date, ladder_last_round: null, finals_date: null });
+  revalidatePath("/account");
+  redirect(`/account/competitions/${competitionId}?new=1`);
+}
+
+export async function addEventDivisionAction(leagueId: string, _: unknown, formData: FormData) {
+  const managerId = await currentManagerId();
+  if (!(await isSuperAdmin()) && !(managerId && (await adminLeagueIds(managerId)).includes(leagueId))) {
+    return { error: "You’re not an admin of this event." };
+  }
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const id = await uniqueId(`${leagueId}-${get("competition_name") || "division"}`, competitionIdExists);
+  const comp = competitionRow(id, leagueId, get);
+  if ("error" in comp) return { error: comp.error };
+  const sibling = (await listCompetitions()).find((c) => c.league_id === leagueId);
+  await upsertCompetition({ ...comp, kind: "tournament", season: sibling?.season ?? null, ladder_last_round: null, finals_date: null });
+  revalidatePath("/account");
+  redirect(`/account/competitions/${id}?new=1`);
+}
+
+// Builds every pool's round-robin and lays it out across the pitches.
+export async function generatePoolsAction(competitionId: string, _: unknown, formData: FormData) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const pools = parsePools(get("pools"));
+  const date = parseDate(get("date"));
+  const start = parseTime(get("start"));
+  const slot = Number(get("slot_minutes"));
+  const pitchInput = get("pitches");
+  const pitches = /^\d+$/.test(pitchInput)
+    ? Array.from({ length: Number(pitchInput) }, (_, i) => String(i + 1))
+    : pitchInput.split(",").map((p) => p.trim()).filter(Boolean);
+
+  if (!pools.length) return { error: "Type the teams, one per line (start each pool with “Pool A”, “Pool B”…)." };
+  const tooSmall = pools.find((p) => p.teams.length < 2);
+  if (tooSmall) return { error: `${tooSmall.name} needs at least two teams.` };
+  if (!date) return { error: "Pick the event date." };
+  if (!start) return { error: "Enter the first kick-off, e.g. 9:00 am." };
+  if (!Number.isInteger(slot) || slot < 5 || slot > 240) return { error: "Minutes per game should be 5–240 (include changeover)." };
+  if (!pitches.length || pitches.length > 50) return { error: "Enter how many pitches (e.g. 4) or their names (e.g. 1, 2, Main)." };
+
+  const existing = await listFixtures(competitionId);
+  const oldPool = existing.filter((f) => isPoolStage(f.stage));
+  if (oldPool.length && get("replace") !== "yes") {
+    return { error: `There are already ${oldPool.length} pool games. Tick “Replace the existing pool games” to redo the draw.` };
+  }
+  for (const f of oldPool) await deleteFixture(competitionId, f.id);
+
+  const draw = schedulePools({ pools, date, start, slotMinutes: slot, pitches, timeZone: competitionTz(c) });
+  await saveFixtures(mergeImported(competitionId, oldPool, draw));
+  await addCompetitionTeams(competitionId, pools.flatMap((p) => p.teams));
+  refreshAll();
+  const last = draw.at(-1);
+  return { ok: true, count: draw.length, finish: last ? formatWhen(last.kickoff, competitionTz(c)) : null };
+}
+
+// Fills in a finals game's teams once the pools are decided.
+export async function setFixtureTeamsAction(competitionId: string, fixtureId: string, home: string, away: string) {
+  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  const fixture = (await listFixtures(competitionId)).find((f) => f.id === fixtureId);
+  if (!fixture) return { error: "Game not found." };
+  home = home.trim();
+  away = away.trim();
+  if (!home || !away || home === away) return { error: "Pick two different teams." };
+  await saveFixtures([{ ...fixture, home, away }]);
+  refreshAll();
+  return { ok: true };
 }

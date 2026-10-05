@@ -5,6 +5,8 @@ import { AttendanceButtons } from "@/components/AttendanceButtons";
 import { BallotForm } from "@/components/BallotForm";
 import {
   competitionLabel,
+  competitionTz,
+  roundLabel,
   VOTING_WINDOW_MS,
   formatDay,
   formatIsoDate,
@@ -33,7 +35,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ competition, ourGames, byeRounds, ladder }, attendance, ballots, voter, tabs] = await Promise.all([
+  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle }, attendance, ballots, voter, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
@@ -84,7 +86,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
         )}
 
         {next && (
-          <Card title="Attendance" aside={`Rd ${next.round} · ${formatDay(next.kickoff)}`}>
+          <Card title="Attendance" aside={`${roundLabel(next)} · ${formatDay(next.kickoff, tz)}`}>
             {myChild && next.kickoff.getTime() > now.getTime() && (
               <div className="mb-4">
                 <p className="mb-2 text-sm font-medium">Can {firstName(nameOf(myChild))} make it?</p>
@@ -106,7 +108,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             const gameBallots = ballots.filter((b) => b.game_id === g.id);
             const mine = myChild ? gameBallots.find((b) => b.voter_id === voter) : undefined;
             const candidates = PLAYERS.filter((p) => p.id !== myChild && statusOf(g.id, p.id) !== "no");
-            const closes = formatDay(new Date(g.kickoff.getTime() + VOTING_WINDOW_MS));
+            const closes = formatDay(new Date(g.kickoff.getTime() + VOTING_WINDOW_MS), tz);
             return (
               <div key={g.id} className="mb-4 rounded-xl bg-zinc-50 p-3">
                 <div className="mb-2 flex items-baseline justify-between">
@@ -143,9 +145,9 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                   <li key={g.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                     <div className="min-w-0">
                       <div className="truncate font-medium">
-                        Rd {g.round} vs {opponent(g, us)}
+                        {roundLabel(g)} vs {opponent(g, us)}
                       </div>
-                      <div className="text-xs text-zinc-500">{formatDay(g.kickoff)}</div>
+                      <div className="text-xs text-zinc-500">{formatDay(g.kickoff, tz)}</div>
                     </div>
                     <div className="shrink-0 text-right">
                       {state === "open" ? (
@@ -163,7 +165,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           )}
         </Card>
 
-        <Card title="Ladder" aside={competition?.name}>
+        <Card title={ladderTitle ?? "Ladder"} aside={competition?.name}>
           <div className="-mx-4 overflow-x-auto px-4">
             <table className="w-full text-sm tabular-nums">
               <thead>
@@ -245,6 +247,7 @@ function NextGame({
   game: Game | null;
   myStatus: AttendanceStatus | null;
 }) {
+  const tz = competitionTz(competition);
   if (!game) {
     const finals = competition?.finals_date && competition.finals_date >= new Date().toISOString().slice(0, 10);
     return (
@@ -253,7 +256,7 @@ function NextGame({
         <div className="mt-1 text-2xl font-semibold">{finals ? "Finals" : "No games scheduled"}</div>
         {finals && (
           <div className="text-sm text-on-team/60">
-            {formatIsoDate(competition!.finals_date!)} · draw to be announced
+            {formatIsoDate(competition!.finals_date!, tz)} · draw to be announced
           </div>
         )}
       </div>
@@ -262,13 +265,13 @@ function NextGame({
   const home = game.home === team.league_name;
   return (
     <div className="mt-6">
-      <div className="text-xs uppercase tracking-widest text-on-team/50">Next game · Round {game.round}</div>
+      <div className="text-xs uppercase tracking-widest text-on-team/50">Next game · {roundLabel(game, true)}</div>
       <div className="mt-1 text-[1.65rem] font-semibold leading-tight">vs {opponent(game, team.league_name)}</div>
       {team.meet_minutes > 0 && (
       <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 text-zinc-950">
         <div>
           <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Meeting time</div>
-          <div className="text-xl font-semibold leading-tight">{meetingTime(game, team.meet_minutes)}</div>
+          <div className="text-xl font-semibold leading-tight">{meetingTime(game, team.meet_minutes, tz)}</div>
         </div>
         <div className="text-right text-xs text-zinc-500">
           Warm-up &amp;
@@ -278,7 +281,7 @@ function NextGame({
       </div>
       )}
       <div className={`${team.meet_minutes > 0 ? "mt-2" : "mt-4"} grid grid-cols-3 gap-2 text-sm`}>
-        <Stat label="When" value={formatDay(game.kickoff)} />
+        <Stat label="When" value={formatDay(game.kickoff, tz)} />
         <Stat label="Kick-off" value={game.time} />
         <Stat label="Pitch" value={`${game.pitch} · ${home ? "Home" : "Away"}`} />
       </div>
@@ -367,6 +370,7 @@ function Fixtures({
   attendance: AttendanceRow[];
   myChild: string | null;
 }) {
+  const tz = competitionTz(competition);
   const items = [
     ...games.map((g) => ({ round: g.round, game: g as Game | null, date: g.kickoff as Date | null })),
     ...byes.map((b) => ({ round: b.round as number | null, game: null, date: b.date })),
@@ -379,7 +383,7 @@ function Fixtures({
           return (
             <li key={`bye-${round}`} className="flex justify-between py-2.5 text-sm text-zinc-400">
               <span>Rd {round} · Bye</span>
-              <span className="text-xs">{date ? formatDay(date) : ""}</span>
+              <span className="text-xs">{date ? formatDay(date, tz) : ""}</span>
             </li>
           );
         }
@@ -397,11 +401,11 @@ function Fixtures({
           <div className="flex items-center justify-between gap-3 py-2.5 text-sm">
             <div className="min-w-0">
               <div className="truncate font-medium">
-                Rd {round} · {game.home === us ? "vs" : "@"} {opponent(game, us)}
+                {roundLabel(game)} · {game.home === us ? "vs" : "@"} {opponent(game, us)}
               </div>
               <div className="text-xs text-zinc-500">
-                {formatDay(game.kickoff)}
-                {team.meet_minutes > 0 && ` · Meet ${meetingTime(game, team.meet_minutes)}`} · KO {game.time} · Pitch{" "}
+                {formatDay(game.kickoff, tz)}
+                {team.meet_minutes > 0 && ` · Meet ${meetingTime(game, team.meet_minutes, tz)}`} · KO {game.time} · Pitch{" "}
                 {game.pitch}
               </div>
             </div>
@@ -440,7 +444,7 @@ function Fixtures({
       {competition?.finals_date && (
         <li className="flex justify-between py-2.5 text-sm text-zinc-500">
           <span>Finals &amp; placings</span>
-          <span className="text-xs">{formatIsoDate(competition.finals_date)}</span>
+          <span className="text-xs">{formatIsoDate(competition.finals_date, tz)}</span>
         </li>
       )}
     </ul>

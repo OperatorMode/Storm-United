@@ -8,17 +8,19 @@ import { canView, currentVoter, isTeamAdmin } from "@/lib/session";
 import { listAnnouncements } from "@/lib/messages";
 import { formatWhen, tabData } from "@/lib/tabs";
 import { pushPublicKey } from "@/lib/push";
+import { teamTz } from "@/lib/league";
 
 export default async function BoardPage({ params }: PageProps<"/[team]/board">) {
   const team = await getTeam((await params).team);
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [voter, coach, announcements, tabs] = await Promise.all([
+  const [voter, coach, announcements, tabs, tz] = await Promise.all([
     currentVoter(team),
     isTeamAdmin(team),
     listAnnouncements(team.id),
     tabData(team),
+    teamTz(team),
   ]);
   const families = team.players.length;
 
@@ -51,7 +53,7 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
             <article key={a.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
               <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
                 <span className="font-medium text-zinc-700">📣 Coach</span>
-                <span>{formatWhen(a.created_at)}</span>
+                <span>{formatWhen(a.created_at, tz)}</span>
               </div>
               <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{a.body}</p>
 

@@ -15,7 +15,7 @@ import { currentManagerId, isSuperAdmin, isTeamAdmin } from "@/lib/session";
 import { teamManagerIds } from "@/lib/accounts";
 import { AddToMyTeams } from "./AccountLink";
 import { emailEnabled } from "@/lib/email";
-import { formatDay, getLeagueData, opponent, votingState } from "@/lib/league";
+import { formatDay, getLeagueData, roundLabel, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { goaliesForGame, goalieTally } from "@/lib/goalies";
 import { tally, winners } from "@/lib/mvp";
@@ -64,7 +64,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     );
   }
 
-  const [{ ourGames }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers] = await Promise.all([
+  const [{ ourGames, tz }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers] = await Promise.all([
     getLeagueData(team),
     getBallots(team.id),
     getManualScores(team.id),
@@ -225,7 +225,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 return (
                   <li key={g.id}>
                     <div className="mb-1 text-xs text-zinc-500">
-                      Rd {g.round} vs {opponent(g, us)} · {formatDay(g.kickoff)}
+                      {roundLabel(g)} vs {opponent(g, us)} · {formatDay(g.kickoff, tz)}
                     </div>
                     <GoalieAssign
                       teamId={team.id}
@@ -261,7 +261,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 <li key={g.id}>
                   <div className="flex items-baseline justify-between text-sm">
                     <span className="font-semibold">
-                      Rd {g.round} vs {opponent(g, us)}
+                      {roundLabel(g)} vs {opponent(g, us)}
                     </span>
                     <span className="text-xs text-zinc-500">
                       {gb.length} ballots · {votingState(g, now) === "open" ? "open" : "closed"}
@@ -290,7 +290,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             {played.map((g) => (
               <li key={g.id}>
                 <div className="mb-1 text-xs text-zinc-500">
-                  Rd {g.round} · {formatDay(g.kickoff)}
+                  {roundLabel(g)} · {formatDay(g.kickoff, tz)}
                   {g.scoreSource === "league" && " · league score posted"}
                 </div>
                 <ScoreForm teamId={team.id} gameId={g.id} home={g.home} away={g.away} initial={manual[g.id] ?? null} />
