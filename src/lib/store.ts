@@ -6,6 +6,8 @@ import path from "path";
 // Supabase (service-role key, never sent to the browser). Without Supabase env
 // vars — i.e. local dev — it falls back to a JSON file in .data/ so the app is
 // usable before the database is connected.
+//
+// Everything is scoped by team id (the URL slug).
 
 export type AttendanceStatus = "yes" | "no" | "maybe";
 // Which half a player has volunteered to keep goal ("full" = whole game).
@@ -25,10 +27,28 @@ export type BallotRow = {
 };
 export type ManualScores = Record<string, { home: number; away: number }>;
 
+export type TeamRow = {
+  id: string;
+  name: string;
+  league_name: string;
+  division: string;
+  primary_color: string;
+  accent_color: string;
+  logo_url: string | null;
+  admin_pin_hash: string | null;
+  join_code_hash: string | null;
+  meet_minutes: number;
+  goalie_enabled: boolean;
+};
+export type PlayerRow = { id: string; name: string; sort: number; active: boolean };
+
+type Scoped<T> = T & { team_id: string };
 type LocalDb = {
-  attendance: AttendanceRow[];
-  ballots: BallotRow[];
-  scores: { game_id: string; home: number; away: number }[];
+  teams: TeamRow[];
+  players: Scoped<PlayerRow>[];
+  attendance: Scoped<AttendanceRow>[];
+  ballots: Scoped<BallotRow>[];
+  scores: Scoped<{ game_id: string; home: number; away: number }>[];
 };
 
 let supabase: SupabaseClient | null = null;
@@ -43,12 +63,37 @@ function db(): SupabaseClient | null {
   return supabase;
 }
 
+// Local dev seed mirrors supabase/migrations/001_multi_team.sql.
+const LOCAL_SEED: LocalDb = {
+  teams: [
+    {
+      id: "storm-united",
+      name: "Storm United",
+      league_name: "Storm United",
+      division: "U10",
+      primary_color: "#0a0a0a",
+      accent_color: "#e5334b",
+      logo_url: "/brand/crest.svg",
+      admin_pin_hash: null,
+      join_code_hash: null,
+      meet_minutes: 30,
+      goalie_enabled: true,
+    },
+  ],
+  players: ["Benjamin B.", "Brooklyn L.", "Erik J.", "Khushmeet G.", "Rayygan K.", "Ryan L.", "Viaan V.", "Zane B."].map(
+    (name, sort) => ({ team_id: "storm-united", id: name.split(" ")[0].toLowerCase(), name, sort, active: true }),
+  ),
+  attendance: [],
+  ballots: [],
+  scores: [],
+};
+
 const LOCAL_FILE = path.join(process.cwd(), ".data", "local-db.json");
 async function readLocal(): Promise<LocalDb> {
   try {
-    return JSON.parse(await fs.readFile(LOCAL_FILE, "utf8"));
+    return { ...structuredClone(LOCAL_SEED), ...JSON.parse(await fs.readFile(LOCAL_FILE, "utf8")) };
   } catch {
-    return { attendance: [], ballots: [], scores: [] };
+    return structuredClone(LOCAL_SEED);
   }
 }
 async function writeLocal(data: LocalDb) {
@@ -61,74 +106,169 @@ function check<T>(res: { data: T | null; error: { message: string } | null }): T
   return res.data as T;
 }
 
-export async function getAttendance(): Promise<AttendanceRow[]> {
+const strip = <T extends { team_id: string }>({ team_id: _, ...rest }: T) => rest; // eslint-disable-line @typescript-eslint/no-unused-vars
+
+// ---------- teams & players ----------
+
+const TEAM_COLS =
+  "id, name, league_name, division, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, meet_minutes, goalie_enabled";
+
+export async function listTeams(): Promise<TeamRow[]> {
   const s = db();
-  if (!s) return (await readLocal()).attendance.map((r) => ({ ...r, goalie: r.goalie ?? null }));
-  return check(await s.from("attendance").select("game_id, player_id, status, goalie"));
+  if (!s) return (await readLocal()).teams;
+  return check(await s.from("teams").select(TEAM_COLS).order("name"));
 }
 
-export async function setAttendance(row: AttendanceRow): Promise<void> {
+export async function getTeamRow(id: string): Promise<TeamRow | null> {
+  const s = db();
+  if (!s) return (await readLocal()).teams.find((t) => t.id === id) ?? null;
+  return check(await s.from("teams").select(TEAM_COLS).eq("id", id).maybeSingle());
+}
+
+export async function upsertTeam(team: TeamRow): Promise<void> {
+  const s = db();
+  if (!s) {
+    const data = await readLocal();
+    data.teams = [...data.teams.filter((t) => t.id !== team.id), team];
+    return writeLocal(data);
+  }
+  check(await s.from("teams").upsert(team, { onConflict: "id" }));
+}
+
+export async function deleteTeam(id: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const data = await readLocal();
+    data.teams = data.teams.filter((t) => t.id !== id);
+    for (const k of ["players", "attendance", "ballots", "scores"] as const) {
+      (data[k] as { team_id: string }[]) = data[k].filter((r) => r.team_id !== id);
+    }
+    return writeLocal(data);
+  }
+  check(await s.from("teams").delete().eq("id", id)); // cascades to players/attendance/ballots/scores
+}
+
+export async function getPlayers(teamId: string): Promise<PlayerRow[]> {
+  const s = db();
+  const rows = s
+    ? check(await s.from("players").select("id, name, sort, active").eq("team_id", teamId))
+    : (await readLocal()).players.filter((p) => p.team_id === teamId).map(strip);
+  return rows.sort((a, b) => a.sort - b.sort);
+}
+
+export async function savePlayers(teamId: string, players: PlayerRow[]): Promise<void> {
+  const s = db();
+  if (!s) {
+    const data = await readLocal();
+    data.players = [...data.players.filter((p) => p.team_id !== teamId), ...players.map((p) => ({ ...p, team_id: teamId }))];
+    return writeLocal(data);
+  }
+  if (players.length) {
+    check(await s.from("players").upsert(players.map((p) => ({ ...p, team_id: teamId })), { onConflict: "team_id,id" }));
+  }
+}
+
+// Stores an uploaded logo and returns its public URL.
+export async function uploadLogo(teamId: string, file: File): Promise<string> {
+  const ext = { "image/png": "png", "image/jpeg": "jpg", "image/svg+xml": "svg" }[file.type] ?? "png";
+  const name = `${teamId}-${Date.now()}.${ext}`;
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const s = db();
+  if (!s) {
+    const dir = path.join(process.cwd(), "public", "uploads");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, name), bytes);
+    return `/uploads/${name}`;
+  }
+  check(await s.storage.from("logos").upload(name, bytes, { contentType: file.type, upsert: true }));
+  return s.storage.from("logos").getPublicUrl(name).data.publicUrl;
+}
+
+// ---------- attendance, ballots, scores ----------
+
+export async function getAttendance(teamId: string): Promise<AttendanceRow[]> {
+  const s = db();
+  if (!s) {
+    return (await readLocal()).attendance
+      .filter((r) => r.team_id === teamId)
+      .map((r) => ({ ...strip(r), goalie: r.goalie ?? null }));
+  }
+  return check(await s.from("attendance").select("game_id, player_id, status, goalie").eq("team_id", teamId));
+}
+
+export async function setAttendance(teamId: string, row: AttendanceRow): Promise<void> {
   const s = db();
   if (!s) {
     const data = await readLocal();
     data.attendance = data.attendance.filter(
-      (r) => !(r.game_id === row.game_id && r.player_id === row.player_id),
+      (r) => !(r.team_id === teamId && r.game_id === row.game_id && r.player_id === row.player_id),
     );
-    data.attendance.push(row);
+    data.attendance.push({ ...row, team_id: teamId });
     return writeLocal(data);
   }
   check(
     await s
       .from("attendance")
-      .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: "game_id,player_id" }),
+      .upsert(
+        { ...row, team_id: teamId, updated_at: new Date().toISOString() },
+        { onConflict: "team_id,game_id,player_id" },
+      ),
   );
 }
 
-export async function getBallots(): Promise<BallotRow[]> {
+export async function getBallots(teamId: string): Promise<BallotRow[]> {
   const s = db();
-  if (!s) return (await readLocal()).ballots;
-  return check(await s.from("ballots").select("game_id, voter_id, first, second, third"));
+  if (!s) return (await readLocal()).ballots.filter((r) => r.team_id === teamId).map(strip);
+  return check(await s.from("ballots").select("game_id, voter_id, first, second, third").eq("team_id", teamId));
 }
 
-export async function upsertBallot(row: BallotRow): Promise<void> {
+export async function upsertBallot(teamId: string, row: BallotRow): Promise<void> {
   const s = db();
   if (!s) {
     const data = await readLocal();
     data.ballots = data.ballots.filter(
-      (r) => !(r.game_id === row.game_id && r.voter_id === row.voter_id),
+      (r) => !(r.team_id === teamId && r.game_id === row.game_id && r.voter_id === row.voter_id),
     );
-    data.ballots.push(row);
+    data.ballots.push({ ...row, team_id: teamId });
     return writeLocal(data);
   }
   check(
     await s
       .from("ballots")
-      .upsert({ ...row, updated_at: new Date().toISOString() }, { onConflict: "game_id,voter_id" }),
+      .upsert(
+        { ...row, team_id: teamId, updated_at: new Date().toISOString() },
+        { onConflict: "team_id,game_id,voter_id" },
+      ),
   );
 }
 
-export async function getManualScores(): Promise<ManualScores> {
+export async function getManualScores(teamId: string): Promise<ManualScores> {
   const s = db();
   const rows = s
-    ? check(await s.from("manual_scores").select("game_id, home, away"))
-    : (await readLocal()).scores;
+    ? check(await s.from("manual_scores").select("game_id, home, away").eq("team_id", teamId))
+    : (await readLocal()).scores.filter((r) => r.team_id === teamId);
   return Object.fromEntries(rows.map((r) => [r.game_id, { home: r.home, away: r.away }]));
 }
 
 export async function setManualScore(
+  teamId: string,
   gameId: string,
   score: { home: number; away: number } | null,
 ): Promise<void> {
   const s = db();
   if (!s) {
     const data = await readLocal();
-    data.scores = data.scores.filter((r) => r.game_id !== gameId);
-    if (score) data.scores.push({ game_id: gameId, ...score });
+    data.scores = data.scores.filter((r) => !(r.team_id === teamId && r.game_id === gameId));
+    if (score) data.scores.push({ team_id: teamId, game_id: gameId, ...score });
     return writeLocal(data);
   }
   if (score) {
-    check(await s.from("manual_scores").upsert({ game_id: gameId, ...score }, { onConflict: "game_id" }));
+    check(
+      await s
+        .from("manual_scores")
+        .upsert({ team_id: teamId, game_id: gameId, ...score }, { onConflict: "team_id,game_id" }),
+    );
   } else {
-    check(await s.from("manual_scores").delete().eq("game_id", gameId));
+    check(await s.from("manual_scores").delete().eq("team_id", teamId).eq("game_id", gameId));
   }
 }

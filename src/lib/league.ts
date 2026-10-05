@@ -8,8 +8,8 @@ const DRAW_URL = "https://tpp-6aside.netlify.app/data.js";
 const RESULTS_URL =
   "https://tpp-mindset-default-rtdb.asia-southeast1.firebasedatabase.app/sixaside2026/public.json";
 
-export const TEAM = "Storm United";
-export const DIVISION = "U10";
+export const DIVISIONS = ["U8", "U10", "U12", "U14"] as const;
+export const DIVISION_LABEL: Record<string, string> = { U8: "Under 8s", U10: "Under 10s", U12: "Under 12s", U14: "Under 14s" };
 export const FINALS_DATE = "14/12/2026";
 // Ladder only counts the regular season — week 10 is finals/placings.
 const LAST_REGULAR_ROUND = 9;
@@ -81,11 +81,20 @@ export type LeagueData = {
   ladder: LadderRow[];
 };
 
-export async function getLeagueData(): Promise<LeagueData> {
+// Team names per division, straight from the TPP draw (for setting up teams).
+export async function leagueTeams(): Promise<Record<string, string[]>> {
+  const draw = await fetchDraw();
+  return Object.fromEntries(Object.entries(draw.teams).map(([div, ts]) => [div, ts.map((t) => t.name).sort()]));
+}
+
+// `team` is the team as named in the TPP draw, in its division.
+export async function getLeagueData(team: { id: string; league_name: string; division: string }): Promise<LeagueData> {
+  const TEAM = team.league_name;
+  const DIVISION = team.division;
   const [draw, results, manual] = await Promise.all([
     fetchDraw(),
     fetchResults(),
-    getManualScores(),
+    getManualScores(team.id),
   ]);
 
   const divGames: Game[] = draw.games
@@ -146,13 +155,13 @@ function buildLadder(teams: string[], games: Game[]): LadderRow[] {
     .sort((x, y) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.team.localeCompare(y.team));
 }
 
-export function opponent(g: Game): string {
-  return g.home === TEAM ? g.away : g.home;
+export function opponent(g: Game, us: string): string {
+  return g.home === us ? g.away : g.home;
 }
 
-export function ourScore(g: Game): { us: number; them: number } | null {
+export function ourScore(g: Game, us: string): { us: number; them: number } | null {
   if (!g.score) return null;
-  return g.home === TEAM
+  return g.home === us
     ? { us: g.score.home, them: g.score.away }
     : { us: g.score.away, them: g.score.home };
 }
@@ -183,16 +192,15 @@ export function formatDay(d: Date): string {
   return DAY.format(d);
 }
 
-// Team meets 30 min before kick-off for warm-up and a short practice.
-export const MEET_BEFORE_MS = 30 * 60 * 1000;
+// Teams meet a set number of minutes before kick-off (warm-up / practice).
 const TIME = new Intl.DateTimeFormat("en-AU", {
   timeZone: "Australia/Perth",
   hour: "numeric",
   minute: "2-digit",
   hour12: true,
 });
-export function meetingTime(g: Game): string {
-  return TIME.format(new Date(g.kickoff.getTime() - MEET_BEFORE_MS)).replace(/\s*([ap])\.?m\.?/i, " $1m").toLowerCase();
+export function meetingTime(g: Game, minutesBefore: number): string {
+  return TIME.format(new Date(g.kickoff.getTime() - minutesBefore * 60 * 1000)).replace(/\s*([ap])\.?m\.?/i, " $1m").toLowerCase();
 }
 export function formatDdmmyyyy(date: string): string {
   return formatDay(perthKickoff(date, "12:00 pm"));

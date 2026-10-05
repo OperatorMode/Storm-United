@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local dev data store
 /.data
+
+# local dev logo uploads
+/public/uploads

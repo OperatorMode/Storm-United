@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { updateAttendance } from "@/app/actions";
+import { updateAttendance } from "@/app/[team]/actions";
 import type { AttendanceStatus, GoalieHalf } from "@/lib/store";
 
 const OPTIONS: { value: AttendanceStatus; label: string; on: string }[] = [
@@ -19,11 +19,15 @@ const GOALIE_OPTIONS: { value: GoalieHalf; label: string }[] = [
 type State = { status: AttendanceStatus | null; goalie: GoalieHalf | null };
 
 export function AttendanceButtons({
+  teamId,
   gameId,
   status,
   goalie,
+  goalieEnabled,
 }: {
+  teamId: string;
   gameId: string;
+  goalieEnabled: boolean;
   status: AttendanceStatus | null;
   goalie: GoalieHalf | null;
 }) {
@@ -40,7 +44,7 @@ export function AttendanceButtons({
   function save(change: { status: AttendanceStatus } | { goalie: GoalieHalf | null }) {
     start(async () => {
       setOptimistic(change);
-      const res = await updateAttendance(gameId, change);
+      const res = await updateAttendance(teamId, gameId, change);
       setError(res.error ?? null);
     });
   }
@@ -62,7 +66,7 @@ export function AttendanceButtons({
         ))}
       </div>
 
-      {state.status !== "no" && (
+      {goalieEnabled && state.status !== "no" && (
         <fieldset className="mt-3">
           <legend className="mb-1.5 text-xs font-medium text-zinc-500">🧤 Happy to be goalie</legend>
           <div className="grid grid-cols-3 gap-2">

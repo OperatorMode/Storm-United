@@ -1,11 +1,10 @@
 import type { BallotRow } from "./store";
-import { PLAYERS } from "./players";
 
 // 3-2-1 voting: each ballot gives 3 points to first, 2 to second, 1 to third.
 export type Tally = { playerId: string; points: number }[];
 
-export function tally(ballots: BallotRow[]): Tally {
-  const pts = new Map<string, number>(PLAYERS.map((p) => [p.id, 0]));
+export function tally(ballots: BallotRow[], playerIds: string[]): Tally {
+  const pts = new Map<string, number>(playerIds.map((id) => [id, 0]));
   for (const b of ballots) {
     pts.set(b.first, (pts.get(b.first) ?? 0) + 3);
     pts.set(b.second, (pts.get(b.second) ?? 0) + 2);

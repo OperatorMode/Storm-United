@@ -1,0 +1,67 @@
+"use client";
+
+import { useActionState } from "react";
+import { saveTeamSettings } from "./actions";
+
+export function TeamSettings({
+  teamId,
+  players,
+  hasJoinCode,
+  meetMinutes,
+  goalieEnabled,
+}: {
+  teamId: string;
+  players: string;
+  hasJoinCode: boolean;
+  meetMinutes: number;
+  goalieEnabled: boolean;
+}) {
+  const [state, action, pending] = useActionState(saveTeamSettings.bind(null, teamId), null);
+  const field = "w-full rounded-xl border border-zinc-300 px-3 py-2 text-base";
+  return (
+    <form action={action} className="space-y-4 text-sm">
+      <label className="block">
+        <span className="mb-1 block font-medium">Players</span>
+        <span className="mb-1.5 block text-xs text-zinc-500">
+          One per line, first name + last initial (e.g. “Zane B.”). Removing a player keeps their past votes and goalie
+          history.
+        </span>
+        <textarea name="players" defaultValue={players} rows={Math.max(6, players.split("\n").length + 1)} className={field} />
+      </label>
+
+      <label className="block">
+        <span className="mb-1 block font-medium">Join code</span>
+        <span className="mb-1.5 block text-xs text-zinc-500">
+          {hasJoinCode
+            ? "Set — parents need it once to open the team page. Type a new one to change it."
+            : "Not set — anyone with the link can open the team page."}
+        </span>
+        <input name="join_code" autoComplete="off" placeholder={hasJoinCode ? "New code (optional)" : "e.g. storm26"} className={field} />
+        {hasJoinCode && (
+          <span className="mt-1.5 flex items-center gap-2 text-xs text-zinc-600">
+            <input type="checkbox" name="clear_join" className="size-4" /> Remove the join code
+          </span>
+        )}
+      </label>
+
+      <label className="block">
+        <span className="mb-1 block font-medium">Meeting time</span>
+        <span className="flex items-center gap-2">
+          <input name="meet_minutes" type="number" min={0} max={120} defaultValue={meetMinutes} className="w-20 rounded-xl border border-zinc-300 px-3 py-2 text-base" />
+          <span className="text-zinc-600">minutes before kick-off (0 = don’t show)</span>
+        </span>
+      </label>
+
+      <label className="flex items-center gap-2">
+        <input type="checkbox" name="goalie_enabled" defaultChecked={goalieEnabled} className="size-4" />
+        <span className="font-medium">Goalie sign-up</span>
+      </label>
+
+      <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white">
+        {pending ? "Saving…" : "Save settings"}
+      </button>
+      {state?.error && <p className="text-accent">{state.error}</p>}
+      {state?.ok && <p className="text-emerald-700">Saved.</p>}
+    </form>
+  );
+}

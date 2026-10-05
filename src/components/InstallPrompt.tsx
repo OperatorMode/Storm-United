@@ -8,7 +8,7 @@ const DISMISS_KEY = "su_install_dismissed";
 
 // Android/Chrome: offers a real "Install" button via beforeinstallprompt.
 // iPhone/iPad Safari has no install API, so we explain Share → Add to Home Screen.
-export function InstallPrompt() {
+export function InstallPrompt({ name, icon }: { name: string; icon: string }) {
   const [mode, setMode] = useState<"hidden" | "android" | "ios">("hidden");
   const [event, setEvent] = useState<InstallEvent | null>(null);
 
@@ -53,11 +53,11 @@ export function InstallPrompt() {
   return (
     <section className="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/icons/icon-192.png" alt="" className="size-10 shrink-0 rounded-xl" />
+      <img src={icon} alt="" className="size-10 shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1">
         <div className="font-semibold">Get the app</div>
         {mode === "android" ? (
-          <p className="mt-0.5 text-sm text-zinc-500">Add Storm United to your home screen.</p>
+          <p className="mt-0.5 text-sm text-zinc-500">Add {name} to your home screen.</p>
         ) : (
           <p className="mt-0.5 text-sm text-zinc-500">
             Tap <ShareIcon /> <b className="font-medium text-zinc-700">Share</b> in Safari, then{" "}

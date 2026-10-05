@@ -4,11 +4,13 @@ import { useState, useTransition } from "react";
 import { saveManualScore } from "./actions";
 
 export function ScoreForm({
+  teamId,
   gameId,
   home,
   away,
   initial,
 }: {
+  teamId: string;
   gameId: string;
   home: string;
   away: string;
@@ -30,7 +32,7 @@ export function ScoreForm({
         disabled={pending}
         onClick={() =>
           start(async () => {
-            const res = await saveManualScore(gameId, h.trim(), a.trim());
+            const res = await saveManualScore(teamId, gameId, h.trim(), a.trim());
             setMsg(res.error ?? "Saved");
           })
         }

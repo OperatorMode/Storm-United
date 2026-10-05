@@ -4,11 +4,13 @@ import { useState, useTransition } from "react";
 import { setGameGoalies } from "./actions";
 
 export function GoalieAssign({
+  teamId,
   gameId,
   players,
   first,
   second,
 }: {
+  teamId: string;
   gameId: string;
   players: { id: string; name: string; out: boolean }[];
   first: string | null;
@@ -51,7 +53,7 @@ export function GoalieAssign({
         disabled={pending || !dirty}
         onClick={() =>
           start(async () => {
-            const res = await setGameGoalies(gameId, one || null, two || null);
+            const res = await setGameGoalies(teamId, gameId, one || null, two || null);
             setMsg(res.error ?? "Saved");
           })
         }

@@ -12,10 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Team pages override these (name, icon, install manifest) in [team]/layout.tsx.
 export const metadata: Metadata = {
-  title: "Storm United",
-  description: "Storm United U10 — fixtures, attendance, MVP votes and the ladder.",
-  appleWebApp: { capable: true, title: "Storm United", statusBarStyle: "black-translucent" },
+  title: "TPP 6 A-Side Team App",
+  description: "Team app for the TPP 6 A-Side League: fixtures, attendance, MVP votes and the ladder.",
 };
 
 export const viewport: Viewport = {

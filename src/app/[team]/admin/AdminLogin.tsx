@@ -1,12 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { adminLogin } from "@/app/actions";
+import { adminLogin } from "@/app/[team]/actions";
 
-export function AdminLogin() {
+export function AdminLogin({ teamId }: { teamId: string }) {
   const [state, action, pending] = useActionState(adminLogin, null);
   return (
     <form action={action} className="space-y-3">
+      <input type="hidden" name="team" value={teamId} />
       <input
         name="pin"
         type="password"

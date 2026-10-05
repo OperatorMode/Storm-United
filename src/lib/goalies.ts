@@ -1,5 +1,4 @@
 import type { AttendanceRow, GoalieHalf } from "./store";
-import { PLAYERS } from "./players";
 
 // Goalie slots live on the attendance row (parents tick them, the coach can
 // override them from /admin). These helpers turn them into per-half views.
@@ -26,15 +25,19 @@ export type GoalieTallyRow = {
 };
 
 // Halves in goal per player across the given games (a full game = 2 halves).
-export function goalieTally(attendance: AttendanceRow[], games: { id: string; round: number }[]): GoalieTallyRow[] {
+export function goalieTally(
+  attendance: AttendanceRow[],
+  games: { id: string; round: number }[],
+  playerIds: string[],
+): GoalieTallyRow[] {
   const round = new Map(games.map((g) => [g.id, g.round]));
-  return PLAYERS.map((p) => {
+  return playerIds.map((id) => {
     const mine = attendance
-      .filter((a) => a.player_id === p.id && a.goalie && round.has(a.game_id))
+      .filter((a) => a.player_id === id && a.goalie && round.has(a.game_id))
       .map((a) => ({ gameId: a.game_id, round: round.get(a.game_id)!, goalie: a.goalie! }))
       .sort((x, y) => x.round - y.round);
     return {
-      playerId: p.id,
+      playerId: id,
       halves: mine.reduce((n, g) => n + (g.goalie === "full" ? 2 : 1), 0),
       games: mine,
     };

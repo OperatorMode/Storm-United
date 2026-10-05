@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
+/* Team colours are set per team as CSS variables (see src/lib/theme.ts);
+   the fallbacks are Storm United's black / white / red. */
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  /* The red from the Umbro diamond on the jersey — used sparingly. */
-  --color-accent: #e5334b;
+  --color-team: var(--team-primary, #0a0a0a);
+  --color-on-team: var(--team-on, #ffffff);
+  --color-accent: var(--team-accent, #e5334b);
+  --color-on-accent: var(--team-on-accent, #ffffff);
 }
 
 body {
@@ -12,11 +16,12 @@ body {
   color: #09090b;
 }
 
-/* Subtle nod to the jersey's diamond pattern, fading out like the shirt does. */
+/* Header in the team colour with a subtle diamond pattern, fading like a jersey. */
 .jersey {
-  background-color: #0a0a0a;
+  background-color: var(--team-primary, #0a0a0a);
+  color: var(--team-on, #ffffff);
   background-image:
-    linear-gradient(180deg, rgba(10, 10, 10, 0) 0%, rgba(10, 10, 10, 0.85) 100%),
-    repeating-linear-gradient(60deg, rgba(255, 255, 255, 0.05) 0 14px, transparent 14px 28px),
-    repeating-linear-gradient(-60deg, rgba(255, 255, 255, 0.05) 0 14px, transparent 14px 28px);
+    linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--team-primary, #0a0a0a) 85%, transparent) 100%),
+    repeating-linear-gradient(60deg, color-mix(in srgb, var(--team-on, #ffffff) 6%, transparent) 0 14px, transparent 14px 28px),
+    repeating-linear-gradient(-60deg, color-mix(in srgb, var(--team-on, #ffffff) 6%, transparent) 0 14px, transparent 14px 28px);
 }

@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { submitBallot } from "@/app/actions";
+import { submitBallot } from "@/app/[team]/actions";
 
 const POINTS = [3, 2, 1];
 
 // Tap players in order: first tap = 3 points, second = 2, third = 1.
 export function BallotForm({
+  teamId,
   gameId,
   candidates,
   existing,
 }: {
+  teamId: string;
   gameId: string;
   candidates: { id: string; name: string }[];
   existing: string[] | null;
@@ -56,11 +58,11 @@ export function BallotForm({
         disabled={picks.length !== 3 || pending}
         onClick={() =>
           start(async () => {
-            const res = await submitBallot(gameId, picks);
+            const res = await submitBallot(teamId, gameId, picks);
             setMessage(res.error ? { ok: false, text: res.error } : { ok: true, text: "Votes saved — thanks!" });
           })
         }
-        className="mt-3 w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
+        className="mt-3 w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40"
       >
         {pending ? "Saving…" : existing ? "Update my votes" : "Submit votes"}
       </button>
