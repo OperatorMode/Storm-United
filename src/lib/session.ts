@@ -50,7 +50,15 @@ export async function canView(team: Team): Promise<boolean> {
   return isTeamAdmin(team);
 }
 
+// Storm United parents who picked their child before teams had their own links
+// still carry the old un-scoped cookie; honour it so they don't have to re-pick.
+const LEGACY_VOTER_COOKIE = "su_voter";
+const LEGACY_TEAM = "storm-united";
+
 export async function currentVoter(team: Team): Promise<string | null> {
-  const id = (await cookies()).get(voterCookie(team.id))?.value;
+  const store = await cookies();
+  const id =
+    store.get(voterCookie(team.id))?.value ??
+    (team.id === LEGACY_TEAM ? store.get(LEGACY_VOTER_COOKIE)?.value : undefined);
   return id && isActivePlayer(team, id) ? id : null;
 }
