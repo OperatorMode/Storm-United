@@ -360,7 +360,11 @@ function Fixtures({
         const us = team.league_name;
         const res = ourScore(game, us);
         const upcoming = game.kickoff.getTime() > now.getTime();
-        const inCount = attendance.filter((a) => a.game_id === game.id && a.status === "yes").length;
+        // Count the current squad only (same as the Attendance card): rows for
+        // players who've since been removed are kept for history but don't count.
+        const inCount = team.players.filter((p) =>
+          attendance.some((a) => a.game_id === game.id && a.player_id === p.id && a.status === "yes"),
+        ).length;
         const myRow = myChild ? attendance.find((a) => a.game_id === game.id && a.player_id === myChild) : undefined;
         const mine = myRow?.status ?? null;
         const row = (
