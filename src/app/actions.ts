@@ -5,7 +5,13 @@ import { revalidatePath } from "next/cache";
 import { getLeagueData, votingState } from "@/lib/league";
 import { isPlayerId } from "@/lib/players";
 import { now } from "@/lib/clock";
-import { getAttendance, setAttendance, upsertBallot, type AttendanceStatus } from "@/lib/store";
+import {
+  getAttendance,
+  setAttendance,
+  upsertBallot,
+  type AttendanceStatus,
+  type GoalieHalf,
+} from "@/lib/store";
 import { ADMIN_COOKIE, VOTER_COOKIE, YEAR, adminToken, currentVoter } from "@/lib/session";
 
 export async function chooseVoter(voterId: string) {
@@ -22,14 +28,33 @@ async function findGame(gameId: string) {
   return ourGames.find((g) => g.id === gameId) ?? null;
 }
 
-export async function markAttendance(gameId: string, status: AttendanceStatus) {
+// Sets attendance and/or the goalie volunteer slot. Volunteering for goal
+// implies the child is playing; marking "Can't make it" clears any goalie slot.
+export async function updateAttendance(
+  gameId: string,
+  change: { status: AttendanceStatus } | { goalie: GoalieHalf | null },
+) {
   const voter = await currentVoter();
-  if (!voter || !isPlayerId(voter)) return { error: "Pick your child first." };
-  if (!["yes", "no", "maybe"].includes(status)) return { error: "Invalid status." };
+  if (!voter) return { error: "Pick your child first." };
+  if ("status" in change && !["yes", "no", "maybe"].includes(change.status)) return { error: "Invalid status." };
+  if ("goalie" in change && change.goalie !== null && !["1st", "2nd", "full"].includes(change.goalie)) {
+    return { error: "Invalid goalie choice." };
+  }
   const game = await findGame(gameId);
   if (!game) return { error: "Game not found." };
   if (game.kickoff.getTime() < now().getTime()) return { error: "This game has already started." };
-  await setAttendance({ game_id: gameId, player_id: voter, status });
+
+  const existing = (await getAttendance()).find((a) => a.game_id === gameId && a.player_id === voter);
+  let status: AttendanceStatus;
+  let goalie: GoalieHalf | null;
+  if ("status" in change) {
+    status = change.status;
+    goalie = status === "no" ? null : (existing?.goalie ?? null);
+  } else {
+    goalie = change.goalie;
+    status = goalie ? "yes" : (existing?.status ?? "yes");
+  }
+  await setAttendance({ game_id: gameId, player_id: voter, status, goalie });
   revalidatePath("/");
   return { ok: true };
 }

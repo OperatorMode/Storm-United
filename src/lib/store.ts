@@ -8,7 +8,14 @@ import path from "path";
 // usable before the database is connected.
 
 export type AttendanceStatus = "yes" | "no" | "maybe";
-export type AttendanceRow = { game_id: string; player_id: string; status: AttendanceStatus };
+// Which half a player has volunteered to keep goal ("full" = whole game).
+export type GoalieHalf = "1st" | "2nd" | "full";
+export type AttendanceRow = {
+  game_id: string;
+  player_id: string;
+  status: AttendanceStatus;
+  goalie: GoalieHalf | null;
+};
 export type BallotRow = {
   game_id: string;
   voter_id: string;
@@ -56,8 +63,8 @@ function check<T>(res: { data: T | null; error: { message: string } | null }): T
 
 export async function getAttendance(): Promise<AttendanceRow[]> {
   const s = db();
-  if (!s) return (await readLocal()).attendance;
-  return check(await s.from("attendance").select("game_id, player_id, status"));
+  if (!s) return (await readLocal()).attendance.map((r) => ({ ...r, goalie: r.goalie ?? null }));
+  return check(await s.from("attendance").select("game_id, player_id, status, goalie"));
 }
 
 export async function setAttendance(row: AttendanceRow): Promise<void> {

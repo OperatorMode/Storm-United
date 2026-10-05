@@ -32,3 +32,7 @@ create table if not exists manual_scores (
 alter table attendance    enable row level security;
 alter table ballots       enable row level security;
 alter table manual_scores enable row level security;
+
+-- Goalie volunteer slot per player per game (added after launch).
+alter table attendance add column if not exists goalie text
+  check (goalie in ('1st', '2nd', 'full'));

@@ -17,7 +17,7 @@ import {
 } from "@/lib/league";
 import Link from "next/link";
 import { PLAYERS, playerName } from "@/lib/players";
-import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus } from "@/lib/store";
+import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
 import { currentVoter } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
@@ -32,8 +32,9 @@ export default async function Home() {
   const now = clockNow();
   const next = nextGame(ourGames, now);
   const myChild = voter;
-  const statusOf = (gameId: string, playerId: string) =>
-    attendance.find((a) => a.game_id === gameId && a.player_id === playerId)?.status ?? null;
+  const rowOf = (gameId: string, playerId: string) =>
+    attendance.find((a) => a.game_id === gameId && a.player_id === playerId);
+  const statusOf = (gameId: string, playerId: string) => rowOf(gameId, playerId)?.status ?? null;
 
   const played = ourGames.filter((g) => g.kickoff.getTime() <= now.getTime()).reverse();
   const openVoting = played.filter((g) => votingState(g, now) === "open");
@@ -73,7 +74,11 @@ export default async function Home() {
             {myChild && next.kickoff.getTime() > now.getTime() && (
               <div className="mb-4">
                 <p className="mb-2 text-sm font-medium">Can {playerName(myChild).split(" ")[0]} make it?</p>
-                <AttendanceButtons gameId={next.id} status={statusOf(next.id, myChild)} />
+                <AttendanceButtons
+                  gameId={next.id}
+                  status={statusOf(next.id, myChild)}
+                  goalie={rowOf(next.id, myChild)?.goalie ?? null}
+                />
               </div>
             )}
             <AttendanceList gameId={next.id} attendance={attendance} highlight={myChild} />
@@ -244,6 +249,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = { yes: "Can play", maybe: "Maybe", no: "Can't make it" };
+const GOALIE_LABEL: Record<GoalieHalf, string> = { "1st": "1st", "2nd": "2nd", full: "FT" };
 const STATUS_DOT: Record<AttendanceStatus | "none", string> = {
   yes: "bg-emerald-500",
   maybe: "bg-amber-400",
@@ -260,10 +266,10 @@ function AttendanceList({
   attendance: AttendanceRow[];
   highlight: string | null;
 }) {
-  const rows = PLAYERS.map((p) => ({
-    player: p,
-    status: attendance.find((a) => a.game_id === gameId && a.player_id === p.id)?.status ?? null,
-  }));
+  const rows = PLAYERS.map((p) => {
+    const row = attendance.find((a) => a.game_id === gameId && a.player_id === p.id);
+    return { player: p, status: row?.status ?? null, goalie: row?.goalie ?? null };
+  });
   const count = (s: AttendanceStatus | null) => rows.filter((r) => r.status === s).length;
   return (
     <div>
@@ -274,10 +280,15 @@ function AttendanceList({
         <span><b className="text-zinc-900">{count(null)}</b> no reply</span>
       </div>
       <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
-        {rows.map(({ player, status }) => (
+        {rows.map(({ player, status, goalie }) => (
           <li key={player.id} className={`flex items-center gap-2 ${player.id === highlight ? "font-semibold" : ""}`}>
             <span className={`size-2.5 shrink-0 rounded-full ${STATUS_DOT[status ?? "none"]}`} />
             <span className={`truncate ${status === "no" ? "text-zinc-400 line-through" : ""}`}>{player.name}</span>
+            {goalie && (
+              <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700">
+                🧤 {GOALIE_LABEL[goalie]}
+              </span>
+            )}
           </li>
         ))}
       </ul>
@@ -317,7 +328,8 @@ function Fixtures({
         const res = ourScore(game);
         const upcoming = game.kickoff.getTime() > now.getTime();
         const inCount = attendance.filter((a) => a.game_id === game.id && a.status === "yes").length;
-        const mine = myChild ? attendance.find((a) => a.game_id === game.id && a.player_id === myChild)?.status : null;
+        const myRow = myChild ? attendance.find((a) => a.game_id === game.id && a.player_id === myChild) : undefined;
+        const mine = myRow?.status ?? null;
         const row = (
           <div className="flex items-center justify-between gap-3 py-2.5 text-sm">
             <div className="min-w-0">
@@ -348,7 +360,7 @@ function Fixtures({
             <details className="group">
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">{row}</summary>
               <div className="pb-3">
-                <AttendanceButtons gameId={game.id} status={mine ?? null} />
+                <AttendanceButtons gameId={game.id} status={mine} goalie={myRow?.goalie ?? null} />
               </div>
             </details>
           </li>
