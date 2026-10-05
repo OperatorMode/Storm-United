@@ -15,13 +15,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Storm United",
   description: "Storm United U10 — fixtures, attendance, MVP votes and the ladder.",
-  appleWebApp: { title: "Storm United", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Storm United", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0a0a0a",
   width: "device-width",
   initialScale: 1,
+  // Lets the installed iPhone app draw under the status bar; the header pads for it.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

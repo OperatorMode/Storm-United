@@ -1,5 +1,6 @@
 import { Card } from "@/components/Card";
 import { VoterPicker } from "@/components/VoterPicker";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { AttendanceButtons } from "@/components/AttendanceButtons";
 import { BallotForm } from "@/components/BallotForm";
 import {
@@ -42,7 +43,7 @@ export default async function Home() {
 
   return (
     <div className="mx-auto max-w-md pb-10">
-      <header className="jersey px-4 pb-6 pt-5 text-white">
+      <header className="jersey px-4 pb-6 pt-[calc(env(safe-area-inset-top)+1.25rem)] text-white">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="grid size-9 place-items-center rounded-lg border border-white/25 bg-white/10 text-sm font-bold tracking-tight">
@@ -60,6 +61,7 @@ export default async function Home() {
       </header>
 
       <main className="-mt-2 space-y-4 px-4">
+        <InstallPrompt />
         {!voter && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Welcome! Who are you?</h2>
