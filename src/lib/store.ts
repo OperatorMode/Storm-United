@@ -30,8 +30,9 @@ export type ManualScores = Record<string, { home: number; away: number }>;
 export type TeamRow = {
   id: string;
   name: string;
-  league_name: string;
-  division: string;
+  league_name: string; // the team's name in its competition's fixtures
+  division: string; // legacy (pre-competitions); kept for older rows
+  competition_id: string | null;
   primary_color: string;
   accent_color: string;
   logo_url: string | null;
@@ -50,11 +51,36 @@ export type LocalDb = {
   attendance: Scoped<AttendanceRow>[];
   ballots: Scoped<BallotRow>[];
   scores: Scoped<{ game_id: string; home: number; away: number }>[];
+  leagues?: LeagueRow[];
+  competitions?: CompetitionRow[];
   // Messaging (see messages.ts); optional so older local files still load.
   announcements?: { id: string; team_id: string; body: string; created_at: string }[];
   acks?: { announcement_id: string; player_id: string; created_at: string }[];
   chat?: { id: string; team_id: string; author_id: string; body: string; created_at: string }[];
   subs?: PushSubRow[];
+};
+
+export type LeagueRow = {
+  id: string;
+  name: string;
+  short_name: string | null;
+  website: string | null;
+  venue: string | null;
+  source: "tpp" | "manual";
+};
+
+export type CompetitionRow = {
+  id: string;
+  league_id: string;
+  name: string;
+  season: string | null;
+  kind: "season" | "tournament";
+  source_key: string | null;
+  points_win: number;
+  points_draw: number;
+  ladder_last_round: number | null;
+  finals_date: string | null; // yyyy-mm-dd
+  finals_note: string | null;
 };
 
 export type PushSubRow = {
@@ -87,6 +113,7 @@ const LOCAL_SEED: LocalDb = {
       name: "Storm United",
       league_name: "Storm United",
       division: "U10",
+      competition_id: "tpp-2026-u10",
       primary_color: "#0a0a0a",
       accent_color: "#e5334b",
       logo_url: "/brand/crest.svg",
@@ -103,6 +130,29 @@ const LOCAL_SEED: LocalDb = {
   attendance: [],
   ballots: [],
   scores: [],
+  leagues: [
+    {
+      id: "tpp-6aside-2026",
+      name: "TPP 6 A-Side League 2026",
+      short_name: "TPP 6 A-Side",
+      website: "https://tpp-6aside.netlify.app/",
+      venue: "Rossiter Pavilion, Piara Waters",
+      source: "tpp",
+    },
+  ],
+  competitions: (["U8", "U10", "U12", "U14"] as const).map((d) => ({
+    id: `tpp-2026-${d.toLowerCase()}`,
+    league_id: "tpp-6aside-2026",
+    name: `Under ${d.slice(1)}s`,
+    season: "2026",
+    kind: "season" as const,
+    source_key: d,
+    points_win: 3,
+    points_draw: 1,
+    ladder_last_round: 9,
+    finals_date: "2026-12-14",
+    finals_note: "Top two play the grand final in week 10.",
+  })),
 };
 
 const LOCAL_FILE = path.join(process.cwd(), ".data", "local-db.json");
@@ -128,7 +178,7 @@ const strip = <T extends { team_id: string }>({ team_id: _, ...rest }: T) => res
 // ---------- teams & players ----------
 
 const TEAM_COLS =
-  "id, name, league_name, division, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled";
+  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled";
 
 export async function listTeams(): Promise<TeamRow[]> {
   const s = db();
@@ -140,6 +190,23 @@ export async function getTeamRow(id: string): Promise<TeamRow | null> {
   const s = db();
   if (!s) return (await readLocal()).teams.find((t) => t.id === id) ?? null;
   return check(await s.from("teams").select(TEAM_COLS).eq("id", id).maybeSingle());
+}
+
+// ---------- leagues & competitions ----------
+
+const COMPETITION_COLS =
+  "id, league_id, name, season, kind, source_key, points_win, points_draw, ladder_last_round, finals_date, finals_note";
+
+export async function listLeagues(): Promise<LeagueRow[]> {
+  const s = db();
+  if (!s) return (await readLocal()).leagues ?? [];
+  return check(await s.from("leagues").select("id, name, short_name, website, venue, source").order("name"));
+}
+
+export async function listCompetitionRows(): Promise<CompetitionRow[]> {
+  const s = db();
+  if (!s) return (await readLocal()).competitions ?? [];
+  return check(await s.from("competitions").select(COMPETITION_COLS).order("id"));
 }
 
 export async function findTeamIdByJoinKey(key: string): Promise<string | null> {

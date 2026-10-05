@@ -8,7 +8,7 @@ import { superLogout } from "./actions";
 import { isSuperAdmin } from "@/lib/session";
 import { listTeams } from "@/lib/store";
 import { getTeam } from "@/lib/teams";
-import { DIVISION_LABEL, leagueTeams } from "@/lib/league";
+import { competitionLabel, competitionTeams, listCompetitions } from "@/lib/league";
 import { logoSrc } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "All teams · Admin", robots: { index: false } };
@@ -29,8 +29,14 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const creating = params.new !== undefined;
   const saved = typeof params.saved === "string" ? params.saved : null;
 
-  const [teams, divisions] = await Promise.all([listTeams(), leagueTeams()]);
-  const taken = Object.fromEntries(teams.filter((t) => t.id !== editId).map((t) => [t.league_name, t.name]));
+  const [teams, competitions] = await Promise.all([listTeams(), listCompetitions()]);
+  const taken = Object.fromEntries(
+    teams.filter((t) => t.id !== editId).map((t) => [`${t.competition_id}|${t.league_name}`, t.name]),
+  );
+  const labelOf = (id: string | null) => {
+    const c = competitions.find((x) => x.id === id);
+    return c ? competitionLabel(c) : "No competition";
+  };
   const editing = editId ? await getTeam(editId) : null;
 
   if (creating || editing) {
@@ -41,15 +47,21 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
         </Link>
         <Card title={editing ? `Edit ${editing.name}` : "New team"}>
           <TeamForm
-            divisions={divisions}
-            labels={DIVISION_LABEL}
+            competitions={await Promise.all(
+              competitions.map(async (c) => ({
+                id: c.id,
+                league: c.league.name,
+                name: c.name,
+                teams: await competitionTeams(c.id),
+              })),
+            )}
             taken={taken}
             initial={
               editing && {
                 id: editing.id,
                 name: editing.name,
                 league_name: editing.league_name,
-                division: editing.division,
+                competition_id: editing.competition_id ?? "",
                 primary_color: editing.primary_color,
                 accent_color: editing.accent_color,
                 logo_url: editing.logo_url,
@@ -95,7 +107,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
               <div className="min-w-0 flex-1">
                 <div className="truncate font-semibold">{t.name}</div>
                 <div className="truncate text-xs text-zinc-500">
-                  {DIVISION_LABEL[t.division] ?? t.division} · /{t.id}
+                  {labelOf(t.competition_id)} · /{t.id}
                 </div>
               </div>
               <span className="size-4 shrink-0 rounded-full border border-zinc-300" style={{ background: t.primary_color }} />

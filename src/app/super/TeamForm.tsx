@@ -7,7 +7,7 @@ export type TeamFormValues = {
   id: string;
   name: string;
   league_name: string;
-  division: string;
+  competition_id: string;
   primary_color: string;
   accent_color: string;
   logo_url: string | null;
@@ -20,22 +20,23 @@ export type TeamFormValues = {
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 
+export type CompetitionOption = { id: string; league: string; name: string; teams: string[] };
+
 export function TeamForm({
-  divisions,
-  labels,
+  competitions,
   taken,
   initial,
 }: {
-  divisions: Record<string, string[]>; // division -> team names in the TPP draw
-  labels: Record<string, string>;
-  taken: Record<string, string>; // TPP team name -> our team already following it (allowed, e.g. demo teams)
+  competitions: CompetitionOption[];
+  taken: Record<string, string>; // "competitionId|team" -> our team already following it (allowed, e.g. demo teams)
   initial: TeamFormValues | null; // null = new team
 }) {
   const [state, action, pending] = useActionState(saveTeam, null);
-  const [division, setDivision] = useState(initial?.division ?? Object.keys(divisions)[0] ?? "");
+  const [competitionId, setCompetitionId] = useState(initial?.competition_id ?? competitions[0]?.id ?? "");
   const [leagueName, setLeagueName] = useState(initial?.league_name ?? "");
   const [name, setName] = useState(initial?.name ?? "");
-  const options = divisions[division] ?? [];
+  const options = competitions.find((c) => c.id === competitionId)?.teams ?? [];
+  const leagues = [...new Set(competitions.map((c) => c.league))];
 
   return (
     <form action={action} className="space-y-4 text-sm">
@@ -43,25 +44,31 @@ export function TeamForm({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
-          <span className="mb-1 block font-medium">Division</span>
+          <span className="mb-1 block font-medium">Competition</span>
           <select
-            name="division"
-            value={division}
+            name="competition_id"
+            value={competitionId}
             onChange={(e) => {
-              setDivision(e.target.value);
+              setCompetitionId(e.target.value);
               setLeagueName("");
             }}
             className={field}
           >
-            {Object.keys(divisions).map((d) => (
-              <option key={d} value={d}>
-                {labels[d] ?? d}
-              </option>
+            {leagues.map((l) => (
+              <optgroup key={l} label={l}>
+                {competitions
+                  .filter((c) => c.league === l)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+              </optgroup>
             ))}
           </select>
         </label>
         <label className="block">
-          <span className="mb-1 block font-medium">Team (TPP draw)</span>
+          <span className="mb-1 block font-medium">Team (in the draw)</span>
           <select
             name="league_name"
             value={leagueName}
@@ -76,7 +83,7 @@ export function TeamForm({
             {options.map((t) => (
               <option key={t} value={t}>
                 {t}
-                {taken[t] && t !== initial?.league_name ? ` (also used by ${taken[t]})` : ""}
+                {taken[`${competitionId}|${t}`] && t !== initial?.league_name ? ` (also used by ${taken[`${competitionId}|${t}`]})` : ""}
               </option>
             ))}
           </select>

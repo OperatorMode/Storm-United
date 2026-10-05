@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { deleteTeam, getTeamRow, savePlayers, setAttendance, upsertTeam, uploadLogo, type TeamRow } from "@/lib/store";
-import { getLeagueData, leagueTeams, nextGame } from "@/lib/league";
+import { competitionTeams, getCompetition, getLeagueData, nextGame } from "@/lib/league";
 import { ackAnnouncement, addAnnouncement, addChat, listAnnouncements, listChat } from "@/lib/messages";
 import { getTeam, hashSecret, joinCodeFields, mergePlayers, slugify } from "@/lib/teams";
 import { isHexColor } from "@/lib/theme";
@@ -34,15 +34,18 @@ export async function saveTeam(_: unknown, formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "").trim();
 
   const editing = get("existing_id");
-  const division = get("division");
+  const competitionId = get("competition_id");
   const leagueName = get("league_name");
   const name = get("name") || leagueName;
   const id = editing || slugify(get("slug") || name);
   const primary = get("primary_color");
   const accent = get("accent_color");
 
-  const divisions = await leagueTeams();
-  if (!divisions[division]?.includes(leagueName)) return { error: "Pick the team as it appears in the TPP draw." };
+  const competition = await getCompetition(competitionId);
+  if (!competition) return { error: "Pick a competition." };
+  if (!(await competitionTeams(competition.id)).includes(leagueName)) {
+    return { error: "Pick the team as it appears in the competition’s draw." };
+  }
   if (!id || RESERVED.has(id)) return { error: "Choose a different link name." };
   if (!editing && (await getTeamRow(id))) return { error: `A team already uses /${id}.` };
   if (!isHexColor(primary) || !isHexColor(accent)) return { error: "Pick both colours." };
@@ -74,7 +77,8 @@ export async function saveTeam(_: unknown, formData: FormData) {
     id,
     name,
     league_name: leagueName,
-    division,
+    division: competition.source_key ?? competition.id, // legacy column
+    competition_id: competition.id,
     primary_color: primary.toLowerCase(),
     accent_color: accent.toLowerCase(),
     logo_url: logoUrl,

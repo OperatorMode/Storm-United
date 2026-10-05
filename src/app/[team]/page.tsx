@@ -4,17 +4,17 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { AttendanceButtons } from "@/components/AttendanceButtons";
 import { BallotForm } from "@/components/BallotForm";
 import {
-  DIVISION_LABEL,
-  FINALS_DATE,
+  competitionLabel,
   VOTING_WINDOW_MS,
   formatDay,
-  formatDdmmyyyy,
+  formatIsoDate,
   getLeagueData,
   meetingTime,
   nextGame,
   opponent,
   ourScore,
   votingState,
+  type Competition,
   type Game,
 } from "@/lib/league";
 import { notFound } from "next/navigation";
@@ -33,7 +33,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ ourGames, byeRounds, ladder }, attendance, ballots, voter, tabs] = await Promise.all([
+  const [{ competition, ourGames, byeRounds, ladder }, attendance, ballots, voter, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
@@ -62,13 +62,13 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             <img src={logoSrc(team)} alt={`${team.name} logo`} className="size-12 shrink-0 object-contain" />
             <div className="leading-tight">
               <div className="font-semibold">{team.name}</div>
-              <div className="text-xs text-on-team/60">{DIVISION_LABEL[team.division] ?? team.division} · TPP 6 A-Side</div>
+              <div className="text-xs text-on-team/60">{competition ? competitionLabel(competition) : team.division}</div>
             </div>
           </div>
           <VoterPicker teamId={team.id} players={PLAYERS} current={voter} />
         </div>
 
-        <NextGame team={team} game={next} myStatus={myChild && next ? statusOf(next.id, myChild) : null} />
+        <NextGame team={team} competition={competition} game={next} myStatus={myChild && next ? statusOf(next.id, myChild) : null} />
       </header>
 
       <main className="-mt-2 space-y-4 px-4">
@@ -163,7 +163,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           )}
         </Card>
 
-        <Card title="Ladder" aside={team.division}>
+        <Card title="Ladder" aside={competition?.name}>
           <div className="-mx-4 overflow-x-auto px-4">
             <table className="w-full text-sm tabular-nums">
               <thead>
@@ -198,13 +198,15 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             </table>
           </div>
           <p className="mt-3 text-xs text-zinc-500">
-            3 pts a win, 1 a draw. Top two play the grand final on {formatDdmmyyyy(FINALS_DATE)}.
+            {competition?.points_win ?? 3} pts a win, {competition?.points_draw ?? 1} a draw.
+            {competition?.finals_note && ` ${competition.finals_note}`}
           </p>
         </Card>
 
         <Card title="Season fixtures">
           <Fixtures
             team={team}
+            competition={competition}
             games={ourGames}
             byes={byeRounds}
             now={now}
@@ -213,25 +215,47 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           />
         </Card>
 
-        <p className="pt-2 text-center text-xs text-zinc-400">
-          Rossiter Pavilion, Piara Waters · Draw &amp; results from{" "}
-          <a href="https://tpp-6aside.netlify.app/" className="underline">
-            The Proper Player
-          </a>
-        </p>
+        {competition && (
+          <p className="pt-2 text-center text-xs text-zinc-400">
+            {competition.league.venue && `${competition.league.venue} · `}
+            Draw &amp; results from{" "}
+            {competition.league.website ? (
+              <a href={competition.league.website} className="underline">
+                {competition.league.name}
+              </a>
+            ) : (
+              competition.league.name
+            )}
+          </p>
+        )}
       </main>
       <TabBar teamId={team.id} active="home" {...tabs} />
     </div>
   );
 }
 
-function NextGame({ team, game, myStatus }: { team: Team; game: Game | null; myStatus: AttendanceStatus | null }) {
+function NextGame({
+  team,
+  competition,
+  game,
+  myStatus,
+}: {
+  team: Team;
+  competition: Competition | null;
+  game: Game | null;
+  myStatus: AttendanceStatus | null;
+}) {
   if (!game) {
+    const finals = competition?.finals_date && competition.finals_date >= new Date().toISOString().slice(0, 10);
     return (
       <div className="mt-6">
         <div className="text-xs uppercase tracking-widest text-on-team/50">Up next</div>
-        <div className="mt-1 text-2xl font-semibold">Finals week</div>
-        <div className="text-sm text-on-team/60">{formatDdmmyyyy(FINALS_DATE)} · draw announced after round 9</div>
+        <div className="mt-1 text-2xl font-semibold">{finals ? "Finals" : "No games scheduled"}</div>
+        {finals && (
+          <div className="text-sm text-on-team/60">
+            {formatIsoDate(competition!.finals_date!)} · draw to be announced
+          </div>
+        )}
       </div>
     );
   }
@@ -328,6 +352,7 @@ function AttendanceList({
 
 function Fixtures({
   team,
+  competition,
   games,
   byes,
   now,
@@ -335,16 +360,17 @@ function Fixtures({
   myChild,
 }: {
   team: Team;
+  competition: Competition | null;
   games: Game[];
-  byes: { round: number; date: string }[];
+  byes: { round: number; date: Date | null }[];
   now: Date;
   attendance: AttendanceRow[];
   myChild: string | null;
 }) {
   const items = [
-    ...games.map((g) => ({ round: g.round, game: g as Game | null, date: g.date })),
-    ...byes.map((b) => ({ round: b.round, game: null, date: b.date })),
-  ].sort((a, b) => a.round - b.round);
+    ...games.map((g) => ({ round: g.round, game: g as Game | null, date: g.kickoff as Date | null })),
+    ...byes.map((b) => ({ round: b.round as number | null, game: null, date: b.date })),
+  ].sort((a, b) => (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0) || (a.round ?? 0) - (b.round ?? 0));
 
   return (
     <ul className="divide-y divide-zinc-100">
@@ -353,7 +379,7 @@ function Fixtures({
           return (
             <li key={`bye-${round}`} className="flex justify-between py-2.5 text-sm text-zinc-400">
               <span>Rd {round} · Bye</span>
-              <span className="text-xs">{formatDdmmyyyy(date)}</span>
+              <span className="text-xs">{date ? formatDay(date) : ""}</span>
             </li>
           );
         }
@@ -411,10 +437,12 @@ function Fixtures({
           </li>
         );
       })}
-      <li className="flex justify-between py-2.5 text-sm text-zinc-500">
-        <span>Week 10 · Finals &amp; placings</span>
-        <span className="text-xs">{formatDdmmyyyy(FINALS_DATE)}</span>
-      </li>
+      {competition?.finals_date && (
+        <li className="flex justify-between py-2.5 text-sm text-zinc-500">
+          <span>Finals &amp; placings</span>
+          <span className="text-xs">{formatIsoDate(competition.finals_date)}</span>
+        </li>
+      )}
     </ul>
   );
 }

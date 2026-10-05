@@ -21,21 +21,21 @@ export function goalieSlot(playerId: string, first: string | null, second: strin
 export type GoalieTallyRow = {
   playerId: string;
   halves: number;
-  games: { gameId: string; round: number; goalie: GoalieHalf }[];
+  games: { gameId: string; round: number | null; goalie: GoalieHalf }[];
 };
 
 // Halves in goal per player across the given games (a full game = 2 halves).
 export function goalieTally(
   attendance: AttendanceRow[],
-  games: { id: string; round: number }[],
+  games: { id: string; round: number | null }[],
   playerIds: string[],
 ): GoalieTallyRow[] {
   const round = new Map(games.map((g) => [g.id, g.round]));
   return playerIds.map((id) => {
     const mine = attendance
       .filter((a) => a.player_id === id && a.goalie && round.has(a.game_id))
-      .map((a) => ({ gameId: a.game_id, round: round.get(a.game_id)!, goalie: a.goalie! }))
-      .sort((x, y) => x.round - y.round);
+      .map((a) => ({ gameId: a.game_id, round: round.get(a.game_id) ?? null, goalie: a.goalie! }))
+      .sort((x, y) => (x.round ?? 0) - (y.round ?? 0));
     return {
       playerId: id,
       halves: mine.reduce((n, g) => n + (g.goalie === "full" ? 2 : 1), 0),
