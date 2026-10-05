@@ -53,6 +53,10 @@ export type LocalDb = {
   scores: Scoped<{ game_id: string; home: number; away: number }>[];
   leagues?: LeagueRow[];
   competitions?: CompetitionRow[];
+  // Manager accounts (see accounts.ts).
+  managers?: { id: string; email: string; name: string | null; created_at: string }[];
+  team_managers?: { team_id: string; manager_id: string; role: "owner" | "manager"; created_at: string }[];
+  login_tokens?: { token_hash: string; email: string; expires_at: string; used_at: string | null; created_at: string }[];
   // Messaging (see messages.ts); optional so older local files still load.
   announcements?: { id: string; team_id: string; body: string; created_at: string }[];
   acks?: { announcement_id: string; player_id: string; created_at: string }[];

@@ -2,21 +2,9 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getTeam, slugify, teamIdForJoinCode, verifySecret, type Team } from "@/lib/teams";
+import { verifySecret } from "@/lib/teams";
+import { lookupTeam as lookup } from "@/lib/team-lookup";
 import { COOKIE_OPTS, SUPER_COOKIE, adminCookie, adminToken, joinCookie, joinToken, superToken } from "@/lib/session";
-
-// Finds a team from what someone typed: its join code, or its name / link.
-// A name only gets you to the team's page — a team with a join code still asks for it.
-async function lookup(input: string): Promise<{ team: Team; byCode: boolean } | null> {
-  const byCode = await teamIdForJoinCode(input);
-  if (byCode) {
-    const team = await getTeam(byCode);
-    if (team) return { team, byCode: true };
-  }
-  const slug = slugify(input.replace(/^.*sidelnr\.app\//i, ""));
-  const team = slug ? await getTeam(slug) : null;
-  return team ? { team, byCode: false } : null;
-}
 
 export async function joinTeam(_: unknown, formData: FormData) {
   const input = String(formData.get("code") ?? "").trim();
