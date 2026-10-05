@@ -11,7 +11,8 @@ import { logoSrc } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "My teams · Sidelnr", robots: { index: false } };
 
-export default async function AccountPage() {
+export default async function AccountPage({ searchParams }: PageProps<"/account">) {
+  const saved = (await searchParams).saved !== undefined;
   const manager = await currentManager();
   if (!manager) redirect("/login?next=/account");
 
@@ -44,9 +45,15 @@ export default async function AccountPage() {
       </header>
 
       <main className="mx-auto max-w-md space-y-4 px-4 py-4">
+        {saved && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Team saved.</p>}
+
+        <Link href="/account/new" className="block rounded-xl bg-accent px-4 py-3 text-center text-sm font-semibold text-on-accent">
+          + Create a team
+        </Link>
+
         {teams.length === 0 && (
           <p className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
-            No teams yet. Already manage a team on Sidelnr? Add it below with its manager PIN.
+            No teams yet. Create one above, or add a team you already manage below with its manager PIN.
           </p>
         )}
 
@@ -62,12 +69,15 @@ export default async function AccountPage() {
                 </div>
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-center text-sm">
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm">
               <Link href={`/${team.id}`} className="rounded-lg border border-zinc-300 py-2">
                 Team page
               </Link>
+              <Link href={`/account/teams/${team.id}`} className="rounded-lg border border-zinc-300 py-2">
+                Edit
+              </Link>
               <Link href={`/${team.id}/admin`} className="rounded-lg bg-zinc-900 py-2 font-medium text-white">
-                Manager’s Corner
+                Manage
               </Link>
             </div>
           </div>

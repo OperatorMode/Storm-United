@@ -27,8 +27,9 @@ export async function generateMetadata({ params }: PageProps<"/[team]/admin">): 
   return { title: `${team?.name ?? "Team"} · Manager’s Corner`, robots: { index: false } };
 }
 
-export default async function AdminPage({ params }: PageProps<"/[team]/admin">) {
+export default async function AdminPage({ params, searchParams }: PageProps<"/[team]/admin">) {
   const team = await getTeam((await params).team);
+  const created = (await searchParams).created !== undefined;
   if (!team) notFound();
 
   const tabsPromise = tabData(team);
@@ -120,6 +121,19 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
     <div className="mx-auto max-w-md pb-24">
       {header}
       <main className="mt-4 space-y-4 px-4">
+      {created && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <div className="font-semibold">🎉 {team.name} is ready!</div>
+          <p className="mt-1">
+            Share <b>sidelnr.app/{team.id}</b> with your families
+            {team.join_code_hash ? " together with your join code" : ""}. They pick their child once and can add the app to
+            their home screen.
+          </p>
+          <p className="mt-2 text-xs text-emerald-800">
+            Tip: post a welcome message on the Board — families get notified once they switch notifications on.
+          </p>
+        </div>
+      )}
       {!linked && (managerId || emailEnabled()) && (
         <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
           {managerId ? (
