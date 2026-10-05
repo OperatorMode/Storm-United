@@ -8,6 +8,8 @@ import { AdminLogin } from "./AdminLogin";
 import { ScoreForm } from "./ScoreForm";
 import { GoalieAssign } from "./GoalieAssign";
 import { TeamSettings } from "./TeamSettings";
+import { MergePlayers } from "./MergePlayers";
+import { listAnnouncements, listChat } from "@/lib/messages";
 import { adminLogout } from "./actions";
 import { isSuperAdmin, isTeamAdmin } from "@/lib/session";
 import { formatDay, getLeagueData, opponent, votingState } from "@/lib/league";
@@ -52,15 +54,36 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
     );
   }
 
-  const [{ ourGames }, ballots, manual, attendance, superAdmin, tabs] = await Promise.all([
+  const [{ ourGames }, ballots, manual, attendance, superAdmin, tabs, chat, posts] = await Promise.all([
     getLeagueData(team),
     getBallots(team.id),
     getManualScores(team.id),
     getAttendance(team.id),
     isSuperAdmin(),
     tabsPromise,
+    listChat(team.id),
+    listAnnouncements(team.id),
   ]);
   const now = clockNow();
+
+  // Removed players who still have history — candidates for "Merge players".
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const removed = team.allPlayers
+    .filter((p) => !p.active)
+    .map((p) => {
+      const answers = attendance.filter((a) => a.player_id === p.id).length;
+      const votes = ballots.filter((b) => b.voter_id === p.id || [b.first, b.second, b.third].includes(p.id)).length;
+      const messages = chat.filter((m) => m.author_id === p.id).length;
+      const acks = posts.filter((a) => a.acks.includes(p.id)).length;
+      const parts = [
+        answers && plural(answers, "attendance answer"),
+        votes && plural(votes, "vote"),
+        acks && plural(acks, "acknowledgement"),
+        messages && plural(messages, "chat message"),
+      ].filter(Boolean);
+      return { id: p.id, name: p.name, summary: parts.join(" · ") };
+    })
+    .filter((r) => r.summary);
   const played = ourGames.filter((g) => g.kickoff.getTime() <= now.getTime());
   const us = team.league_name;
   const nameOf = (id: string) => playerName(team, id);
@@ -233,6 +256,16 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
           </ul>
         )}
       </Card>
+
+      {removed.length > 0 && (
+        <Card title="Merge players" aside="Renamed someone?">
+          <p className="mb-3 text-xs text-zinc-500">
+            These removed players still have history. If one is just an old spelling of a current player, merge them to
+            move everything across.
+          </p>
+          <MergePlayers teamId={team.id} removed={removed} current={team.players} />
+        </Card>
+      )}
 
       <Card title="Team settings">
         <TeamSettings
