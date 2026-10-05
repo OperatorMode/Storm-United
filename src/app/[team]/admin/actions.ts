@@ -6,6 +6,7 @@ import { getAttendance, savePlayers, setAttendance, setManualScore, upsertTeam }
 import { getLeagueData } from "@/lib/league";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
+import { mergePlayer } from "@/lib/merge";
 import { SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
 
 async function adminTeam(teamId: string): Promise<Team | null> {
@@ -99,4 +100,17 @@ export async function adminLogout(teamId: string) {
   store.delete(adminCookie(teamId));
   store.delete(SUPER_COOKIE);
   revalidatePath(`/${teamId}/admin`);
+}
+
+// Merges a removed player (e.g. an old spelling of a name) into a current one,
+// moving their attendance, votes, acknowledgements and chat across.
+export async function mergeRemovedPlayer(teamId: string, fromId: string, toId: string) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  const from = team.allPlayers.find((p) => p.id === fromId && !p.active);
+  if (!from) return { error: "Only removed players can be merged." };
+  if (!isActivePlayer(team, toId)) return { error: "Pick a current player to merge into." };
+  await mergePlayer(team.id, fromId, toId);
+  revalidatePath(`/${team.id}`, "layout");
+  return { ok: true };
 }
