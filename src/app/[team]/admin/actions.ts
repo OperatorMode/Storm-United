@@ -6,7 +6,7 @@ import { getAttendance, savePlayers, setAttendance, setManualScore, upsertTeam }
 import { getLeagueData } from "@/lib/league";
 import { getTeam, hashSecret, isActivePlayer, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
-import { adminCookie, isTeamAdmin } from "@/lib/session";
+import { SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
 
 async function adminTeam(teamId: string): Promise<Team | null> {
   const team = await getTeam(teamId);
@@ -90,7 +90,10 @@ export async function saveTeamSettings(teamId: string, _: unknown, formData: For
   return { ok: true };
 }
 
+// Locks Manager’s Corner on this device (team PIN and, if used, the super admin PIN).
 export async function adminLogout(teamId: string) {
-  (await cookies()).delete(adminCookie(teamId));
+  const store = await cookies();
+  store.delete(adminCookie(teamId));
+  store.delete(SUPER_COOKIE);
   revalidatePath(`/${teamId}/admin`);
 }

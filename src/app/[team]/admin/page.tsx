@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/Card";
+import { TabBar } from "@/components/TabBar";
+import { tabData } from "@/lib/tabs";
 import { AdminLogin } from "./AdminLogin";
 import { ScoreForm } from "./ScoreForm";
 import { GoalieAssign } from "./GoalieAssign";
 import { TeamSettings } from "./TeamSettings";
 import { adminLogout } from "./actions";
-import { isSuperAdmin, isTeamAdmin } from "@/lib/session";
+import { currentVoter, isSuperAdmin, isTeamAdmin } from "@/lib/session";
 import { formatDay, getLeagueData, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { goaliesForGame, goalieTally } from "@/lib/goalies";
@@ -17,19 +19,34 @@ import { now as clockNow } from "@/lib/clock";
 
 export async function generateMetadata({ params }: PageProps<"/[team]/admin">): Promise<Metadata> {
   const team = await getTeam((await params).team);
-  return { title: `${team?.name ?? "Team"} · Admin`, robots: { index: false } };
+  return { title: `${team?.name ?? "Team"} · Manager’s Corner`, robots: { index: false } };
 }
 
 export default async function AdminPage({ params }: PageProps<"/[team]/admin">) {
   const team = await getTeam((await params).team);
   if (!team) notFound();
 
+  const tabs = await tabData(team.id, await currentVoter(team));
+  const header = (
+    <header className="jersey px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+      <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
+      <h1 className="mt-1 text-2xl font-semibold">Manager’s Corner</h1>
+    </header>
+  );
+
   if (!(await isTeamAdmin(team))) {
     return (
-      <div className="mx-auto max-w-md space-y-4 p-4 pt-10">
-        <Card title={`${team.name} · Admin`}>
-          <AdminLogin teamId={team.id} />
-        </Card>
+      <div className="mx-auto max-w-md pb-24">
+        {header}
+        <main className="mt-4 px-4">
+          <Card title="Managers only">
+            <p className="mb-3 text-sm text-zinc-500">
+              Enter the manager PIN to see the season MVP tally, goalies, backup scores and team settings.
+            </p>
+            <AdminLogin teamId={team.id} />
+          </Card>
+        </main>
+        <TabBar teamId={team.id} active="manager" {...tabs} />
       </div>
     );
   }
@@ -63,24 +80,19 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <div className="flex items-center justify-between">
-        <Link href={`/${team.id}`} className="text-sm text-zinc-500">
-          ← {team.name}
+    <div className="mx-auto max-w-md pb-24">
+      {header}
+      <main className="mt-4 space-y-4 px-4">
+      <div className="grid grid-cols-2 gap-2 text-sm font-medium">
+        <Link href={`/${team.id}/board`} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-center shadow-sm">
+          📣 Post to board
         </Link>
-        <div className="flex gap-4">
-          {superAdmin && (
-            <Link href="/super" className="text-sm text-zinc-500">
-              All teams
-            </Link>
-          )}
-          <form action={adminLogout.bind(null, team.id)}>
-            <button className="text-sm text-zinc-500">Lock</button>
-          </form>
-        </div>
+        <Link href={`/${team.id}/chat`} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-center shadow-sm">
+          💬 Team chat
+        </Link>
       </div>
 
-      <Card title="Season MVP" aside="Only admins can see this">
+      <Card title="Season MVP" aside="Managers only">
         <table className="w-full text-sm tabular-nums">
           <thead>
             <tr className="text-left text-xs text-zinc-500">
@@ -229,6 +241,19 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
           goalieEnabled={team.goalie_enabled}
         />
       </Card>
+
+      <div className="flex items-center justify-center gap-6 pt-2 text-sm text-zinc-500">
+        {superAdmin && (
+          <Link href="/super" className="underline">
+            All teams
+          </Link>
+        )}
+        <form action={adminLogout.bind(null, team.id)}>
+          <button className="underline">Lock Manager’s Corner</button>
+        </form>
+      </div>
+      </main>
+      <TabBar teamId={team.id} active="manager" {...tabs} />
     </div>
   );
 }

@@ -62,3 +62,9 @@ export async function currentVoter(team: Team): Promise<string | null> {
     (team.id === LEGACY_TEAM ? store.get(LEGACY_VOTER_COOKIE)?.value : undefined);
   return id && isActivePlayer(team, id) ? id : null;
 }
+
+// Who this browser posts as in the team chat: the coach (team admin) or a family.
+export async function chatAuthor(team: Team): Promise<string | null> {
+  if (await isTeamAdmin(team)) return "coach";
+  return currentVoter(team);
+}

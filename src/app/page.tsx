@@ -14,11 +14,15 @@ export default async function Landing() {
 
   return (
     <div className="jersey flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
-      <div className="text-xs uppercase tracking-widest opacity-60">TPP 6 A-Side League</div>
-      <h1 className="text-3xl font-semibold">Team App</h1>
-      <p className="max-w-xs text-sm opacity-70">
-        Fixtures, attendance, MVP votes and the ladder for your team. Ask your coach or team manager for your team’s link.
+      <h1 className="text-4xl font-bold tracking-tight">
+        Sidelnr<span className="text-accent">.</span>
+      </h1>
+      <p className="text-sm font-medium opacity-80">Your team, on the sideline.</p>
+      <p className="max-w-xs text-sm opacity-60">
+        Fixtures, attendance, MVP votes, team chat and the ladder — all in one place. Ask your coach or team manager for
+        your team’s link.
       </p>
+      <div className="mt-2 text-xs uppercase tracking-widest opacity-40">Now running in the TPP 6 A-Side League</div>
       <Link href="/super" className="mt-6 text-xs underline opacity-50">
         Admin
       </Link>
