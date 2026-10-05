@@ -25,8 +25,12 @@ export default async function NewTeamPage() {
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <TeamForm competitions={competitions} taken={taken} initial={null} save={createMyTeam} />
       </section>
-      <p className="text-center text-xs text-zinc-400">
-        Can’t find your league? Adding your own league and fixtures is coming soon.
+      <p className="text-center text-sm text-zinc-500">
+        Can’t find your league or competition?{" "}
+        <Link href="/account/leagues/new" className="font-medium text-zinc-900 underline">
+          Add it
+        </Link>{" "}
+        — then create your team in it.
       </p>
     </div>
   );

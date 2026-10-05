@@ -53,6 +53,10 @@ export type LocalDb = {
   scores: Scoped<{ game_id: string; home: number; away: number }>[];
   leagues?: LeagueRow[];
   competitions?: CompetitionRow[];
+  // User-created leagues (see fixtures.ts).
+  league_admins?: { league_id: string; manager_id: string; created_at: string }[];
+  competition_teams?: { competition_id: string; name: string; created_at: string }[];
+  fixtures?: FixtureRow[];
   // Manager accounts (see accounts.ts).
   managers?: { id: string; email: string; name: string | null; created_at: string }[];
   team_managers?: { team_id: string; manager_id: string; role: "owner" | "manager"; created_at: string }[];
@@ -71,6 +75,22 @@ export type LeagueRow = {
   website: string | null;
   venue: string | null;
   source: "tpp" | "manual";
+  timezone?: string;
+  created_by?: string | null;
+};
+
+export type FixtureRow = {
+  id: string;
+  competition_id: string;
+  round: number | null;
+  stage: string | null;
+  kickoff: string; // ISO timestamp
+  pitch: string | null;
+  home: string;
+  away: string;
+  home_score: number | null;
+  away_score: number | null;
+  status: "scheduled" | "postponed" | "cancelled";
 };
 
 export type CompetitionRow = {
@@ -204,7 +224,7 @@ const COMPETITION_COLS =
 export async function listLeagues(): Promise<LeagueRow[]> {
   const s = db();
   if (!s) return (await readLocal()).leagues ?? [];
-  return check(await s.from("leagues").select("id, name, short_name, website, venue, source").order("name"));
+  return check(await s.from("leagues").select("id, name, short_name, website, venue, source, timezone, created_by").order("name"));
 }
 
 export async function listCompetitionRows(): Promise<CompetitionRow[]> {

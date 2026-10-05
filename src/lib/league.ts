@@ -2,6 +2,7 @@ import { cache } from "react";
 import { getManualScores, listCompetitionRows, listLeagues, type CompetitionRow, type LeagueRow } from "./store";
 import { now as clockNow } from "./clock";
 import { loadTpp } from "./sources/tpp";
+import { loadManual } from "./sources/manual";
 import type { SourceData } from "./sources/types";
 
 // League → Competition → fixtures. A team belongs to one competition; the
@@ -38,8 +39,10 @@ const loadSource = cache(async (competitionId: string): Promise<SourceData> => {
   switch (c.league.source) {
     case "tpp":
       return loadTpp(c.source_key ?? "");
+    case "manual":
+      return loadManual(c.id);
     default:
-      return { teams: [], games: [], byes: [] }; // manual / uploaded fixtures: coming in phase 3
+      return { teams: [], games: [], byes: [] };
   }
 });
 

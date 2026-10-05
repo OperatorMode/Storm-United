@@ -6,7 +6,8 @@ import { signOut } from "./actions";
 import { currentManager, isSuperAdmin } from "@/lib/session";
 import { managedTeams } from "@/lib/accounts";
 import { getTeam } from "@/lib/teams";
-import { competitionLabel, getCompetition } from "@/lib/league";
+import { competitionLabel, getCompetition, listCompetitions } from "@/lib/league";
+import { adminLeagueIds } from "@/lib/fixtures";
 import { logoSrc } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "My teams · Sidelnr", robots: { index: false } };
@@ -16,7 +17,16 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
   const manager = await currentManager();
   if (!manager) redirect("/login?next=/account");
 
-  const [links, superAdmin] = await Promise.all([managedTeams(manager.id), isSuperAdmin()]);
+  const [links, superAdmin, leagueIds, competitions] = await Promise.all([
+    managedTeams(manager.id),
+    isSuperAdmin(),
+    adminLeagueIds(manager.id),
+    listCompetitions(),
+  ]);
+  const myLeagues = [...new Set(leagueIds)].flatMap((id) => {
+    const comps = competitions.filter((c) => c.league_id === id);
+    return comps.length ? [{ id, name: comps[0].league.name, comps }] : [];
+  });
   const teams = (
     await Promise.all(
       links.map(async (l) => {
@@ -82,6 +92,35 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
             </div>
           </div>
         ))}
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="flex items-baseline justify-between">
+            <h2 className="font-semibold">My leagues</h2>
+            <Link href="/account/leagues/new" className="text-sm font-medium underline">
+              + Add a league
+            </Link>
+          </div>
+          {myLeagues.length === 0 ? (
+            <p className="mt-1 text-sm text-zinc-500">
+              Run a competition? Add your league to manage its teams, fixtures and results for every team in it.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2 text-sm">
+              {myLeagues.map((l) => (
+                <li key={l.id}>
+                  <div className="font-medium">{l.name}</div>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {l.comps.map((c) => (
+                      <Link key={c.id} href={`/account/competitions/${c.id}`} className="rounded-full bg-zinc-100 px-3 py-1 text-xs">
+                        {c.name} →
+                      </Link>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
           <h2 className="font-semibold">Add a team you manage</h2>
