@@ -15,19 +15,16 @@ const DOORS = [
     href: "/account",
     title: "Team manager",
     text: "Coaches & managers — run your team, attendance, MVP and messages.",
-    icon: "🧢",
   },
   {
     href: "/account/leagues",
     title: "League manager",
     text: "Run a competition — teams, fixtures, results and the ladder.",
-    icon: "🏆",
   },
   {
     href: "/account/events",
     title: "Event manager",
     text: "One-day events — pools, finals and live results on game day.",
-    icon: "📅",
   },
 ] as const;
 
@@ -85,9 +82,6 @@ export default async function Landing() {
               href={manager ? d.href : signIn(d.href)}
               className="flex items-center gap-3 rounded-2xl bg-white/95 p-4 text-zinc-950 shadow-lg"
             >
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-zinc-100 text-xl" aria-hidden>
-                {d.icon}
-              </span>
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{d.title}</span>
                 <span className="block text-xs text-zinc-500">{d.text}</span>

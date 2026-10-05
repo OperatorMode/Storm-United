@@ -71,7 +71,7 @@ export async function fillSampleData(teamId: string) {
 
   const welcome = await addAnnouncement(
     team.id,
-    "Welcome to our team app! 🎉\nPlease mark attendance for each game by Sunday night, and vote for MVP after every match. Shin pads every game!",
+    "Welcome to our team app.\nPlease mark attendance for each game by Sunday night, and vote for MVP after every match. Shin pads every game!",
     ago(50),
   );
   for (const id of p.slice(0, -2)) await ackAnnouncement(team.id, welcome, id);
@@ -84,10 +84,10 @@ export async function fillSampleData(teamId: string) {
 
   const chat: [string, string, number][] = [
     [p[2], "Hi all! Can anyone help with a lift on Monday? We’re coming from Byford.", 20],
-    [p[4], `We can take ${name(p[2])} — we drive past anyway 🙂`, 19.5],
+    [p[4], `We can take ${name(p[2])} — we drive past anyway`, 19.5],
     [p[2], "Legend, thank you!", 19.4],
-    ["coach", "Great energy at training this week everyone. Let’s keep it up on Monday ⚽", 6],
-    [p[1], `${name(p[1])} is super keen to go in goal again 🧤`, 5],
+    ["coach", "Great energy at training this week everyone. Let’s keep it up on Monday.", 6],
+    [p[1], `${name(p[1])} is super keen to go in goal again.`, 5],
   ];
   for (const [author, body, hours] of chat) await addChat(team.id, author, body, ago(hours));
 

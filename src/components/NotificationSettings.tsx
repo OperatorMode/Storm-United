@@ -75,7 +75,7 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
   return (
     <details className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium [&::-webkit-details-marker]:hidden">
-        <span>🔔 Notifications</span>
+        <span>Notifications</span>
         <span className="text-xs font-normal text-zinc-500">
           {mode === "ready" ? (prefs.board || prefs.chat ? "On" : "Off") : "Unavailable"}
         </span>

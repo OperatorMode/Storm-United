@@ -39,7 +39,7 @@ export async function postAnnouncement(teamId: string, _: unknown, formData: For
     notifyTeam(
       team.id,
       "board",
-      { title: `📣 ${team.name}`, body: preview(body), url: `/${team.id}/board`, icon: `/${team.id}/icon/192` },
+      { title: `${team.name}`, body: preview(body), url: `/${team.id}/board`, icon: `/${team.id}/icon/192` },
       COACH_AUTHOR,
     ),
   );
@@ -80,7 +80,7 @@ export async function sendChat(teamId: string, body: string) {
       team.id,
       "chat",
       {
-        title: `💬 ${authorLabel(team, author)}`,
+        title: `${authorLabel(team, author)}`,
         body: preview(text),
         url: `/${team.id}/chat`,
         icon: `/${team.id}/icon/192`,

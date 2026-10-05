@@ -103,7 +103,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
 
       {isNew && event && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <div className="font-semibold">🎉 {competition.name} is set up</div>
+          <div className="font-semibold">{competition.name} is set up</div>
           <p className="mt-1">
             Next: type the pools below and build the draw, then add any finals. Share the public page with everyone on the
             day — results update live. Teams on Sidelnr can pick “{competition.league.name} · {competition.name}” as their
@@ -125,7 +125,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
 
       {isNew && !event && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <div className="font-semibold">🎉 {competition.name} is set up</div>
+          <div className="font-semibold">{competition.name} is set up</div>
           <p className="mt-1">
             Next: add the teams and fixtures below (or import a CSV). Then teams can join it via <b>My teams → Create a
             team</b> and pick “{competition.league.name} · {competition.name}”.

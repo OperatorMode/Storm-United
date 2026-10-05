@@ -123,7 +123,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
       <main className="mt-4 space-y-4 px-4">
       {created && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <div className="font-semibold">🎉 {team.name} is ready!</div>
+          <div className="font-semibold">{team.name} is ready</div>
           <p className="mt-1">
             Share <b>sidelnr.app/{team.id}</b> with your families
             {team.join_code_hash ? " together with your join code" : ""}. They pick their child once and can add the app to
@@ -153,10 +153,10 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
       )}
       <div className="grid grid-cols-2 gap-2 text-sm font-medium">
         <Link href={`/${team.id}/board`} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-center shadow-sm">
-          📣 Post to board
+          Post to board
         </Link>
         <Link href={`/${team.id}/chat`} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-center shadow-sm">
-          💬 Team chat
+          Team chat
         </Link>
       </div>
 

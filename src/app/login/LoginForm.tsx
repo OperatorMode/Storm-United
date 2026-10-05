@@ -8,7 +8,7 @@ export function LoginForm({ next }: { next: string }) {
   if (state && "sent" in state) {
     return (
       <div className="space-y-2 text-sm">
-        <h2 className="text-base font-semibold">Check your email 📬</h2>
+        <h2 className="text-base font-semibold">Check your email</h2>
         <p className="text-zinc-600">
           We sent a sign-in link to <b>{state.email}</b>. Tap it on this device to sign in. It expires in 15 minutes.
         </p>

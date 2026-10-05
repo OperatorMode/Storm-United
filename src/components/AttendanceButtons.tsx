@@ -68,7 +68,7 @@ export function AttendanceButtons({
 
       {goalieEnabled && state.status !== "no" && (
         <fieldset className="mt-3">
-          <legend className="mb-1.5 text-xs font-medium text-zinc-500">🧤 Happy to be goalie</legend>
+          <legend className="mb-1.5 text-xs font-medium text-zinc-500">Happy to be goalie</legend>
           <div className="grid grid-cols-3 gap-2">
             {GOALIE_OPTIONS.map((o) => {
               const checked = state.goalie === o.value;

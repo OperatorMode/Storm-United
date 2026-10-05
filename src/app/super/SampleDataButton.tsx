@@ -21,7 +21,7 @@ export function SampleDataButton({ teamId }: { teamId: string }) {
         }}
         className="w-full rounded-xl border border-zinc-300 px-4 py-2.5 font-medium"
       >
-        {pending ? "Adding…" : "✨ Fill with sample data (demo teams)"}
+        {pending ? "Adding…" : "Fill with sample data (demo teams)"}
       </button>
       {msg && <p className="mt-2 text-zinc-600">{msg}</p>}
     </div>

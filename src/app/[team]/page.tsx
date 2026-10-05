@@ -153,7 +153,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                       {state === "open" ? (
                         <span className="text-xs text-zinc-500">Voting open</span>
                       ) : mvp.length ? (
-                        <span className="font-semibold">🏅 {mvp.map(nameOf).join(" & ")}</span>
+                        <span className="font-semibold">MVP: {mvp.map(nameOf).join(" & ")}</span>
                       ) : (
                         <span className="text-xs text-zinc-400">No votes</span>
                       )}
@@ -343,7 +343,7 @@ function AttendanceList({
             <span className={`truncate ${status === "no" ? "text-zinc-400 line-through" : ""}`}>{player.name}</span>
             {goalie && (
               <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700">
-                🧤 {GOALIE_LABEL[goalie]}
+                Goalie: {GOALIE_LABEL[goalie]}
               </span>
             )}
           </li>

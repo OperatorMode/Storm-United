@@ -92,11 +92,11 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
 
         <div className="grid grid-cols-2 gap-2 text-sm">
           <Link href="/account/leagues" className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
-            <span className="block font-semibold">🏆 My leagues</span>
+            <span className="block font-semibold">My leagues</span>
             <span className="text-xs text-zinc-500">{leagueCount ? `${leagueCount} league${leagueCount === 1 ? "" : "s"}` : "Run a competition"}</span>
           </Link>
           <Link href="/account/events" className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
-            <span className="block font-semibold">📅 My events</span>
+            <span className="block font-semibold">My events</span>
             <span className="text-xs text-zinc-500">{eventCount ? `${eventCount} event${eventCount === 1 ? "" : "s"}` : "Run a one-day event"}</span>
           </Link>
         </div>
