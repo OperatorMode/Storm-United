@@ -46,9 +46,8 @@ export default async function Home() {
       <header className="jersey px-4 pb-6 pt-[calc(env(safe-area-inset-top)+1.25rem)] text-white">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="grid size-9 place-items-center rounded-lg border border-white/25 bg-white/10 text-sm font-bold tracking-tight">
-              SU
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/crest.svg" alt="Storm United crest" className="size-12 shrink-0" />
             <div className="leading-tight">
               <div className="font-semibold">Storm United</div>
               <div className="text-xs text-white/60">Under 10s · TPP 6 A-Side</div>
