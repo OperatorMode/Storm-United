@@ -105,6 +105,14 @@ export type CompetitionRow = {
   ladder_last_round: number | null;
   finals_date: string | null; // yyyy-mm-dd
   finals_note: string | null;
+  // Fixtures pulled from a link (see feeds.ts); absent before migration 008.
+  feed_type?: "csv" | "ics" | "web" | null;
+  feed_url?: string | null;
+  feed_filter?: string | null;
+  feed_team?: string | null;
+  feed_synced_at?: string | null;
+  feed_error?: string | null;
+  feed_hash?: string | null;
 };
 
 export type PushSubRow = {
@@ -219,7 +227,7 @@ export async function getTeamRow(id: string): Promise<TeamRow | null> {
 // ---------- leagues & competitions ----------
 
 const COMPETITION_COLS =
-  "id, league_id, name, season, kind, source_key, points_win, points_draw, ladder_last_round, finals_date, finals_note";
+  "id, league_id, name, season, kind, source_key, points_win, points_draw, ladder_last_round, finals_date, finals_note, feed_type, feed_url, feed_filter, feed_team, feed_synced_at, feed_error, feed_hash";
 
 export async function listLeagues(): Promise<LeagueRow[]> {
   const s = db();

@@ -31,11 +31,14 @@ export async function competitionIdExists(id: string): Promise<boolean> {
   return !!check(await s.from("competitions").select("id").eq("id", id).maybeSingle());
 }
 
-export async function upsertCompetition(c: CompetitionRow): Promise<void> {
+export async function upsertCompetition(input: CompetitionRow): Promise<void> {
+  // Callers may pass a joined Competition (with `league`); store only the row.
+  const { league: _league, ...c } = input as CompetitionRow & { league?: unknown }; // eslint-disable-line @typescript-eslint/no-unused-vars
   const s = db();
   if (!s) {
     const d = await readLocal();
-    d.competitions = [...(d.competitions ?? []).filter((x) => x.id !== c.id), c];
+    const prev = (d.competitions ?? []).find((x) => x.id === c.id);
+    d.competitions = [...(d.competitions ?? []).filter((x) => x.id !== c.id), { ...prev, ...c }];
     return writeLocal(d);
   }
   check(await s.from("competitions").upsert(c, { onConflict: "id" }));

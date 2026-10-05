@@ -5,7 +5,11 @@ import {
   addCompetitionAction,
   addFixtureAction,
   addTeamsAction,
+  connectFeedAction,
   createLeagueAction,
+  disconnectFeedAction,
+  previewFeedAction,
+  syncNowAction,
   deleteFixtureAction,
   importFixturesCsv,
   removeTeamAction,
@@ -318,5 +322,126 @@ export function ResultRow({
       </div>
       {msg && <p className="mt-1 text-xs text-accent">{msg}</p>}
     </li>
+  );
+}
+
+const FEED_LABEL = { csv: "Spreadsheet / CSV link", ics: "Calendar (ICS) link", web: "Website (read by AI)" } as const;
+
+export function FeedPanel({
+  competitionId,
+  connected,
+  aiEnabled,
+}: {
+  competitionId: string;
+  connected: { type: "csv" | "ics" | "web"; url: string; filter: string | null; team: string | null; syncedAt: string | null; error: string | null } | null;
+  aiEnabled: boolean;
+}) {
+  const [type, setType] = useState<"csv" | "ics" | "web">(connected?.type ?? "csv");
+  // Controlled so the values survive Preview (forms reset after each action).
+  const [url, setUrl] = useState("");
+  const [filter, setFilter] = useState("");
+  const [team, setTeam] = useState("");
+  const [preview, previewAction, previewing] = useActionState(previewFeedAction.bind(null, competitionId), null);
+  const [connectState, connectAction, connecting] = useActionState(connectFeedAction.bind(null, competitionId), null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, start] = useTransition();
+
+  if (connected) {
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="rounded-xl bg-zinc-50 px-3 py-2">
+          <div className="font-medium">{FEED_LABEL[connected.type]}</div>
+          <div className="truncate text-xs text-zinc-500">{connected.url}</div>
+          {connected.filter && <div className="text-xs text-zinc-500">Competition on page: {connected.filter}</div>}
+          <div className="mt-1 text-xs text-zinc-500">
+            {connected.error ? (
+              <span className="text-accent">Last sync failed: {connected.error}</span>
+            ) : connected.syncedAt ? (
+              `Last synced ${new Date(connected.syncedAt).toLocaleString("en-AU", { timeZone: "Australia/Perth", dateStyle: "medium", timeStyle: "short" })}`
+            ) : (
+              "Not synced yet"
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-zinc-500">
+          Re-checked automatically ({connected.type === "web" ? "hourly — the AI only re-reads the page when it changes" : "every 10 minutes"}) whenever
+          someone opens a team page. Results from the link update the ladder; you can still enter scores here.
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              start(async () => {
+                const res = await syncNowAction(competitionId);
+                setMsg("error" in res ? (res.error ?? null) : `Synced ${res.count} fixtures.`);
+              })
+            }
+            className="flex-1 rounded-xl bg-zinc-900 px-4 py-2 font-semibold text-white"
+          >
+            {busy ? "Syncing…" : "Sync now"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => confirm("Disconnect this link? Fixtures already imported stay.") && start(() => disconnectFeedAction(competitionId))}
+            className="rounded-xl border border-zinc-300 px-4 py-2"
+          >
+            Disconnect
+          </button>
+        </div>
+        {msg && <p className="text-xs text-zinc-600">{msg}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <form className="space-y-3 text-sm">
+      <div className="grid grid-cols-3 gap-2">
+        {(["csv", "ics", "web"] as const).map((t) => (
+          <label
+            key={t}
+            className={`cursor-pointer rounded-xl border px-2 py-2 text-center text-xs font-medium ${type === t ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300"} ${t === "web" && !aiEnabled ? "opacity-40" : ""}`}
+          >
+            <input type="radio" name="feed_type" value={t} checked={type === t} onChange={() => setType(t)} disabled={t === "web" && !aiEnabled} className="sr-only" />
+            {t === "csv" ? "Sheet / CSV" : t === "ics" ? "Calendar" : "Website (AI)"}
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-zinc-500">
+        {type === "csv" &&
+          "A link to a CSV file, or a Google Sheet shared as “Anyone with the link can view”. Same columns as the upload template."}
+        {type === "ics" && "A calendar link (ics/webcal) — e.g. a team’s fixture calendar export. Event titles like “Sharks vs Tigers”."}
+        {type === "web" && "Any page that lists the fixtures or results — Claude reads it and turns it into fixtures. Check the preview before connecting."}
+      </p>
+      <input name="feed_url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className={field} />
+      {type === "web" && (
+        <input name="feed_filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Which competition on that page? e.g. “Under 10s” (optional)" className={field} />
+      )}
+      {type === "ics" && <input name="feed_team" value={team} onChange={(e) => setTeam(e.target.value)} placeholder="Your team’s name (if titles don’t include it)" className={field} />}
+      <div className="flex gap-2">
+        <button formAction={previewAction} disabled={previewing || connecting} className="flex-1 rounded-xl border border-zinc-300 px-4 py-2.5 font-semibold">
+          {previewing ? (type === "web" ? "Reading page…" : "Checking…") : "Preview"}
+        </button>
+        <button formAction={connectAction} disabled={previewing || connecting} className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white">
+          {connecting ? "Connecting…" : "Connect & import"}
+        </button>
+      </div>
+      {preview && "error" in preview && preview.error && <p className="text-accent">{preview.error}</p>}
+      {preview && "preview" in preview && (
+        <div className="rounded-xl bg-zinc-50 p-3 text-xs">
+          <div className="mb-1 font-semibold">
+            Found {preview.count} games between {preview.teams} teams. First few:
+          </div>
+          <ul className="space-y-0.5 text-zinc-600">
+            {(preview.sample ?? []).map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ul>
+          {(preview.errors ?? []).length > 0 && <p className="mt-2 text-amber-800">{(preview.errors ?? []).slice(0, 3).join(" ")}</p>}
+        </div>
+      )}
+      {connectState?.error && <p className="text-accent">{connectState.error}</p>}
+    </form>
   );
 }

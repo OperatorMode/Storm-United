@@ -6,6 +6,7 @@ import {
   AddCompetitionForm,
   AddFixtureForm,
   CompetitionSettingsForm,
+  FeedPanel,
   ImportCsvForm,
   ResultRow,
   TeamsEditor,
@@ -86,6 +87,25 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
 
       <Card title="Teams" aside={`${teams.length} in the draw · ${sidelnrTeams.length} on Sidelnr`}>
         <TeamsEditor competitionId={id} teams={teams} />
+      </Card>
+
+      <Card title="Fixtures from a link" aside="Auto-updating">
+        <FeedPanel
+          competitionId={id}
+          aiEnabled={!!process.env.ANTHROPIC_API_KEY}
+          connected={
+            competition.feed_type && competition.feed_url
+              ? {
+                  type: competition.feed_type,
+                  url: competition.feed_url,
+                  filter: competition.feed_filter ?? null,
+                  team: competition.feed_team ?? null,
+                  syncedAt: competition.feed_synced_at ?? null,
+                  error: competition.feed_error ?? null,
+                }
+              : null
+          }
+        />
       </Card>
 
       <Card title="Import fixtures" aside="CSV / spreadsheet">
