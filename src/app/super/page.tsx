@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card } from "@/components/Card";
 import { SuperLogin } from "./SuperLogin";
-import { TeamForm } from "./TeamForm";
+import { TeamForm } from "@/components/TeamForm";
+import { removeTeam, saveTeam } from "./actions";
 import { SampleDataButton } from "./SampleDataButton";
 import { superLogout } from "./actions";
 import { isSuperAdmin } from "@/lib/session";
@@ -56,6 +57,9 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
               })),
             )}
             taken={taken}
+            save={saveTeam}
+            remove={editing ? removeTeam.bind(null, editing.id) : undefined}
+            allowTaken
             initial={
               editing && {
                 id: editing.id,

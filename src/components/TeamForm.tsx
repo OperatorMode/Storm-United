@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { removeTeam, saveTeam } from "./actions";
 
 export type TeamFormValues = {
   id: string;
@@ -22,16 +21,28 @@ const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-
 
 export type CompetitionOption = { id: string; league: string; name: string; teams: string[] };
 
+type SaveResult = { error?: string } | null | undefined;
+
+// Used by the super admin (/super) and by managers (self-serve). Actions are
+// passed in, so each caller applies its own permissions.
 export function TeamForm({
   competitions,
   taken,
   initial,
+  save,
+  remove,
+  lockCompetition = false,
+  allowTaken = false,
 }: {
   competitions: CompetitionOption[];
-  taken: Record<string, string>; // "competitionId|team" -> our team already following it (allowed, e.g. demo teams)
+  taken: Record<string, string>; // "competitionId|team" -> the Sidelnr team already following it
   initial: TeamFormValues | null; // null = new team
+  save: (prev: SaveResult, formData: FormData) => Promise<SaveResult>;
+  remove?: () => Promise<unknown>;
+  lockCompetition?: boolean; // editing as a manager: competition/draw name are fixed
+  allowTaken?: boolean; // super admin: may follow a draw team that's already on Sidelnr (demo teams)
 }) {
-  const [state, action, pending] = useActionState(saveTeam, null);
+  const [state, action, pending] = useActionState(save, null);
   const [competitionId, setCompetitionId] = useState(initial?.competition_id ?? competitions[0]?.id ?? "");
   const [leagueName, setLeagueName] = useState(initial?.league_name ?? "");
   const [name, setName] = useState(initial?.name ?? "");
@@ -42,6 +53,13 @@ export function TeamForm({
     <form action={action} className="space-y-4 text-sm">
       {initial && <input type="hidden" name="existing_id" value={initial.id} />}
 
+      {lockCompetition && initial ? (
+        <div className="rounded-xl bg-zinc-50 px-3 py-2 text-zinc-600">
+          <div className="text-xs uppercase tracking-wide text-zinc-400">Competition</div>
+          {competitions.find((c) => c.id === initial.competition_id)?.league} ·{" "}
+          {competitions.find((c) => c.id === initial.competition_id)?.name} · as “{initial.league_name}”
+        </div>
+      ) : (
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="mb-1 block font-medium">Competition</span>
@@ -80,15 +98,19 @@ export function TeamForm({
             required
           >
             <option value="">Select…</option>
-            {options.map((t) => (
-              <option key={t} value={t}>
-                {t}
-                {taken[`${competitionId}|${t}`] && t !== initial?.league_name ? ` (also used by ${taken[`${competitionId}|${t}`]})` : ""}
-              </option>
-            ))}
+            {options.map((t) => {
+              const usedBy = t !== initial?.league_name ? taken[`${competitionId}|${t}`] : undefined;
+              return (
+                <option key={t} value={t} disabled={!!usedBy && !allowTaken}>
+                  {t}
+                  {usedBy ? (allowTaken ? ` (also used by ${usedBy})` : " (already on Sidelnr)") : ""}
+                </option>
+              );
+            })}
           </select>
         </label>
       </div>
+      )}
 
       <label className="block">
         <span className="mb-1 block font-medium">Display name</span>
@@ -137,8 +159,8 @@ export function TeamForm({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
-          <span className="mb-1 block font-medium">Team admin PIN</span>
-          <input name="admin_pin" autoComplete="off" placeholder={initial?.hasAdminPin ? "Set — type to change" : "For the team manager"} className={field} />
+          <span className="mb-1 block font-medium">Manager PIN</span>
+          <input name="admin_pin" autoComplete="off" placeholder={initial?.hasAdminPin ? "Set — type to change" : "Optional, for co-coaches"} className={field} />
         </label>
         <label className="block">
           <span className="mb-1 block font-medium">Join code</span>
@@ -167,12 +189,12 @@ export function TeamForm({
       </button>
       {state?.error && <p className="text-accent">{state.error}</p>}
 
-      {initial && (
+      {initial && remove && (
         <button
           type="button"
           onClick={() => {
-            if (confirm(`Delete ${initial.name}? This permanently removes its players, attendance and votes.`)) {
-              removeTeam(initial.id);
+            if (confirm(`Delete ${initial.name}? This permanently removes its players, attendance, votes and messages.`)) {
+              remove();
             }
           }}
           className="w-full rounded-xl px-4 py-2 text-sm text-red-700"

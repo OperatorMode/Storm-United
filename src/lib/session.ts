@@ -55,20 +55,19 @@ export function managerSessionValue(managerId: string): string {
   return `${payload}.${sign(payload)}`;
 }
 
-export const currentManagerId = cache(async (): Promise<string | null> => {
+// The signed-in manager: a valid, unexpired signed cookie for an account that still exists.
+export const currentManager = cache(async (): Promise<Manager | null> => {
   const raw = (await cookies()).get(MANAGER_COOKIE)?.value;
   if (!raw) return null;
   const [id, exp, sig] = raw.split(".");
   if (!id || !exp || !sig || Number(exp) < Date.now()) return null;
   const expected = Buffer.from(sign(`${id}.${exp}`));
   const given = Buffer.from(sig);
-  return expected.length === given.length && timingSafeEqual(expected, given) ? id : null;
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  return getManager(id);
 });
 
-export const currentManager = cache(async (): Promise<Manager | null> => {
-  const id = await currentManagerId();
-  return id ? getManager(id) : null;
-});
+export const currentManagerId = cache(async (): Promise<string | null> => (await currentManager())?.id ?? null);
 
 const myTeamIds = cache(async (): Promise<string[]> => {
   const id = await currentManagerId();

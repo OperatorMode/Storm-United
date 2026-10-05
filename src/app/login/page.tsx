@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "./LoginForm";
-import { currentManagerId } from "@/lib/session";
+import { currentManager } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Sign in · Sidelnr", robots: { index: false } };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : "/account";
-  if (await currentManagerId()) redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/account");
+  // Only skip the form for a real, existing account (a stale cookie for a
+  // deleted account would otherwise bounce between here and /account forever).
+  if (await currentManager()) redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/account");
   return (
     <div className="jersey min-h-dvh px-4 pt-[calc(env(safe-area-inset-top)+3rem)]">
       <div className="mx-auto max-w-sm space-y-6">
