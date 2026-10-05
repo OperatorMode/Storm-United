@@ -28,14 +28,14 @@ export function TeamForm({
 }: {
   divisions: Record<string, string[]>; // division -> team names in the TPP draw
   labels: Record<string, string>;
-  taken: string[]; // league names already set up (can't be added twice)
+  taken: Record<string, string>; // TPP team name -> our team already following it (allowed, e.g. demo teams)
   initial: TeamFormValues | null; // null = new team
 }) {
   const [state, action, pending] = useActionState(saveTeam, null);
   const [division, setDivision] = useState(initial?.division ?? Object.keys(divisions)[0] ?? "");
   const [leagueName, setLeagueName] = useState(initial?.league_name ?? "");
   const [name, setName] = useState(initial?.name ?? "");
-  const options = (divisions[division] ?? []).filter((t) => t === initial?.league_name || !taken.includes(t));
+  const options = divisions[division] ?? [];
 
   return (
     <form action={action} className="space-y-4 text-sm">
@@ -76,6 +76,7 @@ export function TeamForm({
             {options.map((t) => (
               <option key={t} value={t}>
                 {t}
+                {taken[t] && t !== initial?.league_name ? ` (also used by ${taken[t]})` : ""}
               </option>
             ))}
           </select>

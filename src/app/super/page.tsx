@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Card } from "@/components/Card";
 import { SuperLogin } from "./SuperLogin";
 import { TeamForm } from "./TeamForm";
+import { SampleDataButton } from "./SampleDataButton";
 import { superLogout } from "./actions";
 import { isSuperAdmin } from "@/lib/session";
 import { listTeams } from "@/lib/store";
@@ -29,7 +30,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const saved = typeof params.saved === "string" ? params.saved : null;
 
   const [teams, divisions] = await Promise.all([listTeams(), leagueTeams()]);
-  const taken = teams.map((t) => t.league_name);
+  const taken = Object.fromEntries(teams.filter((t) => t.id !== editId).map((t) => [t.league_name, t.name]));
   const editing = editId ? await getTeam(editId) : null;
 
   if (creating || editing) {
@@ -61,6 +62,11 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
             }
           />
         </Card>
+        {editing && (
+          <Card title="Demo tools">
+            <SampleDataButton teamId={editing.id} />
+          </Card>
+        )}
       </div>
     );
   }

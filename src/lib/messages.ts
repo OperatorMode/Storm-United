@@ -38,14 +38,19 @@ export const listAnnouncements = cache(async (teamId: string): Promise<Announcem
   return rows.map(({ announcement_acks, ...a }) => ({ ...a, acks: announcement_acks.map((k) => k.player_id) }));
 });
 
-export async function addAnnouncement(teamId: string, body: string): Promise<void> {
+// Returns the new announcement id. `createdAt` is only for seeding demo data.
+export async function addAnnouncement(teamId: string, body: string, createdAt?: string): Promise<string> {
+  const id = randomUUID();
+  const created_at = createdAt ?? new Date().toISOString();
   const s = db();
   if (!s) {
     const data = await readLocal();
-    (data.announcements ??= []).push({ id: randomUUID(), team_id: teamId, body, created_at: new Date().toISOString() });
-    return writeLocal(data);
+    (data.announcements ??= []).push({ id, team_id: teamId, body, created_at });
+    await writeLocal(data);
+    return id;
   }
-  check(await s.from("announcements").insert({ team_id: teamId, body }));
+  check(await s.from("announcements").insert({ id, team_id: teamId, body, created_at }));
+  return id;
 }
 
 export async function deleteAnnouncement(teamId: string, id: string): Promise<void> {
@@ -110,14 +115,16 @@ export async function latestChatAt(teamId: string): Promise<string | null> {
   return row?.created_at ?? null;
 }
 
-export async function addChat(teamId: string, authorId: string, body: string): Promise<void> {
+// `createdAt` is only for seeding demo data.
+export async function addChat(teamId: string, authorId: string, body: string, createdAt?: string): Promise<void> {
+  const created_at = createdAt ?? new Date().toISOString();
   const s = db();
   if (!s) {
     const data = await readLocal();
-    (data.chat ??= []).push({ id: randomUUID(), team_id: teamId, author_id: authorId, body, created_at: new Date().toISOString() });
+    (data.chat ??= []).push({ id: randomUUID(), team_id: teamId, author_id: authorId, body, created_at });
     return writeLocal(data);
   }
-  check(await s.from("chat_messages").insert({ team_id: teamId, author_id: authorId, body }));
+  check(await s.from("chat_messages").insert({ team_id: teamId, author_id: authorId, body, created_at }));
 }
 
 // Deletes a message; when `authorId` is given, only if they wrote it.
