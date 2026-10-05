@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getLeagueData, votingState } from "@/lib/league";
-import { isPlayerId, isVoterId } from "@/lib/players";
+import { isPlayerId } from "@/lib/players";
 import { now } from "@/lib/clock";
 import { getAttendance, setAttendance, upsertBallot, type AttendanceStatus } from "@/lib/store";
 import { ADMIN_COOKIE, VOTER_COOKIE, YEAR, adminToken, currentVoter } from "@/lib/session";
@@ -11,7 +11,7 @@ import { ADMIN_COOKIE, VOTER_COOKIE, YEAR, adminToken, currentVoter } from "@/li
 export async function chooseVoter(voterId: string) {
   const store = await cookies();
   if (!voterId) store.delete(VOTER_COOKIE);
-  else if (isVoterId(voterId)) {
+  else if (isPlayerId(voterId)) {
     store.set(VOTER_COOKIE, voterId, { maxAge: YEAR, httpOnly: true, sameSite: "lax", secure: true });
   }
   revalidatePath("/");
@@ -36,7 +36,7 @@ export async function markAttendance(gameId: string, status: AttendanceStatus) {
 
 export async function submitBallot(gameId: string, picks: string[]) {
   const voter = await currentVoter();
-  if (!voter) return { error: "Pick who you are first." };
+  if (!voter) return { error: "Pick your child first." };
   const game = await findGame(gameId);
   if (!game) return { error: "Game not found." };
   if (votingState(game) !== "open") return { error: "Voting isn't open for this game." };
@@ -58,8 +58,8 @@ export async function submitBallot(gameId: string, picks: string[]) {
 export async function adminLogin(_: unknown, formData: FormData) {
   const token = adminToken();
   if (!token) return { error: "ADMIN_PIN isn't configured." };
-  const pin = String(formData.get("pin") ?? "");
-  if (pin !== process.env.ADMIN_PIN) return { error: "Wrong PIN." };
+  const pin = String(formData.get("pin") ?? "").trim();
+  if (pin !== process.env.ADMIN_PIN?.trim()) return { error: "Wrong PIN." };
   (await cookies()).set(ADMIN_COOKIE, token, { maxAge: YEAR, httpOnly: true, sameSite: "lax", secure: true });
   revalidatePath("/admin");
   return { ok: true };

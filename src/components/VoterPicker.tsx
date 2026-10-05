@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { chooseVoter } from "@/app/actions";
-import { COACH_ID, PLAYERS } from "@/lib/players";
+import { PLAYERS } from "@/lib/players";
 
 export function VoterPicker({ current, prominent }: { current: string | null; prominent?: boolean }) {
   const [pending, start] = useTransition();
@@ -26,9 +26,6 @@ export function VoterPicker({ current, prominent }: { current: string | null; pr
           {prominent ? `I'm ${p.name.split(" ")[0]}'s parent` : `${p.name.split(" ")[0]}'s parent`}
         </option>
       ))}
-      <option value={COACH_ID} className="text-black">
-        Coach
-      </option>
     </select>
   );
 }

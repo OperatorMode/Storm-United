@@ -13,18 +13,10 @@ export const PLAYERS: Player[] = [
   { id: "zane", name: "Zane B." },
 ];
 
-// Voter identities: one per family, plus the coach.
-export const COACH_ID = "coach";
-
 export function playerName(id: string): string {
-  if (id === COACH_ID) return "Coach";
   return PLAYERS.find((p) => p.id === id)?.name ?? id;
 }
 
 export function isPlayerId(id: string): boolean {
   return PLAYERS.some((p) => p.id === id);
-}
-
-export function isVoterId(id: string): boolean {
-  return id === COACH_ID || isPlayerId(id);
 }

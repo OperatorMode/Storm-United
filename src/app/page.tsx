@@ -15,7 +15,8 @@ import {
   votingState,
   type Game,
 } from "@/lib/league";
-import { PLAYERS, isPlayerId, playerName } from "@/lib/players";
+import Link from "next/link";
+import { PLAYERS, playerName } from "@/lib/players";
 import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
 import { currentVoter } from "@/lib/session";
@@ -30,7 +31,7 @@ export default async function Home() {
   ]);
   const now = clockNow();
   const next = nextGame(ourGames, now);
-  const myChild = voter && isPlayerId(voter) ? voter : null;
+  const myChild = voter;
   const statusOf = (gameId: string, playerId: string) =>
     attendance.find((a) => a.game_id === gameId && a.player_id === playerId)?.status ?? null;
 
@@ -82,7 +83,7 @@ export default async function Home() {
         <Card title="MVP votes" aside="3 · 2 · 1 points">
           {openVoting.map((g) => {
             const gameBallots = ballots.filter((b) => b.game_id === g.id);
-            const mine = voter ? gameBallots.find((b) => b.voter_id === voter) : undefined;
+            const mine = myChild ? gameBallots.find((b) => b.voter_id === voter) : undefined;
             const candidates = PLAYERS.filter((p) => p.id !== myChild && statusOf(g.id, p.id) !== "no");
             const closes = formatDay(new Date(g.kickoff.getTime() + VOTING_WINDOW_MS));
             return (
@@ -93,7 +94,7 @@ export default async function Home() {
                     {gameBallots.length} voted · closes {closes}
                   </div>
                 </div>
-                {voter ? (
+                {myChild ? (
                   <BallotForm
                     gameId={g.id}
                     candidates={candidates}
@@ -194,6 +195,10 @@ export default async function Home() {
           <a href="https://tpp-6aside.netlify.app/" className="underline">
             The Proper Player
           </a>
+          {" · "}
+          <Link href="/admin" className="underline">
+            Admin
+          </Link>
         </p>
       </main>
     </div>

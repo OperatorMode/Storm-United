@@ -80,7 +80,7 @@ export default async function AdminPage() {
               const gb = ballots.filter((b) => b.game_id === g.id);
               const t = tally(gb).filter((r) => r.points > 0);
               const voted = new Set(gb.map((b) => b.voter_id));
-              const missing = [...PLAYERS.map((p) => p.id), "coach"].filter((v) => !voted.has(v));
+              const missing = PLAYERS.map((p) => p.id).filter((v) => !voted.has(v));
               return (
                 <li key={g.id}>
                   <div className="flex items-baseline justify-between text-sm">
