@@ -7,7 +7,7 @@ export function logoSrc(team: Pick<TeamRow, "id" | "logo_url">): string {
 }
 
 export function initials(name: string): string {
-  const words = name.replace(/\bFC\b/gi, "").split(/\s+/).filter(Boolean);
+  const words = name.split(/\s+/).filter(Boolean);
   return (words.length > 1 ? words.slice(0, 2).map((w) => w[0]) : [name.slice(0, 2)]).join("").toUpperCase();
 }
 

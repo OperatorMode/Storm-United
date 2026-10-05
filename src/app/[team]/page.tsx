@@ -184,7 +184,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                   return (
                     <tr key={r.team} className={mine ? "bg-team font-semibold text-on-team" : "border-t border-zinc-100"}>
                       <td className={`py-2 ${mine ? "rounded-l-lg pl-2" : ""}`}>{i + 1}</td>
-                      <td className="max-w-36 truncate py-2">{r.team}</td>
+                      <td className="max-w-36 truncate py-2">{mine ? team.name : r.team}</td>
                       <td className="py-2 text-center">{r.p}</td>
                       <td className="py-2 text-center">{r.w}</td>
                       <td className="py-2 text-center">{r.d}</td>
