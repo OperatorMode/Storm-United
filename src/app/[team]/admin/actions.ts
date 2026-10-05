@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getAttendance, savePlayers, setAttendance, setManualScore, upsertTeam } from "@/lib/store";
 import { getLeagueData } from "@/lib/league";
-import { getTeam, hashSecret, isActivePlayer, mergePlayers, type Team } from "@/lib/teams";
+import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
 import { SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
 
@@ -74,16 +74,19 @@ export async function saveTeamSettings(teamId: string, _: unknown, formData: For
   const meet = Number(formData.get("meet_minutes"));
   if (!Number.isInteger(meet) || meet < 0 || meet > 120) return { error: "Meeting time must be 0–120 minutes." };
 
-  const joinCode = String(formData.get("join_code") ?? "").trim();
-  const clearJoin = formData.get("clear_join") === "on";
-  if (joinCode && joinCode.length < 4) return { error: "Join code needs at least 4 characters." };
+  const join = await joinCodeFields(
+    team.id,
+    { code: String(formData.get("join_code") ?? ""), clear: formData.get("clear_join") === "on" },
+    team,
+  );
+  if ("error" in join) return { error: join.error };
 
   const { players: _p, allPlayers: _a, ...row } = team; // eslint-disable-line @typescript-eslint/no-unused-vars
   await upsertTeam({
     ...row,
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
-    join_code_hash: clearJoin ? null : joinCode ? hashSecret(joinCode) : team.join_code_hash,
+    ...join,
   });
   await savePlayers(team.id, players);
   refresh(team.id);

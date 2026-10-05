@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { deleteTeam, getTeamRow, savePlayers, upsertTeam, uploadLogo, type TeamRow } from "@/lib/store";
 import { leagueTeams } from "@/lib/league";
-import { getTeam, hashSecret, mergePlayers, slugify } from "@/lib/teams";
+import { getTeam, hashSecret, joinCodeFields, mergePlayers, slugify } from "@/lib/teams";
 import { isHexColor } from "@/lib/theme";
 import { COOKIE_OPTS, SUPER_COOKIE, isSuperAdmin, superToken } from "@/lib/session";
 
@@ -64,7 +64,8 @@ export async function saveTeam(_: unknown, formData: FormData) {
   const adminPin = get("admin_pin");
   const joinCode = get("join_code");
   if (adminPin && adminPin.length < 4) return { error: "Admin PIN needs at least 4 characters." };
-  if (joinCode && joinCode.length < 4) return { error: "Join code needs at least 4 characters." };
+  const join = await joinCodeFields(id, { code: joinCode, clear: formData.get("clear_join") === "on" }, existing);
+  if ("error" in join) return { error: join.error };
   const meet = Number(get("meet_minutes") || 30);
   if (!Number.isInteger(meet) || meet < 0 || meet > 120) return { error: "Meeting time must be 0–120 minutes." };
 
@@ -77,8 +78,7 @@ export async function saveTeam(_: unknown, formData: FormData) {
     accent_color: accent.toLowerCase(),
     logo_url: logoUrl,
     admin_pin_hash: adminPin ? hashSecret(adminPin) : (existing?.admin_pin_hash ?? null),
-    join_code_hash:
-      formData.get("clear_join") === "on" ? null : joinCode ? hashSecret(joinCode) : (existing?.join_code_hash ?? null),
+    ...join,
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
   };
