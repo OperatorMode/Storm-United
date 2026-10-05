@@ -1,4 +1,6 @@
-# TPP 6 A-Side Team App
+# Sidelnr
+
+The team app for junior football — live at [sidelnr.app](https://sidelnr.app). Teams live at `sidelnr.app/<team>`.
 
 Team app for the TPP 6 A-Side League 2026: next game and meeting time, attendance (with goalie sign-up), 3-2-1 MVP voting and the live ladder. One mobile-first Next.js app hosts every team, each at its own link (e.g. `/storm-united`). Hosted on Vercel, data in Supabase.
 

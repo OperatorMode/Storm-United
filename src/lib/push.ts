@@ -14,7 +14,7 @@ function ready(): boolean {
   const priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) return false;
   if (!configured) {
-    webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? "https://storm-united.vercel.app", pub, priv);
+    webpush.setVapidDetails(process.env.VAPID_SUBJECT ?? "https://sidelnr.app", pub, priv);
     configured = true;
   }
   return true;
