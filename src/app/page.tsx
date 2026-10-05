@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
 import { getTeam } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
+import { currentManager } from "@/lib/session";
+import { emailEnabled } from "@/lib/email";
 
 // Landing page. There's deliberately no public list of teams: parents join
 // with the code from their coach, managers sign in with code/name + PIN.
@@ -15,7 +17,10 @@ export default async function Landing() {
       return m ? [m[1]] : c.name === "su_voter" ? ["storm-united"] : [];
     }),
   );
-  const known = (await Promise.all([...ids].map((id) => getTeam(id)))).filter((t) => t !== null);
+  const [known, manager] = await Promise.all([
+    Promise.all([...ids].map((id) => getTeam(id))).then((ts) => ts.filter((t) => t !== null)),
+    currentManager(),
+  ]);
 
   return (
     <div className="jersey min-h-dvh px-4 pb-10 pt-[calc(env(safe-area-inset-top)+2.5rem)]">
@@ -52,8 +57,32 @@ export default async function Landing() {
 
         <section className="rounded-2xl bg-white/95 p-5 text-zinc-950 shadow-lg">
           <h2 className="font-semibold">Manager’s Corner</h2>
-          <p className="mb-3 mt-0.5 text-sm text-zinc-500">For coaches and team managers.</p>
-          <ManagerSignInForm />
+          {manager ? (
+            <>
+              <p className="mb-3 mt-0.5 text-sm text-zinc-500">Signed in as {manager.email}.</p>
+              <Link href="/account" className="block w-full rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm font-semibold text-white">
+                My teams →
+              </Link>
+            </>
+          ) : !emailEnabled() ? (
+            <>
+              <p className="mb-3 mt-0.5 text-sm text-zinc-500">For coaches and team managers.</p>
+              <ManagerSignInForm />
+            </>
+          ) : (
+            <>
+              <p className="mb-3 mt-0.5 text-sm text-zinc-500">For coaches and team managers.</p>
+              <Link href="/login" className="block w-full rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm font-semibold text-white">
+                Sign in with email
+              </Link>
+              <details className="mt-3 text-sm">
+                <summary className="cursor-pointer text-zinc-500">Use a team PIN instead</summary>
+                <div className="mt-3">
+                  <ManagerSignInForm />
+                </div>
+              </details>
+            </>
+          )}
         </section>
 
         <p className="text-center text-xs opacity-50">

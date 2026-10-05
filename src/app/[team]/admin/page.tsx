@@ -11,7 +11,10 @@ import { TeamSettings } from "./TeamSettings";
 import { MergePlayers } from "./MergePlayers";
 import { listAnnouncements, listChat } from "@/lib/messages";
 import { adminLogout } from "./actions";
-import { isSuperAdmin, isTeamAdmin } from "@/lib/session";
+import { currentManagerId, isSuperAdmin, isTeamAdmin } from "@/lib/session";
+import { teamManagerIds } from "@/lib/accounts";
+import { AddToMyTeams } from "./AccountLink";
+import { emailEnabled } from "@/lib/email";
 import { formatDay, getLeagueData, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { goaliesForGame, goalieTally } from "@/lib/goalies";
@@ -47,6 +50,12 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
               Enter the manager PIN to see the season MVP tally, goalies, backup scores and team settings.
             </p>
             <AdminLogin teamId={team.id} />
+            {emailEnabled() && <div className="mt-4 border-t border-zinc-100 pt-4 text-center text-sm">
+              <span className="text-zinc-500">Have a Sidelnr account? </span>
+              <Link href={`/login?next=/${team.id}/admin`} className="font-medium underline">
+                Sign in with email
+              </Link>
+            </div>}
           </Card>
         </main>
         <TabBar teamId={team.id} active="manager" {...tabs} />
@@ -54,7 +63,7 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
     );
   }
 
-  const [{ ourGames }, ballots, manual, attendance, superAdmin, tabs, chat, posts] = await Promise.all([
+  const [{ ourGames }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers] = await Promise.all([
     getLeagueData(team),
     getBallots(team.id),
     getManualScores(team.id),
@@ -63,8 +72,11 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
     tabsPromise,
     listChat(team.id),
     listAnnouncements(team.id),
+    currentManagerId(),
+    teamManagerIds(team.id),
   ]);
   const now = clockNow();
+  const linked = !!managerId && managers.includes(managerId);
 
   // Removed players who still have history — candidates for "Merge players".
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -108,6 +120,23 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
     <div className="mx-auto max-w-md pb-24">
       {header}
       <main className="mt-4 space-y-4 px-4">
+      {!linked && (managerId || emailEnabled()) && (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+          {managerId ? (
+            <>
+              <span>Keep this team in My teams on any device.</span>
+              <AddToMyTeams teamId={team.id} teamName="to My teams" />
+            </>
+          ) : (
+            <>
+              <span>Sign in with email to manage all your teams in one place.</span>
+              <Link href={`/login?next=/${team.id}/admin`} className="shrink-0 font-semibold underline">
+                Sign in
+              </Link>
+            </>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2 text-sm font-medium">
         <Link href={`/${team.id}/board`} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-center shadow-sm">
           📣 Post to board
@@ -284,7 +313,7 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
           </Link>
         )}
         <form action={adminLogout.bind(null, team.id)}>
-          <button className="underline">Lock Manager’s Corner</button>
+          <button className="underline">Lock / sign out</button>
         </form>
       </div>
       </main>
