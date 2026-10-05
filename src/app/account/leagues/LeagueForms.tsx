@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import {
   addCompetitionAction,
   addFixtureAction,
@@ -10,12 +10,16 @@ import {
   disconnectFeedAction,
   previewFeedAction,
   syncNowAction,
+  deleteCompetitionAction,
   deleteFixtureAction,
+  deleteLeagueAction,
   importFixturesCsv,
   removeTeamAction,
   saveCompetitionSettings,
+  saveLeagueTimezone,
   saveResult,
 } from "./actions";
+import { allTimezones, formatWhen } from "@/lib/time";
 
 export const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 const label = "mb-1 block text-sm font-medium";
@@ -76,6 +80,44 @@ function CompetitionFields({ initial }: { initial?: Comp }) {
   );
 }
 
+// Every IANA timezone, preselecting the browser's own for a new league. Both
+// are read on the client only (they can differ from the server's).
+const noSubscribe = () => () => {};
+let zoneList: string[] | null = null;
+const clientZones = () => (zoneList ??= allTimezones());
+const noZones: string[] = [];
+function TimezoneSelect({ initial }: { initial?: string }) {
+  const zones = useSyncExternalStore(noSubscribe, clientZones, () => noZones);
+  const browserTz = useSyncExternalStore(noSubscribe, () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", () => "");
+  const [picked, setPicked] = useState<string | null>(null);
+  const value = picked ?? initial ?? browserTz;
+  const options = !value || zones.includes(value) ? zones : [value, ...zones];
+  return (
+    <select name="timezone" value={value} onChange={(e) => setPicked(e.target.value)} className={field} required>
+      {options.map((z) => (
+        <option key={z} value={z}>
+          {z.replaceAll("_", " ")}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+export function LeagueTimezoneForm({ competitionId, initial }: { competitionId: string; initial: string }) {
+  const [state, action, pending] = useActionState(saveLeagueTimezone.bind(null, competitionId), null);
+  return (
+    <form action={action} className="space-y-3 text-sm">
+      <p className="text-zinc-500">Kick-off times are entered and shown in this timezone, for everyone in the league.</p>
+      <TimezoneSelect initial={state && "timezone" in state ? state.timezone : initial} />
+      <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white">
+        {pending ? "Saving…" : "Save timezone"}
+      </button>
+      {state?.error && <p className="text-accent">{state.error}</p>}
+      {state?.ok && <p className="text-emerald-700">Saved.</p>}
+    </form>
+  );
+}
+
 export function NewLeagueForm() {
   const [state, action, pending] = useActionState(createLeagueAction, null);
   return (
@@ -97,6 +139,10 @@ export function NewLeagueForm() {
       <label className="block">
         <span className={label}>Website</span>
         <input name="website" type="url" placeholder="Optional, https://…" className={field} />
+      </label>
+      <label className="block">
+        <span className={label}>Timezone</span>
+        <TimezoneSelect />
       </label>
       <div className="border-t border-zinc-100 pt-4">
         <p className="mb-3 text-zinc-500">Your first competition (you can add more, e.g. one per age group):</p>
@@ -331,8 +377,10 @@ export function FeedPanel({
   competitionId,
   connected,
   aiEnabled,
+  tz,
 }: {
   competitionId: string;
+  tz: string;
   connected: { type: "csv" | "ics" | "web"; url: string; filter: string | null; team: string | null; syncedAt: string | null; error: string | null } | null;
   aiEnabled: boolean;
 }) {
@@ -357,7 +405,7 @@ export function FeedPanel({
             {connected.error ? (
               <span className="text-accent">Last sync failed: {connected.error}</span>
             ) : connected.syncedAt ? (
-              `Last synced ${new Date(connected.syncedAt).toLocaleString("en-AU", { timeZone: "Australia/Perth", dateStyle: "medium", timeStyle: "short" })}`
+              `Last synced ${formatWhen(connected.syncedAt, tz)}`
             ) : (
               "Not synced yet"
             )}
@@ -443,5 +491,101 @@ export function FeedPanel({
       )}
       {connectState?.error && <p className="text-accent">{connectState.error}</p>}
     </form>
+  );
+}
+
+type Impact = { competitions: number; fixtures: number; drawTeams: number; sidelnrTeams: string[] };
+
+// Deleting takes three deliberate steps: see what goes, type the exact name,
+// confirm once more. Blocked while Sidelnr teams still use it.
+export function DangerZone({
+  competitionId,
+  competitionName,
+  leagueName,
+  noun,
+  competitionImpact,
+  leagueImpact,
+}: {
+  competitionId: string;
+  competitionName: string;
+  leagueName: string;
+  noun: "league" | "event";
+  competitionImpact: Impact;
+  leagueImpact: Impact;
+}) {
+  const [target, setTarget] = useState<"competition" | "league" | null>(null);
+  const [typed, setTyped] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const name = target === "league" ? leagueName : competitionName;
+  const impact = target === "league" ? leagueImpact : competitionImpact;
+  const matches = typed.trim().toLowerCase() === name.trim().toLowerCase();
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+  if (!target) {
+    return (
+      <div className="flex flex-wrap gap-2 text-sm">
+        <button type="button" onClick={() => setTarget("competition")} className="rounded-xl border border-red-200 px-3 py-2 text-red-700">
+          Delete “{competitionName}”…
+        </button>
+        <button type="button" onClick={() => setTarget("league")} className="rounded-xl border border-red-200 px-3 py-2 text-red-700">
+          Delete the whole {noun}…
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="rounded-xl bg-red-50 p-3 text-red-900">
+        <div className="font-semibold">Step 1 · This permanently deletes:</div>
+        <ul className="mt-1 list-disc pl-5">
+          {target === "league" && <li>the {noun} “{leagueName}” and {plural(impact.competitions, "competition")}</li>}
+          {target === "competition" && <li>the competition “{competitionName}”</li>}
+          <li>{plural(impact.fixtures, "fixture")} and their results</li>
+          <li>{plural(impact.drawTeams, "team")} in the draw</li>
+        </ul>
+      </div>
+
+      {impact.sidelnrTeams.length > 0 ? (
+        <p className="rounded-xl border border-red-200 p-3 text-red-800">
+          Can’t delete yet — Sidelnr teams still use it: <b>{impact.sidelnrTeams.join(", ")}</b>. Their managers need to
+          move or delete those teams first, so nobody’s team page breaks.
+        </p>
+      ) : (
+        <>
+          <label className="block">
+            <span className="mb-1 block font-semibold text-red-900">Step 2 · Type “{name}” to confirm</span>
+            <input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className={field} />
+          </label>
+          <button
+            type="button"
+            disabled={!matches || pending}
+            onClick={() => {
+              if (!confirm(`Step 3 · Delete “${name}” forever? This can’t be undone.`)) return;
+              start(async () => {
+                const res = target === "league" ? await deleteLeagueAction(competitionId, typed) : await deleteCompetitionAction(competitionId, typed);
+                if (res?.error) setError(res.error);
+              });
+            }}
+            className="w-full rounded-xl bg-red-700 px-4 py-2.5 font-semibold text-white disabled:opacity-30"
+          >
+            {pending ? "Deleting…" : "Delete forever"}
+          </button>
+        </>
+      )}
+      {error && <p className="text-red-700">{error}</p>}
+      <button
+        type="button"
+        onClick={() => {
+          setTarget(null);
+          setTyped("");
+          setError(null);
+        }}
+        className="text-zinc-500 underline"
+      >
+        Cancel
+      </button>
+    </div>
   );
 }

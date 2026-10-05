@@ -64,7 +64,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     );
   }
 
-  const [{ ourGames }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers] = await Promise.all([
+  const [{ ourGames, tz }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers] = await Promise.all([
     getLeagueData(team),
     getBallots(team.id),
     getManualScores(team.id),
@@ -225,7 +225,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 return (
                   <li key={g.id}>
                     <div className="mb-1 text-xs text-zinc-500">
-                      Rd {g.round} vs {opponent(g, us)} · {formatDay(g.kickoff)}
+                      Rd {g.round} vs {opponent(g, us)} · {formatDay(g.kickoff, tz)}
                     </div>
                     <GoalieAssign
                       teamId={team.id}
@@ -290,7 +290,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             {played.map((g) => (
               <li key={g.id}>
                 <div className="mb-1 text-xs text-zinc-500">
-                  Rd {g.round} · {formatDay(g.kickoff)}
+                  Rd {g.round} · {formatDay(g.kickoff, tz)}
                   {g.scoreSource === "league" && " · league score posted"}
                 </div>
                 <ScoreForm teamId={team.id} gameId={g.id} home={g.home} away={g.away} initial={manual[g.id] ?? null} />

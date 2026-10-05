@@ -1,12 +1,11 @@
 import { listCompetitionTeamNames, listFixtures } from "../fixtures";
 import type { SourceData, SourceGame } from "./types";
+import { formatTime } from "../time";
 
 // Fixtures typed in or uploaded by a league admin (fixtures table).
 
-const TIME = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Perth", hour: "numeric", minute: "2-digit", hour12: true });
-const timeLabel = (d: Date) => TIME.format(d).replace(/\s*([ap])\.?m\.?/i, " $1m").toLowerCase();
 
-export async function loadManual(competitionId: string): Promise<SourceData> {
+export async function loadManual(competitionId: string, tz: string): Promise<SourceData> {
   const [teamNames, fixtures] = await Promise.all([listCompetitionTeamNames(competitionId), listFixtures(competitionId)]);
   const live = fixtures.filter((f) => f.status !== "cancelled");
 
@@ -16,7 +15,7 @@ export async function loadManual(competitionId: string): Promise<SourceData> {
       id: f.id,
       round: f.round,
       kickoff,
-      timeLabel: f.status === "postponed" ? "Postponed" : timeLabel(kickoff),
+      timeLabel: f.status === "postponed" ? "Postponed" : formatTime(kickoff, tz),
       pitch: f.pitch,
       home: f.home,
       away: f.away,

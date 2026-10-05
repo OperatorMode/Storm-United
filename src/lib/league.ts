@@ -5,6 +5,7 @@ import { loadTpp } from "./sources/tpp";
 import { loadManual } from "./sources/manual";
 import { syncIfStale } from "./feeds";
 import type { SourceData } from "./sources/types";
+import { DEFAULT_TZ, formatTime } from "./time";
 
 // League → Competition → fixtures. A team belongs to one competition; the
 // competition's league says where fixtures and results come from (its
@@ -30,6 +31,11 @@ function competitionIdFor(team: { competition_id: string | null; division: strin
   return team.competition_id ?? `tpp-2026-${team.division.toLowerCase()}`;
 }
 
+/** The timezone a team's times are shown in (its league's). */
+export async function teamTz(team: { competition_id: string | null; division: string }): Promise<string> {
+  return competitionTz(await getCompetition(competitionIdFor(team)));
+}
+
 export function competitionLabel(c: Competition): string {
   return `${c.name} · ${c.league.short_name ?? c.league.name}`;
 }
@@ -42,7 +48,7 @@ const loadSource = cache(async (competitionId: string): Promise<SourceData> => {
       return loadTpp(c.source_key ?? "");
     case "manual":
       syncIfStale(c); // fixtures from a link: refresh in the background when stale
-      return loadManual(c.id);
+      return loadManual(c.id, competitionTz(c));
     default:
       return { teams: [], games: [], byes: [] };
   }
@@ -79,6 +85,7 @@ export type LadderRow = {
 
 export type LeagueData = {
   competition: Competition | null;
+  tz: string; // the league's timezone, for showing times
   ourGames: Game[];
   byeRounds: { round: number; date: Date | null }[];
   ladder: LadderRow[];
@@ -119,6 +126,7 @@ export async function getLeagueData(team: {
 
   return {
     competition,
+    tz: competitionTz(competition),
     ourGames: games.filter((g) => g.home === us || g.away === us),
     byeRounds: source.byes.filter((b) => b.team === us).map(({ round, date }) => ({ round, date })),
     ladder: buildLadder(source.teams, games, {
@@ -184,28 +192,15 @@ export function votingState(g: Game, now = clockNow()): "upcoming" | "open" | "c
   return "closed";
 }
 
-const DAY = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Perth",
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
-export function formatDay(d: Date): string {
-  return DAY.format(d);
-}
+// Times show in the league's own timezone (see time.ts).
+export { formatDay, formatIsoDate } from "./time";
 
-// A yyyy-mm-dd date (e.g. a competition's finals date) as "Mon, 14 Dec".
-export function formatIsoDate(iso: string): string {
-  return formatDay(new Date(`${iso}T12:00:00+08:00`));
+/** The timezone a competition's times are shown in. */
+export function competitionTz(c: Competition | null | undefined): string {
+  return c?.league.timezone || DEFAULT_TZ;
 }
 
 // Teams meet a set number of minutes before kick-off (warm-up / practice).
-const TIME = new Intl.DateTimeFormat("en-AU", {
-  timeZone: "Australia/Perth",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-});
-export function meetingTime(g: Game, minutesBefore: number): string {
-  return TIME.format(new Date(g.kickoff.getTime() - minutesBefore * 60 * 1000)).replace(/\s*([ap])\.?m\.?/i, " $1m").toLowerCase();
+export function meetingTime(g: Game, minutesBefore: number, tz = DEFAULT_TZ): string {
+  return formatTime(new Date(g.kickoff.getTime() - minutesBefore * 60 * 1000), tz);
 }

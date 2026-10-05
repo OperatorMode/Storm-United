@@ -5,11 +5,10 @@ import Link from "next/link";
 import { removeChat, sendChat } from "../messaging-actions";
 import { chatSeenKey } from "@/components/TabBar";
 import type { ChatMessage } from "@/lib/messages";
+import { formatTime, formatWeekday } from "@/lib/time";
 
 const POLL_MS = 5000;
 
-const TIME = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Perth", hour: "numeric", minute: "2-digit" });
-const DAY = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Perth", weekday: "long", day: "numeric", month: "short" });
 
 export function ChatThread({
   teamId,
@@ -17,12 +16,14 @@ export function ChatThread({
   isCoach,
   names,
   initial,
+  tz,
 }: {
   teamId: string;
   me: string | null;
   isCoach: boolean;
   names: Record<string, string>;
   initial: ChatMessage[];
+  tz: string;
 }) {
   const [messages, setMessages] = useState(initial);
   const [draft, setDraft] = useState("");
@@ -79,7 +80,7 @@ export function ChatThread({
     start(() => removeChat(teamId, id));
   }
 
-  const dayOf = (m: ChatMessage) => DAY.format(new Date(m.created_at));
+  const dayOf = (m: ChatMessage) => formatWeekday(new Date(m.created_at), tz);
   return (
     <>
       <main className="flex-1 space-y-1 px-4 pb-44 pt-3">
@@ -109,7 +110,7 @@ export function ChatThread({
                     {m.body}
                   </div>
                   <div className={`mt-0.5 flex gap-2 px-1 text-[10px] text-zinc-400 ${mine ? "justify-end" : ""}`}>
-                    <span>{TIME.format(new Date(m.created_at))}</span>
+                    <span>{formatTime(new Date(m.created_at), tz)}</span>
                     {(mine || isCoach) && (
                       <button type="button" onClick={() => remove(m.id)} className="underline">
                         Delete

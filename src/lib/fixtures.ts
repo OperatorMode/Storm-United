@@ -278,3 +278,42 @@ export function mergeImported(competitionId: string, existing: FixtureRow[], imp
     };
   });
 }
+
+// ---------- deleting (guarded by the callers' triple check) ----------
+
+export async function deleteCompetitionRow(id: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.competitions = (d.competitions ?? []).filter((c) => c.id !== id);
+    d.fixtures = (d.fixtures ?? []).filter((f) => f.competition_id !== id);
+    d.competition_teams = (d.competition_teams ?? []).filter((t) => t.competition_id !== id);
+    return writeLocal(d);
+  }
+  check(await s.from("competitions").delete().eq("id", id)); // fixtures & competition teams cascade
+}
+
+export async function deleteLeagueRow(id: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    const comps = new Set((d.competitions ?? []).filter((c) => c.league_id === id).map((c) => c.id));
+    d.leagues = (d.leagues ?? []).filter((l) => l.id !== id);
+    d.competitions = (d.competitions ?? []).filter((c) => !comps.has(c.id));
+    d.fixtures = (d.fixtures ?? []).filter((f) => !comps.has(f.competition_id));
+    d.competition_teams = (d.competition_teams ?? []).filter((t) => !comps.has(t.competition_id));
+    d.league_admins = (d.league_admins ?? []).filter((a) => a.league_id !== id);
+    return writeLocal(d);
+  }
+  check(await s.from("leagues").delete().eq("id", id)); // competitions, fixtures, admins cascade
+}
+
+export async function updateLeague(id: string, patch: Partial<Omit<LeagueRow, "id">>): Promise<void> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.leagues = (d.leagues ?? []).map((l) => (l.id === id ? { ...l, ...patch } : l));
+    return writeLocal(d);
+  }
+  check(await s.from("leagues").update(patch).eq("id", id));
+}

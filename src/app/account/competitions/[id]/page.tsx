@@ -6,20 +6,22 @@ import {
   AddCompetitionForm,
   AddFixtureForm,
   CompetitionSettingsForm,
+  DangerZone,
   FeedPanel,
   ImportCsvForm,
+  LeagueTimezoneForm,
   ResultRow,
   TeamsEditor,
 } from "../../leagues/LeagueForms";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
-import { formatDay, getCompetition, listCompetitions } from "@/lib/league";
+import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
+import { formatTime } from "@/lib/time";
 import { listTeams } from "@/lib/store";
 import { now as clockNow } from "@/lib/clock";
 
 export const metadata: Metadata = { title: "Competition · Sidelnr", robots: { index: false } };
 
-const TIME = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Perth", hour: "numeric", minute: "2-digit", hour12: true });
 
 export default async function CompetitionAdminPage({ params, searchParams }: PageProps<"/account/competitions/[id]">) {
   const { id } = await params;
@@ -41,16 +43,29 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
     );
   }
 
-  const [teams, fixtures, siblings, sidelnrTeams] = await Promise.all([
+  const [teams, fixtures, siblings, allTeams] = await Promise.all([
     listCompetitionTeamNames(id),
     listFixtures(id),
     listCompetitions().then((cs) => cs.filter((c) => c.league_id === competition.league_id)),
-    listTeams().then((ts) => ts.filter((t) => t.competition_id === id)),
+    listTeams(),
   ]);
+  const sidelnrTeams = allTeams.filter((t) => t.competition_id === id);
+  // What deleting would remove (shown in the Danger zone).
+  const siblingData = await Promise.all(
+    siblings.map(async (c) => ({ fixtures: (await listFixtures(c.id)).length, teams: (await listCompetitionTeamNames(c.id)).length })),
+  );
+  const leagueImpact = {
+    competitions: siblings.length,
+    fixtures: siblingData.reduce((n, x) => n + x.fixtures, 0),
+    drawTeams: siblingData.reduce((n, x) => n + x.teams, 0),
+    sidelnrTeams: allTeams.filter((t) => siblings.some((c) => c.id === t.competition_id)).map((t) => t.name),
+  };
+  const competitionImpact = { competitions: 1, fixtures: fixtures.length, drawTeams: teams.length, sidelnrTeams: sidelnrTeams.map((t) => t.name) };
   const now = clockNow().getTime();
   const upcoming = fixtures.filter((f) => new Date(f.kickoff).getTime() > now);
   const past = fixtures.filter((f) => new Date(f.kickoff).getTime() <= now).reverse();
-  const when = (iso: string) => `${formatDay(new Date(iso))}, ${TIME.format(new Date(iso)).toLowerCase()}`;
+  const tz = competitionTz(competition);
+  const when = (iso: string) => `${formatDay(new Date(iso), tz)}, ${formatTime(new Date(iso), tz)}`;
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
@@ -93,6 +108,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         <FeedPanel
           competitionId={id}
           aiEnabled={!!process.env.ANTHROPIC_API_KEY}
+          tz={tz}
           connected={
             competition.feed_type && competition.feed_url
               ? {
@@ -144,8 +160,23 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         <CompetitionSettingsForm competitionId={id} initial={competition} />
       </Card>
 
+      <Card title="Timezone" aside={tz.replaceAll("_", " ")}>
+        <LeagueTimezoneForm competitionId={id} initial={tz} />
+      </Card>
+
       <Card title={`Add a competition to ${competition.league.short_name ?? competition.league.name}`}>
         <AddCompetitionForm leagueId={competition.league_id} />
+      </Card>
+
+      <Card title="Danger zone">
+        <DangerZone
+          competitionId={id}
+          competitionName={competition.name}
+          leagueName={competition.league.name}
+          noun={siblings.every((c) => c.kind === "tournament") ? "event" : "league"}
+          competitionImpact={competitionImpact}
+          leagueImpact={leagueImpact}
+        />
       </Card>
     </div>
   );
