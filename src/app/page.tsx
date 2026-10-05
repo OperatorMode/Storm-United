@@ -69,7 +69,7 @@ export default async function Home() {
 
         {next && (
           <Card title="Attendance" aside={`Rd ${next.round} · ${formatDay(next.kickoff)}`}>
-            {myChild && (
+            {myChild && next.kickoff.getTime() > now.getTime() && (
               <div className="mb-4">
                 <p className="mb-2 text-sm font-medium">Can {playerName(myChild).split(" ")[0]} make it?</p>
                 <AttendanceButtons gameId={next.id} status={statusOf(next.id, myChild)} />
