@@ -14,12 +14,12 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [voter, coach, announcements] = await Promise.all([
+  const [voter, coach, announcements, tabs] = await Promise.all([
     currentVoter(team),
     isTeamAdmin(team),
     listAnnouncements(team.id),
+    tabData(team),
   ]);
-  const tabs = await tabData(team.id, voter);
   const families = team.players.length;
 
   return (

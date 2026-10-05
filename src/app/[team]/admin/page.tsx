@@ -9,7 +9,7 @@ import { ScoreForm } from "./ScoreForm";
 import { GoalieAssign } from "./GoalieAssign";
 import { TeamSettings } from "./TeamSettings";
 import { adminLogout } from "./actions";
-import { currentVoter, isSuperAdmin, isTeamAdmin } from "@/lib/session";
+import { isSuperAdmin, isTeamAdmin } from "@/lib/session";
 import { formatDay, getLeagueData, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { goaliesForGame, goalieTally } from "@/lib/goalies";
@@ -26,7 +26,7 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
   const team = await getTeam((await params).team);
   if (!team) notFound();
 
-  const tabs = await tabData(team.id, await currentVoter(team));
+  const tabsPromise = tabData(team);
   const header = (
     <header className="jersey px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
       <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
@@ -35,6 +35,7 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
   );
 
   if (!(await isTeamAdmin(team))) {
+    const tabs = await tabsPromise;
     return (
       <div className="mx-auto max-w-md pb-24">
         {header}
@@ -51,12 +52,13 @@ export default async function AdminPage({ params }: PageProps<"/[team]/admin">) 
     );
   }
 
-  const [{ ourGames }, ballots, manual, attendance, superAdmin] = await Promise.all([
+  const [{ ourGames }, ballots, manual, attendance, superAdmin, tabs] = await Promise.all([
     getLeagueData(team),
     getBallots(team.id),
     getManualScores(team.id),
     getAttendance(team.id),
     isSuperAdmin(),
+    tabsPromise,
   ]);
   const now = clockNow();
   const played = ourGames.filter((g) => g.kickoff.getTime() <= now.getTime());

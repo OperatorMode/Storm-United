@@ -4,7 +4,7 @@ import { TabBar } from "@/components/TabBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { ChatThread } from "./ChatThread";
 import { firstName, getTeam } from "@/lib/teams";
-import { canView, chatAuthor, currentVoter, isTeamAdmin } from "@/lib/session";
+import { canView, chatAuthor, isTeamAdmin } from "@/lib/session";
 import { listChat } from "@/lib/messages";
 import { tabData } from "@/lib/tabs";
 import { pushPublicKey } from "@/lib/push";
@@ -14,13 +14,12 @@ export default async function ChatPage({ params }: PageProps<"/[team]/chat">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [me, voter, coach, messages] = await Promise.all([
+  const [me, coach, messages, tabs] = await Promise.all([
     chatAuthor(team),
-    currentVoter(team),
     isTeamAdmin(team),
     listChat(team.id),
+    tabData(team),
   ]);
-  const tabs = await tabData(team.id, voter);
   // Names for every family that ever posted (incl. players who've left).
   const names = Object.fromEntries(team.allPlayers.map((p) => [p.id, `${firstName(p.name)}'s parent`]));
 

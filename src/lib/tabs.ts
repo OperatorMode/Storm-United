@@ -1,10 +1,16 @@
 import { latestChatAt, listAnnouncements } from "./messages";
+import { currentVoter } from "./session";
+import type { Team } from "./teams";
 
 // Data the bottom tab bar needs for its unread badges. Badges are a nicety:
 // if messaging data can't be read, the page still renders without them.
-export async function tabData(teamId: string, voter: string | null) {
+export async function tabData(team: Team) {
   try {
-    const [announcements, chatAt] = await Promise.all([listAnnouncements(teamId), latestChatAt(teamId)]);
+    const [announcements, chatAt, voter] = await Promise.all([
+      listAnnouncements(team.id),
+      latestChatAt(team.id),
+      currentVoter(team),
+    ]);
     return {
       boardUnread: voter ? announcements.filter((a) => !a.acks.includes(voter)).length : 0,
       latestChatAt: chatAt,

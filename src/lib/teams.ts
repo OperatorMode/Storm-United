@@ -10,9 +10,8 @@ export type Team = TeamRow & {
 
 // One fetch per request, however many components ask.
 export const getTeam = cache(async (id: string): Promise<Team | null> => {
-  const row = await getTeamRow(id);
+  const [row, allPlayers] = await Promise.all([getTeamRow(id), getPlayers(id)]);
   if (!row) return null;
-  const allPlayers = await getPlayers(id);
   return { ...row, allPlayers, players: allPlayers.filter((p) => p.active).map(({ id, name }) => ({ id, name })) };
 });
 

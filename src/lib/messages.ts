@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { randomUUID } from "crypto";
 import { check, db, readLocal, writeLocal, type PushSubRow } from "./store";
 
@@ -11,7 +12,8 @@ export const COACH_AUTHOR = "coach";
 
 // ---------- announcements ----------
 
-export async function listAnnouncements(teamId: string): Promise<Announcement[]> {
+// Cached per request: the board page and the tab bar both need it.
+export const listAnnouncements = cache(async (teamId: string): Promise<Announcement[]> => {
   const s = db();
   if (!s) {
     const data = await readLocal();
@@ -34,7 +36,7 @@ export async function listAnnouncements(teamId: string): Promise<Announcement[]>
       .limit(50),
   ) as { id: string; body: string; created_at: string; announcement_acks: { player_id: string }[] }[];
   return rows.map(({ announcement_acks, ...a }) => ({ ...a, acks: announcement_acks.map((k) => k.player_id) }));
-}
+});
 
 export async function addAnnouncement(teamId: string, body: string): Promise<void> {
   const s = db();

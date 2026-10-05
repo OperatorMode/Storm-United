@@ -33,13 +33,13 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ ourGames, byeRounds, ladder }, attendance, ballots, voter] = await Promise.all([
+  const [{ ourGames, byeRounds, ladder }, attendance, ballots, voter, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
     currentVoter(team),
+    tabData(team),
   ]);
-  const tabs = await tabData(team.id, voter);
   const us = team.league_name;
   const PLAYERS = team.players;
   const nameOf = (id: string) => playerName(team, id);
