@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useOptimistic, useTransition } from "react";
 import { setChildren } from "@/app/[team]/actions";
 
@@ -61,7 +62,13 @@ export function ChildrenPicker({
     return (
       <div className="space-y-2">
         {list}
-        <p className="text-xs text-zinc-500">More than one child in this team? Tick them all.</p>
+        <p className="text-xs text-zinc-500">
+          More than one child in this team? Tick them all. This phone remembers it for attendance and votes (
+          <Link href="/privacy" className="underline">
+            privacy
+          </Link>
+          ).
+        </p>
       </div>
     );
   }

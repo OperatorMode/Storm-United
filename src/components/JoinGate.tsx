@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { enterJoinCode } from "@/app/[team]/actions";
 import { logoSrc } from "@/lib/brand";
@@ -22,6 +23,17 @@ export function JoinGate({ team }: { team: { id: string; name: string; logo_url:
             <div className="text-sm text-zinc-500">Enter the team code from your coach.</div>
           </div>
         </div>
+        <p className="text-xs text-zinc-500">
+          By joining you agree to the{" "}
+          <Link href="/terms" className="underline">
+            terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="underline">
+            privacy policy
+          </Link>
+          .
+        </p>
         <input type="hidden" name="team" value={team.id} />
         <input
           name="code"
