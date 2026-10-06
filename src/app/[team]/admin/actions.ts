@@ -11,6 +11,8 @@ import { formatDay, formatTime } from "@/lib/time";
 import { getPushSubs } from "@/lib/messages";
 import { sendPush } from "@/lib/push";
 import { releaseDuty, saveDuties, takeDuty } from "@/lib/duties";
+import { saveRotation } from "@/lib/rotation";
+import type { RotationPlan } from "@/lib/rotation-plan";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
 import { mergePlayer } from "@/lib/merge";
@@ -245,6 +247,23 @@ export async function assignDuty(teamId: string, gameId: string, duty: string, p
   if (!team) return { error: "Not authorised." };
   await releaseDuty(team.id, gameId, duty);
   if (playerId && isActivePlayer(team, playerId)) await takeDuty(team.id, gameId, duty, playerId);
+  refresh(team.id);
+  return { ok: true };
+}
+
+// ---------- fair playing time ----------
+
+export async function saveGameRotation(teamId: string, gameId: string, plan: RotationPlan | null) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  if (plan) {
+    const ok =
+      Number.isInteger(plan.periods) && plan.periods >= 1 && plan.periods <= 8 &&
+      Number.isInteger(plan.onField) && plan.onField >= 1 && plan.onField <= 30 &&
+      Object.entries(plan.spots).every(([id, list]) => isActivePlayer(team, id) && Array.isArray(list) && list.length === plan.periods && list.every((s) => ["on", "rest", "gk"].includes(s)));
+    if (!ok) return { error: "That rotation doesn’t look right." };
+  }
+  await saveRotation(team.id, gameId, plan);
   refresh(team.id);
   return { ok: true };
 }

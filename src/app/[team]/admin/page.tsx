@@ -13,6 +13,8 @@ import { MergePlayers } from "./MergePlayers";
 import { SeasonRollover } from "./SeasonRollover";
 import { TrainingAdmin } from "./TrainingAdmin";
 import { DutyAdmin } from "./DutyAdmin";
+import { RotationAdmin } from "./RotationAdmin";
+import { listRotations } from "@/lib/rotation";
 import { SUGGESTED_DUTIES, listDuties, listDutySignups } from "@/lib/duties";
 import { listTraining } from "@/lib/training";
 import { formatTime } from "@/lib/time";
@@ -85,7 +87,15 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     teamManagerIds(team.id),
     listCompetitions(),
   ]);
-  const [training, duties, dutySignups] = await Promise.all([listTraining(team.id), listDuties(team.id), listDutySignups(team.id)]);
+  const [training, duties, dutySignups, rotations] = await Promise.all([
+    listTraining(team.id),
+    listDuties(team.id),
+    listDutySignups(team.id),
+    listRotations(team.id),
+  ]);
+  // Rotations only count for this season's games.
+  const seasonRotations = Object.fromEntries(Object.entries(rotations).filter(([id]) => ourGames.some((g) => g.id === id)));
+  const lastPlan = Object.values(seasonRotations).at(-1);
   const now = clockNow();
   const linked = !!managerId && managers.includes(managerId);
 
@@ -216,6 +226,30 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 coming: count("yes"),
                 maybe: count("maybe"),
                 out: count("no"),
+              };
+            })}
+        />
+      </Card>
+
+      <Card title="Fair playing time" aside="Rests shared over the season">
+        <RotationAdmin
+          teamId={team.id}
+          players={team.players}
+          allSaved={seasonRotations}
+          defaults={{ periods: lastPlan?.periods ?? 2, onField: lastPlan?.onField ?? 6 }}
+          games={ourGames
+            .filter((g) => g.kickoff.getTime() + 3 * 60 * 60 * 1000 > now.getTime() && g.time !== "Postponed")
+            .slice(0, 4)
+            .map((g) => {
+              // Everyone except those who said they can't make it.
+              const out = attendance.filter((a) => a.game_id === g.id && a.status === "no").map((a) => a.player_id);
+              const { first, second } = goaliesForGame(attendance, g.id);
+              return {
+                id: g.id,
+                label: `${formatDay(g.kickoff, tz)} · ${g.home === us ? "vs" : "@"} ${opponent(g, us)}`,
+                available: team.players.map((p) => p.id).filter((id) => !out.includes(id)),
+                goalies: { first: first[0] ?? null, second: second[0] ?? null },
+                saved: seasonRotations[g.id] ?? null,
               };
             })}
         />
