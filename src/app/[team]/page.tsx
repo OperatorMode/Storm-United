@@ -5,6 +5,9 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { pushPublicKey } from "@/lib/push";
 import { AddToCalendar } from "@/components/AddToCalendar";
+import { TrainingButtons } from "@/components/TrainingButtons";
+import { listTraining } from "@/lib/training";
+import { formatTime } from "@/lib/time";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 import { AttendanceButtons } from "@/components/AttendanceButtons";
@@ -51,7 +54,11 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
     currentChildren(team),
     tabData(team),
   ]);
-  const [calToken, host] = await Promise.all([calendarToken([team]), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
+  const [calToken, host, training] = await Promise.all([
+    calendarToken([team]),
+    headers().then((h) => h.get("host") ?? "sidelnr.app"),
+    listTraining(team.id),
+  ]);
   const voter = children[0] ?? null; // the family's id (one MVP ballot per family)
   const us = team.league_name;
   const PLAYERS = team.players;
@@ -122,6 +129,55 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={children} />
           </Card>
         )}
+
+        {(() => {
+          const upcomingTraining = training
+            .filter((t) => new Date(t.starts_at).getTime() + t.minutes * 60_000 > now.getTime())
+            .slice(0, 3);
+          if (!upcomingTraining.length) return null;
+          return (
+            <Card title="Training" aside={training.some((t) => t.series_id) ? "Weekly" : undefined}>
+              <ul className="space-y-4">
+                {upcomingTraining.map((t) => {
+                  const start = new Date(t.starts_at);
+                  const started = start.getTime() <= now.getTime();
+                  const coming = PLAYERS.filter((p) => statusOf(t.id, p.id) === "yes").length;
+                  return (
+                    <li key={t.id}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className={`font-semibold ${t.cancelled ? "text-zinc-400 line-through" : ""}`}>
+                            {formatDay(start, tz)}, {formatTime(start, tz)}
+                          </div>
+                          <div className="text-xs text-zinc-500">
+                            {t.minutes} min{t.location ? ` · ${t.location}` : ""}
+                            {!t.cancelled && ` · ${coming}/${PLAYERS.length} coming`}
+                          </div>
+                          {t.note && <div className="mt-0.5 text-xs text-zinc-600">{t.note}</div>}
+                        </div>
+                        {t.cancelled ? (
+                          <span className="shrink-0 rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white">Cancelled</span>
+                        ) : (
+                          t.location && <Directions place={t.location} className="shrink-0 bg-zinc-900 text-white" />
+                        )}
+                      </div>
+                      {!t.cancelled && !started && children.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {children.map((child) => (
+                            <div key={child}>
+                              {children.length > 1 && <p className="mb-1 text-xs font-medium text-zinc-600">{firstName(nameOf(child))}</p>}
+                              <TrainingButtons teamId={team.id} sessionId={t.id} playerId={child} status={statusOf(t.id, child)} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          );
+        })()}
 
         <Card title="MVP votes" aside="3 · 2 · 1 points">
           {openVoting.map((g) => {

@@ -69,6 +69,11 @@ export type LocalDb = {
   // Game alerts (see game-alerts.ts).
   game_state?: { team_id: string; games: GameSnapshot; updated_at: string }[];
   notification_log?: { team_id: string; key: string; sent_at: string }[];
+  // Coach tools (training.ts, duties.ts, rotation.ts).
+  training?: import("./training").TrainingRow[];
+  team_duties?: { team_id: string; name: string; sort: number }[];
+  duty_signups?: { team_id: string; game_id: string; duty: string; player_id: string; created_at: string }[];
+  game_rotations?: { team_id: string; game_id: string; plan: unknown; updated_at: string }[];
 };
 
 export type LeagueRow = {

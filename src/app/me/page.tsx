@@ -11,6 +11,7 @@ import { now as clockNow } from "@/lib/clock";
 import { Directions } from "@/components/Directions";
 import { AddToCalendar } from "@/components/AddToCalendar";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { listTraining } from "@/lib/training";
 import { LegalLinks } from "@/components/LegalPage";
 import { ForgetPhone } from "./ForgetPhone";
 import { calendarToken } from "@/lib/calendar";
@@ -36,6 +37,7 @@ type Entry = {
   place: string | null;
   kids: { name: string; status: AttendanceStatus | null }[];
   clashes: { kind: "child" | "family"; text: string }[];
+  training?: { cancelled: boolean; minutes: number; note: string | null };
 };
 
 const BUSY_AFTER_MS = 60 * 60 * 1000; // a game keeps you busy until ~1h after kick-off
@@ -92,19 +94,44 @@ export default async function MyPlayerPage() {
         currentChildren(team),
         getAttendance(team.id),
       ]);
-      return ourGames.map(
+      const kidsFor = (id: string) =>
+        children.map((c) => ({
+          name: firstName(playerName(team, c)),
+          status: attendance.find((a) => a.game_id === id && a.player_id === c)?.status ?? null,
+        }));
+      // Training sessions appear alongside games (and count for clashes).
+      const sessions = (await listTraining(team.id)).map(
+        (t): Entry => ({
+          team,
+          game: {
+            id: t.id,
+            round: null,
+            time: t.cancelled ? "Postponed" : formatTime(new Date(t.starts_at), tz),
+            pitch: null,
+            stage: "Training",
+            home: team.league_name,
+            away: "",
+            kickoff: new Date(t.starts_at),
+            score: null,
+            scoreSource: null,
+          },
+          tz,
+          place: t.location,
+          clashes: [],
+          kids: kidsFor(t.id),
+          training: { cancelled: t.cancelled, minutes: t.minutes, note: t.note },
+        }),
+      );
+      return [...sessions, ...ourGames.map(
         (game): Entry => ({
           team,
           game,
           tz,
           place: gamePlace(game.pitch, competition),
           clashes: [],
-          kids: children.map((c) => ({
-            name: firstName(playerName(team, c)),
-            status: attendance.find((a) => a.game_id === game.id && a.player_id === c)?.status ?? null,
-          })),
+          kids: kidsFor(game.id),
         }),
-      );
+      )];
     }),
   );
   const all = perTeam.flat();
@@ -214,7 +241,7 @@ export default async function MyPlayerPage() {
 function GameCard({ e }: { e: Entry }) {
   const { team, game, tz } = e;
   const home = game.home === team.league_name;
-  const meet = team.meet_minutes > 0 ? meetingTime(game, team.meet_minutes, tz) : null;
+  const meet = team.meet_minutes > 0 && !e.training ? meetingTime(game, team.meet_minutes, tz) : null;
   return (
     <li
       className={`rounded-2xl border bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
@@ -235,13 +262,19 @@ function GameCard({ e }: { e: Entry }) {
           <span className="block text-xs text-zinc-500">
             {e.kids.length ? `${e.kids.map((k) => k.name).join(" & ")} · ` : ""}
             {team.name}
-            {roundLabel(game) && ` · ${roundLabel(game)}`}
+            {!e.training && roundLabel(game) && ` · ${roundLabel(game)}`}
           </span>
           <span className="block font-semibold">
-            {home ? "vs" : "@"} {opponent(game, team.league_name)}
+            {e.training ? "Training" : `${home ? "vs" : "@"} ${opponent(game, team.league_name)}`}
           </span>
           <span className="mt-0.5 block text-sm text-zinc-700">
-            {game.time === "Postponed" ? "Postponed" : `Kick-off ${formatTime(game.kickoff, tz)}`}
+            {game.time === "Postponed"
+              ? e.training
+                ? "Cancelled"
+                : "Postponed"
+              : e.training
+                ? `${formatTime(game.kickoff, tz)} · ${e.training.minutes} min`
+                : `Kick-off ${formatTime(game.kickoff, tz)}`}
             {meet && game.time !== "Postponed" && ` · Meet ${meet}`}
           </span>
           {(game.pitch || e.place) && (
@@ -250,7 +283,7 @@ function GameCard({ e }: { e: Entry }) {
         </span>
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {e.kids.map((k) =>
+        {!e.training?.cancelled && e.kids.map((k) =>
           k.status ? (
             <span key={k.name} className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[k.status].cls}`}>
               {e.kids.length > 1 && `${k.name}: `}
@@ -258,7 +291,7 @@ function GameCard({ e }: { e: Entry }) {
             </span>
           ) : (
             <Link key={k.name} href={`/${team.id}`} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-              Can {k.name} play? Tap to answer
+              Can {k.name} {e.training ? "come" : "play"}? Tap to answer
             </Link>
           ),
         )}

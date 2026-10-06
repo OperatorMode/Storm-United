@@ -1,4 +1,5 @@
 "use server";
+import { listTraining } from "@/lib/training";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -129,5 +130,20 @@ export async function adminLogin(_: unknown, formData: FormData) {
     return { error: "Wrong PIN." };
   }
   revalidatePath(`/${team.id}/admin`);
+  return { ok: true };
+}
+
+// A parent's answer for a training session ("can come" / maybe / can't).
+export async function updateTrainingAttendance(teamId: string, sessionId: string, status: AttendanceStatus, playerId: string) {
+  const team = await teamFor(teamId);
+  if (!team) return { error: "Team not found." };
+  if (!(await currentChildren(team)).includes(playerId)) return { error: "Pick your child first." };
+  if (!["yes", "no", "maybe"].includes(status)) return { error: "Invalid answer." };
+  const session = (await listTraining(team.id)).find((t) => t.id === sessionId);
+  if (!session || session.cancelled) return { error: "This session isn’t on." };
+  if (new Date(session.starts_at).getTime() < now().getTime()) return { error: "This session has already started." };
+  await setAttendance(team.id, { game_id: sessionId, player_id: playerId, status, goalie: null });
+  revalidatePath(`/${team.id}`);
+  revalidatePath("/me");
   return { ok: true };
 }
