@@ -14,6 +14,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { listTraining } from "@/lib/training";
 import { LegalLinks } from "@/components/LegalPage";
 import { ForgetPhone } from "./ForgetPhone";
+import { MyPlayerViews } from "./MyPlayerViews";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 
@@ -194,16 +195,38 @@ export default async function MyPlayerPage() {
           </div>
         )}
 
-        {[...days.entries()].map(([day, entries]) => (
-          <section key={day}>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">{formatWeekday(entries[0].game.kickoff, entries[0].tz)}</h2>
-            <ul className="space-y-2">
-              {entries.map((e) => (
-                <GameCard key={`${e.team.id}-${e.game.id}`} e={e} />
-              ))}
-            </ul>
-          </section>
-        ))}
+        {days.size > 0 && (
+          <MyPlayerViews
+            list={
+              <div className="space-y-5">
+                {[...days.entries()].map(([day, entries]) => (
+                  <section key={day}>
+                    <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">{formatWeekday(entries[0].game.kickoff, entries[0].tz)}</h2>
+                    <ul className="space-y-2">
+                      {entries.map((e) => (
+                        <GameCard key={`${e.team.id}-${e.game.id}`} e={e} />
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            }
+            days={[...days.entries()].map(([day, entries]) => ({
+              date: day,
+              title: formatWeekday(entries[0].game.kickoff, entries[0].tz),
+              count: entries.length,
+              clash: entries.some((e) => e.clashes.some((c) => c.kind === "child")),
+              training: entries.every((e) => e.training),
+              node: (
+                <ul className="space-y-2">
+                  {entries.map((e) => (
+                    <GameCard key={`${e.team.id}-${e.game.id}`} e={e} />
+                  ))}
+                </ul>
+              ),
+            }))}
+          />
+        )}
 
         {results.length > 0 && (
           <section>
