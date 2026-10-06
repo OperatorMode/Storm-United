@@ -1,9 +1,15 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getAttendance, getTeamRow, savePlayers, setAttendance, setManualScore, upsertTeam } from "@/lib/store";
-import { competitionTeams, getCompetition, getLeagueData } from "@/lib/league";
+import { competitionTeams, getCompetition, getLeagueData, teamTz } from "@/lib/league";
+import { addTraining, deleteTraining, listTraining, newTrainingId, setTrainingCancelled, type TrainingRow } from "@/lib/training";
+import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
+import { formatDay, formatTime } from "@/lib/time";
+import { getPushSubs } from "@/lib/messages";
+import { sendPush } from "@/lib/push";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
 import { mergePlayer } from "@/lib/merge";
@@ -147,5 +153,76 @@ export async function rolloverSeason(
   await savePlayers(team.id, mergePlayers(team.allPlayers, [...kept, ...added]));
   revalidatePath(`/${team.id}`, "layout");
   revalidatePath("/me");
+  return { ok: true };
+}
+
+// ---------- training ----------
+
+export async function createTraining(teamId: string, _: unknown, formData: FormData) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+  const date = parseDate(get("date"));
+  const time = parseTime(get("time"));
+  const minutes = Number(get("minutes") || 60);
+  if (!date) return { error: "Pick the date of the (first) session." };
+  if (!time) return { error: "Enter the start time, e.g. 5:00 pm." };
+  if (!Number.isInteger(minutes) || minutes < 15 || minutes > 300) return { error: "Length should be 15 to 300 minutes." };
+  const weekly = get("repeat") === "weekly";
+  const until = weekly ? parseDate(get("until")) : date;
+  if (!until || until < date) return { error: "Pick until when training repeats." };
+
+  const tz = await teamTz(team);
+  const seriesId = weekly ? newTrainingId() : null;
+  const rows: TrainingRow[] = [];
+  for (let d = Date.parse(`${date}T12:00:00Z`); d <= Date.parse(`${until}T12:00:00Z`) && rows.length < 60; d += 7 * 86_400_000) {
+    rows.push({
+      id: newTrainingId(),
+      team_id: team.id,
+      starts_at: zonedTime(new Date(d).toISOString().slice(0, 10), time, tz).toISOString(),
+      minutes,
+      location: get("location") || null,
+      note: get("note") || null,
+      cancelled: false,
+      series_id: seriesId,
+    });
+  }
+  await addTraining(rows);
+  refresh(team.id);
+  return { ok: true, count: rows.length };
+}
+
+// Cancelling (e.g. wet weather) tells everyone with game alerts switched on.
+export async function setTrainingOff(teamId: string, id: string, cancelled: boolean) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  const session = (await listTraining(team.id)).find((t) => t.id === id);
+  if (!session) return { error: "Session not found." };
+  await setTrainingCancelled(team.id, id, cancelled);
+  refresh(team.id);
+  const tz = await teamTz(team);
+  const when = `${formatDay(new Date(session.starts_at), tz)}, ${formatTime(new Date(session.starts_at), tz)}`;
+  after(async () => {
+    const subs = (await getPushSubs(team.id)).filter((s) => s.notify_games !== false);
+    await Promise.allSettled(
+      subs.map((s) =>
+        sendPush(s, {
+          title: `${team.name}: training ${cancelled ? "cancelled" : "is back on"}`,
+          body: cancelled ? `${when} training is off.` : `${when} training is on again.`,
+          url: `/${team.id}`,
+          icon: `/${team.id}/icon/192`,
+          tag: `${team.id}-training-${id}`,
+        }),
+      ),
+    );
+  });
+  return { ok: true };
+}
+
+export async function removeTraining(teamId: string, id: string, laterInSeries: boolean) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  await deleteTraining(team.id, id, laterInSeries);
+  refresh(team.id);
   return { ok: true };
 }

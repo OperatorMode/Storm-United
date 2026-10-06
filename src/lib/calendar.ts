@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { gamePlace, getLeagueData, meetingTime, opponent, pitchLabel } from "./league";
 import { canView, currentChildren, joinToken } from "./session";
 import { firstName, getTeam, playerName, type Team } from "./teams";
+import { listTraining } from "./training";
 
 // Calendar subscriptions (webcal / .ics). A phone gets a signed link listing
 // its teams (and children); calendar apps fetch it without cookies, so the
@@ -78,6 +79,27 @@ export async function calendarFor(token: string, origin: string): Promise<string
     teamNames.push(team.name);
     const kids = entry.c.filter((id) => team.players.some((p) => p.id === id)).map((id) => firstName(playerName(team, id)));
     const { competition, tz, ourGames } = await getLeagueData(team);
+    for (const t of await listTraining(team.id)) {
+      const start = new Date(t.starts_at);
+      if (start.getTime() < now - PAST_DAYS) continue;
+      events.push(
+        [
+          "BEGIN:VEVENT",
+          `UID:${team.id}-${t.id}@sidelnr.app`,
+          `DTSTAMP:${stamp(new Date())}`,
+          `DTSTART:${stamp(start)}`,
+          `DTEND:${stamp(new Date(start.getTime() + t.minutes * 60_000))}`,
+          `SUMMARY:${esc(`${t.cancelled ? "CANCELLED: " : ""}${team.name} training`)}`,
+          t.location ? `LOCATION:${esc(t.location)}` : null,
+          `DESCRIPTION:${esc([kids.length ? `${kids.join(" & ")} · ${team.name}` : team.name, t.note, `${origin}/${team.id}`].filter(Boolean).join("\n"))}`,
+          t.cancelled ? "STATUS:CANCELLED" : "STATUS:CONFIRMED",
+          "END:VEVENT",
+        ]
+          .filter((l): l is string => l !== null)
+          .map(fold)
+          .join("\r\n"),
+      );
+    }
     for (const g of ourGames) {
       if (g.kickoff.getTime() < now - PAST_DAYS) continue;
       const us = team.league_name;

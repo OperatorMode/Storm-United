@@ -11,6 +11,9 @@ import { GoalieAssign } from "./GoalieAssign";
 import { TeamSettings } from "./TeamSettings";
 import { MergePlayers } from "./MergePlayers";
 import { SeasonRollover } from "./SeasonRollover";
+import { TrainingAdmin } from "./TrainingAdmin";
+import { listTraining } from "@/lib/training";
+import { formatTime } from "@/lib/time";
 import { listAnnouncements, listChat } from "@/lib/messages";
 import { adminLogout } from "./actions";
 import { currentManagerId, isSuperAdmin, isTeamAdmin } from "@/lib/session";
@@ -80,6 +83,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     teamManagerIds(team.id),
     listCompetitions(),
   ]);
+  const training = await listTraining(team.id);
   const now = clockNow();
   const linked = !!managerId && managers.includes(managerId);
 
@@ -189,6 +193,31 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           Team chat
         </Link>
       </div>
+
+      <Card title="Training" aside="Parents answer on the team page">
+        <TrainingAdmin
+          teamId={team.id}
+          squad={team.players.length}
+          sessions={training
+            .filter((t) => new Date(t.starts_at).getTime() + t.minutes * 60_000 > now.getTime())
+            .slice(0, 12)
+            .map((t) => {
+              const count = (status: string) =>
+                team.players.filter((p) => attendance.some((a) => a.game_id === t.id && a.player_id === p.id && a.status === status)).length;
+              return {
+                id: t.id,
+                when: `${formatDay(new Date(t.starts_at), tz)}, ${formatTime(new Date(t.starts_at), tz)}`,
+                minutes: t.minutes,
+                location: t.location,
+                cancelled: t.cancelled,
+                series: !!t.series_id,
+                coming: count("yes"),
+                maybe: count("maybe"),
+                out: count("no"),
+              };
+            })}
+        />
+      </Card>
 
       <Card title="Season MVP" aside="Managers only">
         <table className="w-full text-sm tabular-nums">
