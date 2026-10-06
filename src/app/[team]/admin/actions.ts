@@ -2,8 +2,8 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { getAttendance, savePlayers, setAttendance, setManualScore, upsertTeam } from "@/lib/store";
-import { getLeagueData } from "@/lib/league";
+import { getAttendance, getTeamRow, savePlayers, setAttendance, setManualScore, upsertTeam } from "@/lib/store";
+import { competitionTeams, getCompetition, getLeagueData } from "@/lib/league";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
 import { mergePlayer } from "@/lib/merge";
@@ -113,5 +113,39 @@ export async function mergeRemovedPlayer(teamId: string, fromId: string, toId: s
   if (!isActivePlayer(team, toId)) return { error: "Pick a current player to merge into." };
   await mergePlayer(team.id, fromId, toId);
   revalidatePath(`/${team.id}`, "layout");
+  return { ok: true };
+}
+
+// ---------- new season ----------
+
+// Team names in a competition's draw (to pick "who are we" in the new season).
+export async function drawTeamNames(teamId: string, competitionId: string): Promise<string[]> {
+  if (!(await adminTeam(teamId))) return [];
+  return competitionTeams(competitionId);
+}
+
+// Moves the team into its next season: new competition (and name in that
+// draw), who's playing again, and new players. Attendance and votes from
+// earlier seasons stay as history.
+export async function rolloverSeason(
+  teamId: string,
+  input: { competitionId: string; leagueName: string; keep: string[]; newPlayers: string[] },
+) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  const competition = await getCompetition(input.competitionId);
+  if (!competition) return { error: "Pick the competition for the new season." };
+  const leagueName = input.leagueName.trim();
+  if (!leagueName) return { error: "Enter your team’s name as it appears in that competition’s draw." };
+  const kept = team.players.filter((p) => input.keep.includes(p.id)).map((p) => p.name);
+  const added = input.newPlayers.map((n) => n.trim()).filter(Boolean);
+  if (kept.length + added.length === 0) return { error: "The squad can’t be empty." };
+
+  const row = await getTeamRow(team.id);
+  if (!row) return { error: "Team not found." };
+  await upsertTeam({ ...row, competition_id: competition.id, league_name: leagueName });
+  await savePlayers(team.id, mergePlayers(team.allPlayers, [...kept, ...added]));
+  revalidatePath(`/${team.id}`, "layout");
+  revalidatePath("/me");
   return { ok: true };
 }

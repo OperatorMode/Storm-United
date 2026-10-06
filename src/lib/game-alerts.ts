@@ -40,14 +40,15 @@ export async function checkTeam(team: Team, now = new Date()): Promise<{ changes
   if (previous) {
     const watched = Object.entries(previous).filter(([, was]) => new Date(was.k).getTime() > t);
     const vanished = watched.filter(([id]) => !ourGames.some((g) => g.id === id));
-    // Everything vanishing at once is far more likely a feed hiccup than a
-    // mass cancellation: say nothing and keep the old picture.
-    if (watched.length && vanished.length === watched.length && !upcoming.length) return { changes: 0, reminders: 0 };
+    // Everything vanishing at once is a feed hiccup (keep the old picture and
+    // say nothing) or a whole new draw, e.g. a new season (start afresh).
+    const allGone = watched.length > 0 && vanished.length === watched.length;
+    if (allGone && !upcoming.length) return { changes: 0, reminders: 0 };
     for (const [id, was] of watched) {
       const game = ourGames.find((g) => g.id === id);
       const when = `${formatDay(new Date(was.k), tz)}, ${formatTime(new Date(was.k), tz)}`;
       if (!game) {
-        if (vanished.length <= Math.max(2, watched.length / 2)) changes.push({ id, text: `Cancelled: ${when} ${was.o} is off.` });
+        if (!allGone && vanished.length <= Math.max(2, watched.length / 2)) changes.push({ id, text: `Cancelled: ${when} ${was.o} is off.` });
         continue;
       }
       const day = formatDay(game.kickoff, tz);

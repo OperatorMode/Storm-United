@@ -9,6 +9,10 @@ import { formatTime, formatWeekday, isoDateIn } from "@/lib/time";
 import { logoSrc } from "@/lib/brand";
 import { now as clockNow } from "@/lib/clock";
 import { Directions } from "@/components/Directions";
+import { AddToCalendar } from "@/components/AddToCalendar";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { calendarToken } from "@/lib/calendar";
+import { headers } from "next/headers";
 
 // My Player: every game for every team this phone follows, in one list: when,
 // where (with directions), meeting time and whether you've said your child
@@ -110,6 +114,8 @@ export default async function MyPlayerPage() {
 
   const { child: childClashes, family: familyClashes } = findClashes(upcoming);
 
+  const [calToken, host] = await Promise.all([calendarToken(teams), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
+
   // Upcoming games grouped by day.
   const days = new Map<string, Entry[]>();
   for (const e of upcoming) {
@@ -128,6 +134,7 @@ export default async function MyPlayerPage() {
       </header>
 
       <main className="mt-4 space-y-5 px-4">
+        {teams.length > 0 && <InstallPrompt name="Sidelnr" icon="/app-icon/192" />}
         {teams.length === 0 && (
           <div className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
             No teams on this phone yet.{" "}
@@ -139,6 +146,8 @@ export default async function MyPlayerPage() {
         )}
 
         {teams.length > 0 && upcoming.length === 0 && <p className="text-center text-sm text-zinc-500">No games coming up.</p>}
+
+        {calToken && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} label="Add all games to my calendar" />}
 
         {(childClashes > 0 || familyClashes > 0) && (
           <div className={`rounded-2xl px-4 py-3 text-sm ${childClashes ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
