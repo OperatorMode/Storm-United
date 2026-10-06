@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export type CalendarDay = {
   date: string; // yyyy-mm-dd
@@ -8,6 +8,7 @@ export type CalendarDay = {
   count: number;
   clash: boolean; // a child has two things at once that day
   training: boolean; // only training that day
+  duty: boolean; // the family is on a duty that day
   node: ReactNode; // that day's cards
 };
 
@@ -19,6 +20,12 @@ const WEEK = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarDay[] }) {
   const [view, setView] = useState<"list" | "calendar">("list");
   const [picked, setPicked] = useState<string | null>(null);
+  const dayRef = useRef<HTMLElement>(null);
+  // Tapping a day brings its cards into view.
+  const pick = (date: string) => {
+    setPicked(date);
+    requestAnimationFrame(() => dayRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   useEffect(() => {
     let saved: string | null = null;
@@ -58,14 +65,17 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
         <p className="text-center text-sm text-zinc-500">No games coming up.</p>
       ) : (
         <>
-          <Months days={days} selected={selected} onPick={setPicked} />
+          <Months days={days} selected={selected} onPick={pick} />
           <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
             <Legend className="bg-zinc-900" text="Game" />
             <Legend className="bg-emerald-600" text="Training" />
             <Legend className="bg-red-600" text="Clash" />
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full bg-sky-400" /> Your duty
+            </span>
           </div>
           {selected && (
-            <section>
+            <section ref={dayRef} className="scroll-mt-4">
               <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">{byDate.get(selected)!.title}</h2>
               {byDate.get(selected)!.node}
             </section>
@@ -129,6 +139,7 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                   >
                     {i + 1}
                     {day.count > 1 && <span className="absolute right-0.5 top-0 text-[9px] font-normal opacity-80">{day.count}</span>}
+                    {day.duty && <span className="absolute bottom-0.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-sky-400" />}
                   </button>
                 );
               })}
