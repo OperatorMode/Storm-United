@@ -12,6 +12,7 @@ import { Directions } from "@/components/Directions";
 import { AddToCalendar } from "@/components/AddToCalendar";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { listTraining } from "@/lib/training";
+import { listDutySignups } from "@/lib/duties";
 import { LegalLinks } from "@/components/LegalPage";
 import { ForgetPhone } from "./ForgetPhone";
 import { MyPlayerViews } from "./MyPlayerViews";
@@ -39,6 +40,7 @@ type Entry = {
   kids: { name: string; status: AttendanceStatus | null }[];
   clashes: { kind: "child" | "family"; text: string }[];
   training?: { cancelled: boolean; minutes: number; note: string | null };
+  duties?: string[]; // jobs this family is on for the game (oranges, snacks…)
 };
 
 const BUSY_AFTER_MS = 60 * 60 * 1000; // a game keeps you busy until ~1h after kick-off
@@ -90,10 +92,11 @@ export default async function MyPlayerPage() {
   const perTeam = await Promise.all(
     teams.map(async (team) => {
       if (!(await canView(team))) return [];
-      const [{ competition, tz, ourGames }, children, attendance] = await Promise.all([
+      const [{ competition, tz, ourGames }, children, attendance, dutySignups] = await Promise.all([
         getLeagueData(team),
         currentChildren(team),
         getAttendance(team.id),
+        listDutySignups(team.id),
       ]);
       const kidsFor = (id: string) =>
         children.map((c) => ({
@@ -131,6 +134,7 @@ export default async function MyPlayerPage() {
           place: gamePlace(game.pitch, competition),
           clashes: [],
           kids: kidsFor(game.id),
+          duties: dutySignups.filter((d) => d.game_id === game.id && children.includes(d.player_id)).map((d) => d.duty),
         }),
       )];
     }),
@@ -217,6 +221,7 @@ export default async function MyPlayerPage() {
               count: entries.length,
               clash: entries.some((e) => e.clashes.some((c) => c.kind === "child")),
               training: entries.every((e) => e.training),
+              duty: entries.some((e) => (e.duties?.length ?? 0) > 0),
               node: (
                 <ul className="space-y-2">
                   {entries.map((e) => (
@@ -306,6 +311,11 @@ function GameCard({ e }: { e: Entry }) {
         </span>
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-2">
+        {e.duties?.map((d) => (
+          <span key={d} className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-900">
+            You’re on: {d}
+          </span>
+        ))}
         {!e.training?.cancelled && e.kids.map((k) =>
           k.status ? (
             <span key={k.name} className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[k.status].cls}`}>

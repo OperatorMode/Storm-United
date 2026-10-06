@@ -3,6 +3,7 @@ import { gamePlace, getLeagueData, meetingTime, opponent, pitchLabel } from "./l
 import { canView, currentChildren, joinToken } from "./session";
 import { firstName, getTeam, playerName, type Team } from "./teams";
 import { listTraining } from "./training";
+import { listDutySignups } from "./duties";
 
 // Calendar subscriptions (webcal / .ics). A phone gets a signed link listing
 // its teams (and children); calendar apps fetch it without cookies, so the
@@ -79,6 +80,8 @@ export async function calendarFor(token: string, origin: string): Promise<string
     teamNames.push(team.name);
     const kids = entry.c.filter((id) => team.players.some((p) => p.id === id)).map((id) => firstName(playerName(team, id)));
     const { competition, tz, ourGames } = await getLeagueData(team);
+    const duties = await listDutySignups(team.id);
+    const dutiesFor = (gameId: string) => duties.filter((d) => d.game_id === gameId && entry.c.includes(d.player_id)).map((d) => d.duty);
     for (const t of await listTraining(team.id)) {
       const start = new Date(t.starts_at);
       if (start.getTime() < now - PAST_DAYS) continue;
@@ -111,6 +114,7 @@ export async function calendarFor(token: string, origin: string): Promise<string
       const details = [
         kids.length ? `${kids.join(" & ")} · ${team.name}` : team.name,
         team.meet_minutes > 0 && !postponed ? `Meet ${meetingTime(g, team.meet_minutes, tz)}` : null,
+        dutiesFor(g.id).length ? `You’re on: ${dutiesFor(g.id).join(", ")}` : null,
         `${origin}/${team.id}`,
       ].filter(Boolean);
       events.push(
