@@ -12,6 +12,8 @@ import { TeamSettings } from "./TeamSettings";
 import { MergePlayers } from "./MergePlayers";
 import { SeasonRollover } from "./SeasonRollover";
 import { TrainingAdmin } from "./TrainingAdmin";
+import { DutyAdmin } from "./DutyAdmin";
+import { SUGGESTED_DUTIES, listDuties, listDutySignups } from "@/lib/duties";
 import { listTraining } from "@/lib/training";
 import { formatTime } from "@/lib/time";
 import { listAnnouncements, listChat } from "@/lib/messages";
@@ -83,7 +85,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     teamManagerIds(team.id),
     listCompetitions(),
   ]);
-  const training = await listTraining(team.id);
+  const [training, duties, dutySignups] = await Promise.all([listTraining(team.id), listDuties(team.id), listDutySignups(team.id)]);
   const now = clockNow();
   const linked = !!managerId && managers.includes(managerId);
 
@@ -216,6 +218,23 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 out: count("no"),
               };
             })}
+        />
+      </Card>
+
+      <Card title="Duty roster" aside="Oranges, snacks and more">
+        <DutyAdmin
+          teamId={team.id}
+          duties={duties}
+          suggestions={SUGGESTED_DUTIES}
+          families={team.players.map((p) => ({ id: p.id, label: `${firstName(p.name)}’s family` }))}
+          games={ourGames
+            .filter((g) => g.kickoff.getTime() > now.getTime() && g.time !== "Postponed")
+            .slice(0, 6)
+            .map((g) => ({
+              gameId: g.id,
+              label: `${formatDay(g.kickoff, tz)} · ${g.home === us ? "vs" : "@"} ${opponent(g, us)}`,
+              slots: duties.map((duty) => ({ duty, playerId: dutySignups.find((d) => d.game_id === g.id && d.duty === duty)?.player_id ?? null })),
+            }))}
         />
       </Card>
 

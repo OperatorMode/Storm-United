@@ -10,6 +10,7 @@ import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
 import { formatDay, formatTime } from "@/lib/time";
 import { getPushSubs } from "@/lib/messages";
 import { sendPush } from "@/lib/push";
+import { releaseDuty, saveDuties, takeDuty } from "@/lib/duties";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
 import { mergePlayer } from "@/lib/merge";
@@ -223,6 +224,27 @@ export async function removeTraining(teamId: string, id: string, laterInSeries: 
   const team = await adminTeam(teamId);
   if (!team) return { error: "Not authorised." };
   await deleteTraining(team.id, id, laterInSeries);
+  refresh(team.id);
+  return { ok: true };
+}
+
+// ---------- duty roster (coach) ----------
+
+export async function saveDutyList(teamId: string, _: unknown, formData: FormData) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  const names = [...new Set(String(formData.get("duties") ?? "").split(/\r?\n/).map((n) => n.trim().slice(0, 40)).filter(Boolean))].slice(0, 12);
+  await saveDuties(team.id, names);
+  refresh(team.id);
+  return { ok: true, count: names.length };
+}
+
+// The coach puts a family on a duty (playerId) or clears it ("").
+export async function assignDuty(teamId: string, gameId: string, duty: string, playerId: string) {
+  const team = await adminTeam(teamId);
+  if (!team) return { error: "Not authorised." };
+  await releaseDuty(team.id, gameId, duty);
+  if (playerId && isActivePlayer(team, playerId)) await takeDuty(team.id, gameId, duty, playerId);
   refresh(team.id);
   return { ok: true };
 }
