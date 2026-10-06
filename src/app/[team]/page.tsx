@@ -7,6 +7,7 @@ import {
   competitionLabel,
   competitionTz,
   roundLabel,
+  pitchLabel,
   VOTING_WINDOW_MS,
   formatDay,
   formatIsoDate,
@@ -405,8 +406,8 @@ function Fixtures({
               </div>
               <div className="text-xs text-zinc-500">
                 {formatDay(game.kickoff, tz)}
-                {team.meet_minutes > 0 && ` · Meet ${meetingTime(game, team.meet_minutes, tz)}`} · KO {game.time} · Pitch{" "}
-                {game.pitch}
+                {team.meet_minutes > 0 && ` · Meet ${meetingTime(game, team.meet_minutes, tz)}`} · KO {game.time}
+                {game.pitch && ` · ${pitchLabel(game.pitch)}`}
               </div>
             </div>
             <div className="shrink-0 text-right">

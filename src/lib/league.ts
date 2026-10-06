@@ -235,6 +235,12 @@ export function meetingTime(g: Game, minutesBefore: number, tz = DEFAULT_TZ): st
   return formatTime(new Date(g.kickoff.getTime() - minutesBefore * 60 * 1000), tz);
 }
 
+/** "Pitch 2" for a numbered pitch; a named ground ("Smith Park") as is. */
+export function pitchLabel(pitch: string | null): string {
+  if (!pitch) return "";
+  return /^[a-z]?\d+[a-z]?$/i.test(pitch.trim()) ? `Pitch ${pitch}` : pitch;
+}
+
 /** "Rd 3" (or "Round 3"), or an event game's stage, e.g. "Pool A" / "Final". */
 export function roundLabel(g: { round: number | null; stage?: string | null }, long = false): string {
   if (g.stage) return g.stage;

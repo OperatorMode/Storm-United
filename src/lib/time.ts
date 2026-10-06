@@ -58,3 +58,12 @@ export function allTimezones(): string[] {
     return [DEFAULT_TZ, "UTC"];
   }
 }
+
+/** Minutes after midnight of an instant, in a timezone (e.g. 9:30 am = 570). */
+export function minutesOfDay(d: Date | string, tz = DEFAULT_TZ): number {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(
+    typeof d === "string" ? new Date(d) : d,
+  );
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  return get("hour") * 60 + get("minute");
+}
