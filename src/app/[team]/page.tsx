@@ -2,6 +2,8 @@ import { Card } from "@/components/Card";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ChildrenPicker } from "@/components/ChildrenPicker";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { NotificationSettings } from "@/components/NotificationSettings";
+import { pushPublicKey } from "@/lib/push";
 import { AddToCalendar } from "@/components/AddToCalendar";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
@@ -89,6 +91,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
 
       <main className="-mt-2 space-y-4 px-4">
         <InstallPrompt name={team.name} icon={`/${team.id}/icon/192`} />
+        {children.length > 0 && <NotificationSettings teamId={team.id} vapidKey={pushPublicKey()} />}
         {calToken && children.length > 0 && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} />}
         {!voter && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
