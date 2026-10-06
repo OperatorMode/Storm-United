@@ -161,34 +161,55 @@ export async function rolloverSeason(
 
 // ---------- training ----------
 
+// Weekly training on one or more days (each with its own time and place, e.g.
+// Tue 5:00 pm and Thu 6:00 pm), or a one-off extra session.
 export async function createTraining(teamId: string, _: unknown, formData: FormData) {
   const team = await adminTeam(teamId);
   if (!team) return { error: "Not authorised." };
   const get = (k: string) => String(formData.get(k) ?? "").trim();
-  const date = parseDate(get("date"));
-  const time = parseTime(get("time"));
+  const all = (k: string) => formData.getAll(k).map((v) => String(v).trim());
   const minutes = Number(get("minutes") || 60);
-  if (!date) return { error: "Pick the date of the (first) session." };
-  if (!time) return { error: "Enter the start time, e.g. 5:00 pm." };
   if (!Number.isInteger(minutes) || minutes < 15 || minutes > 300) return { error: "Length should be 15 to 300 minutes." };
-  const weekly = get("repeat") === "weekly";
-  const until = weekly ? parseDate(get("until")) : date;
-  if (!until || until < date) return { error: "Pick until when training repeats." };
-
   const tz = await teamTz(team);
-  const seriesId = weekly ? newTrainingId() : null;
+  const note = get("note") || null;
+  const row = (date: string, time: string, location: string, seriesId: string | null): TrainingRow => ({
+    id: newTrainingId(),
+    team_id: team.id,
+    starts_at: zonedTime(date, time, tz).toISOString(),
+    minutes,
+    location: location || null,
+    note,
+    cancelled: false,
+    series_id: seriesId,
+  });
+
   const rows: TrainingRow[] = [];
-  for (let d = Date.parse(`${date}T12:00:00Z`); d <= Date.parse(`${until}T12:00:00Z`) && rows.length < 60; d += 7 * 86_400_000) {
-    rows.push({
-      id: newTrainingId(),
-      team_id: team.id,
-      starts_at: zonedTime(new Date(d).toISOString().slice(0, 10), time, tz).toISOString(),
-      minutes,
-      location: get("location") || null,
-      note: get("note") || null,
-      cancelled: false,
-      series_id: seriesId,
-    });
+  if (get("mode") === "extra") {
+    const date = parseDate(get("date"));
+    const time = parseTime(get("time"));
+    if (!date) return { error: "Pick the date." };
+    if (!time) return { error: "Enter the start time, e.g. 5:00 pm." };
+    rows.push(row(date, time, get("location"), null));
+  } else {
+    const from = parseDate(get("from"));
+    const until = parseDate(get("until"));
+    if (!from || !until || until < from) return { error: "Pick the first and last week of training." };
+    const days = all("slot_day").map(Number);
+    const times = all("slot_time");
+    const places = all("slot_location");
+    if (!days.length) return { error: "Add at least one training day." };
+    for (let i = 0; i < days.length; i++) {
+      const time = parseTime(times[i] ?? "");
+      if (!Number.isInteger(days[i]) || days[i] < 0 || days[i] > 6) return { error: "Pick a day for each session." };
+      if (!time) return { error: "Enter a start time for each day." };
+      const seriesId = newTrainingId();
+      for (let d = Date.parse(`${from}T12:00:00Z`); d <= Date.parse(`${until}T12:00:00Z`); d += 86_400_000) {
+        if (new Date(d).getUTCDay() !== days[i]) continue;
+        rows.push(row(new Date(d).toISOString().slice(0, 10), time, places[i] ?? "", seriesId));
+      }
+    }
+    if (!rows.length) return { error: "None of those days fall between the dates you picked." };
+    if (rows.length > 150) return { error: "That’s more than 150 sessions. Pick a shorter period." };
   }
   await addTraining(rows);
   refresh(team.id);
