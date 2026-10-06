@@ -10,13 +10,14 @@ import { ScoreForm } from "./ScoreForm";
 import { GoalieAssign } from "./GoalieAssign";
 import { TeamSettings } from "./TeamSettings";
 import { MergePlayers } from "./MergePlayers";
+import { SeasonRollover } from "./SeasonRollover";
 import { listAnnouncements, listChat } from "@/lib/messages";
 import { adminLogout } from "./actions";
 import { currentManagerId, isSuperAdmin, isTeamAdmin } from "@/lib/session";
 import { teamManagerIds } from "@/lib/accounts";
 import { AddToMyTeams } from "./AccountLink";
 import { emailEnabled } from "@/lib/email";
-import { formatDay, getLeagueData, roundLabel, opponent, votingState } from "@/lib/league";
+import { competitionLabel, formatDay, getLeagueData, listCompetitions, roundLabel, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { goaliesForGame, goalieTally } from "@/lib/goalies";
 import { tally, winners } from "@/lib/mvp";
@@ -66,7 +67,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     );
   }
 
-  const [{ ourGames, tz }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers] = await Promise.all([
+  const [{ ourGames, tz }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers, competitions] = await Promise.all([
     getLeagueData(team),
     getBallots(team.id),
     getManualScores(team.id),
@@ -77,6 +78,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     listAnnouncements(team.id),
     currentManagerId(),
     teamManagerIds(team.id),
+    listCompetitions(),
   ]);
   const now = clockNow();
   const linked = !!managerId && managers.includes(managerId);
@@ -110,11 +112,29 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
   );
   const SLOT = { "1st": "1st", "2nd": "2nd", full: "FT" } as const;
 
-  const season = tally(ballots, team.players.map((p) => p.id));
+  // This season = the current competition's games; votes from earlier seasons are history.
+  const seasonGames = new Set(ourGames.map((g) => g.id));
+  const seasonBallots = ballots.filter((b) => seasonGames.has(b.game_id));
+  const earlierBallots = ballots.filter((b) => !seasonGames.has(b.game_id));
+  const season = tally(seasonBallots, team.players.map((p) => p.id));
+  const earlier = tally(earlierBallots, everyone).filter((r) => r.points > 0);
+  // Season over: games were played and none are left.
+  const lastKickoff = ourGames.at(-1)?.kickoff.getTime() ?? 0;
+  const seasonOver = ourGames.length > 0 && lastKickoff + 2 * 60 * 60 * 1000 < now.getTime();
+  const rollover = (
+    <SeasonRollover
+      teamId={team.id}
+      teamName={team.name}
+      competitions={competitions.map((c) => ({ id: c.id, label: competitionLabel(c) }))}
+      currentCompetition={team.competition_id}
+      currentName={team.league_name}
+      players={team.players}
+    />
+  );
   const gameWins = new Map<string, number>();
   for (const g of played) {
     if (votingState(g, now) !== "closed") continue;
-    for (const w of winners(tally(ballots.filter((b) => b.game_id === g.id), everyone))) {
+    for (const w of winners(tally(seasonBallots.filter((b) => b.game_id === g.id), everyone))) {
       gameWins.set(w, (gameWins.get(w) ?? 0) + 1);
     }
   }
@@ -123,6 +143,14 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     <div className="mx-auto max-w-md pb-24">
       {header}
       <main className="mt-4 space-y-4 px-4">
+        {seasonOver && (
+          <Card title="New season" aside="Season finished">
+            <p className="mb-3 text-sm text-zinc-500">
+              The last game has been played. Before {team.name} rolls into a new season, answer three quick questions.
+            </p>
+            {rollover}
+          </Card>
+        )}
       {created && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <div className="font-semibold">{team.name} is ready</div>
@@ -310,6 +338,28 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           </p>
           <MergePlayers teamId={team.id} removed={removed} current={team.players} />
         </Card>
+      )}
+
+      {!seasonOver && (
+        <details className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-zinc-500">New season</summary>
+          <p className="mb-3 mt-2 text-sm text-zinc-500">Moving up an age group or into next season’s competition? Set it up here.</p>
+          {rollover}
+        </details>
+      )}
+
+      {earlier.length > 0 && (
+        <details className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-zinc-500">Earlier seasons: MVP points</summary>
+          <ul className="mt-3 space-y-1 text-sm">
+            {earlier.map((r) => (
+              <li key={r.playerId} className="flex justify-between">
+                <span>{nameOf(r.playerId)}</span>
+                <span className="font-semibold tabular-nums">{r.points}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       <Card title="Team settings">
