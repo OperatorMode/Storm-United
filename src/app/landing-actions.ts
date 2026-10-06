@@ -33,8 +33,8 @@ export async function managerSignIn(_: unknown, formData: FormData) {
   const found = await lookup(input);
   if (!found) return { error: "Team or PIN not recognised.", team: input };
   const { team } = found;
-  if (isSuper) store.set(SUPER_COOKIE, superToken()!, COOKIE_OPTS);
-  else if (verifySecret(pin, team.admin_pin_hash)) store.set(adminCookie(team.id), adminToken(team)!, COOKIE_OPTS);
+  if (verifySecret(pin, team.admin_pin_hash)) store.set(adminCookie(team.id), adminToken(team)!, COOKIE_OPTS);
+  else if (isSuper) return { error: "That’s the Sidelnr owner PIN, which isn’t used here. Enter this team’s own manager PIN (its owner sets it under My Team, by editing the team), or use sidelnr.app/super.", team: input };
   else return { error: "Team or PIN not recognised.", team: input };
   redirect(`/${team.id}/admin`);
 }

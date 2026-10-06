@@ -20,7 +20,7 @@ import { listTraining } from "@/lib/training";
 import { formatTime } from "@/lib/time";
 import { listAnnouncements, listChat } from "@/lib/messages";
 import { adminLogout } from "./actions";
-import { currentManagerId, isSuperAdmin, isTeamAdmin } from "@/lib/session";
+import { adminAccess, currentManagerId, isSuperAdmin } from "@/lib/session";
 import { teamManagerIds } from "@/lib/accounts";
 import { AddToMyTeams } from "./AccountLink";
 import { emailEnabled } from "@/lib/email";
@@ -50,7 +50,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     </header>
   );
 
-  if (!(await isTeamAdmin(team))) {
+  const access = await adminAccess(team);
+  if (!access) {
     const tabs = await tabsPromise;
     return (
       <div className="mx-auto max-w-md pb-24">
@@ -159,6 +160,14 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     <div className="mx-auto max-w-md pb-24">
       {header}
       <main className="mt-4 space-y-4 px-4">
+        <p className={`rounded-xl px-3 py-2 text-xs ${access === "owner" ? "bg-amber-50 text-amber-900" : "bg-zinc-100 text-zinc-600"}`}>
+          {access === "manager"
+            ? "Unlocked by your manager account."
+            : access === "pin"
+              ? "Unlocked with this team’s PIN on this device."
+              : "Unlocked with the Sidelnr owner PIN, which opens every team on this device."}{" "}
+          Lock it at the bottom of this page.
+        </p>
         {seasonOver && (
           <Card title="New season" aside="Season finished">
             <p className="mb-3 text-sm text-zinc-500">
