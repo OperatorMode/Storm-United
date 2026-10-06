@@ -23,7 +23,55 @@ const STATUS: Record<AttendanceStatus, { label: string; cls: string }> = {
 };
 const GAME_WINDOW_MS = 90 * 60 * 1000; // a game stays "upcoming" until ~1.5h after kick-off
 
-type Entry = { team: Team; game: Game; tz: string; place: string | null; kids: { name: string; status: AttendanceStatus | null }[] };
+type Entry = {
+  team: Team;
+  game: Game;
+  tz: string;
+  place: string | null;
+  kids: { name: string; status: AttendanceStatus | null }[];
+  clashes: { kind: "child" | "family"; text: string }[];
+};
+
+const BUSY_AFTER_MS = 60 * 60 * 1000; // a game keeps you busy until ~1h after kick-off
+
+/** From meeting time until an hour after kick-off. */
+const busy = (e: Entry): [number, number] => {
+  const k = e.game.kickoff.getTime();
+  return [k - e.team.meet_minutes * 60_000, k + BUSY_AFTER_MS];
+};
+
+/**
+ * Overlapping games: the same child (matched by first name across teams) in
+ * two games at once, or different kids playing at the same time at different
+ * venues (a parent can't be at both).
+ */
+function findClashes(entries: Entry[]): { child: number; family: number } {
+  const count = { child: 0, family: 0 };
+  const live = entries.filter((e) => e.game.time !== "Postponed");
+  for (let i = 0; i < live.length; i++) {
+    for (let j = i + 1; j < live.length; j++) {
+      const a = live[i];
+      const b = live[j];
+      const [a0, a1] = busy(a);
+      const [b0, b1] = busy(b);
+      if (a0 >= b1 || b0 >= a1) continue;
+      const names = (e: Entry) => e.kids.map((k) => k.name.toLowerCase());
+      const shared = a.kids.filter((k) => names(b).includes(k.name.toLowerCase())).map((k) => k.name);
+      const other = (y: Entry) => `${y.team.name} ${y.game.home === y.team.league_name ? "vs" : "@"} ${opponent(y.game, y.team.league_name)} at ${formatTime(y.game.kickoff, y.tz)}`;
+      if (shared.length) {
+        const who = shared.join(" & ");
+        a.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} another game at the same time: ${other(b)}.` });
+        b.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} another game at the same time: ${other(a)}.` });
+        count.child++;
+      } else if (a.kids.length && b.kids.length && a.place !== b.place) {
+        a.clashes.push({ kind: "family", text: `Same time as ${other(b)}, at a different venue.` });
+        b.clashes.push({ kind: "family", text: `Same time as ${other(a)}, at a different venue.` });
+        count.family++;
+      }
+    }
+  }
+  return count;
+}
 
 export default async function MyPlayerPage() {
   const ids = await knownTeamIds();
@@ -44,6 +92,7 @@ export default async function MyPlayerPage() {
           game,
           tz,
           place: gamePlace(game.pitch, competition),
+          clashes: [],
           kids: children.map((c) => ({
             name: firstName(playerName(team, c)),
             status: attendance.find((a) => a.game_id === game.id && a.player_id === c)?.status ?? null,
@@ -58,6 +107,8 @@ export default async function MyPlayerPage() {
     .filter((e) => e.game.kickoff.getTime() + GAME_WINDOW_MS <= now && e.game.score)
     .sort((a, b) => b.game.kickoff.getTime() - a.game.kickoff.getTime())
     .slice(0, 6);
+
+  const { child: childClashes, family: familyClashes } = findClashes(upcoming);
 
   // Upcoming games grouped by day.
   const days = new Map<string, Entry[]>();
@@ -88,6 +139,22 @@ export default async function MyPlayerPage() {
         )}
 
         {teams.length > 0 && upcoming.length === 0 && <p className="text-center text-sm text-zinc-500">No games coming up.</p>}
+
+        {(childClashes > 0 || familyClashes > 0) && (
+          <div className={`rounded-2xl px-4 py-3 text-sm ${childClashes ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
+            <div className="font-semibold">
+              {childClashes > 0
+                ? `${childClashes} game clash${childClashes > 1 ? "es" : ""} coming up`
+                : `${familyClashes} busy moment${familyClashes > 1 ? "s" : ""} coming up`}
+            </div>
+            <p className="mt-0.5 text-xs opacity-80">
+              {childClashes > 0
+                ? "A child is down for two games at the same time. Let one of the coaches know."
+                : "Two of your kids play at the same time at different venues."}
+              {childClashes > 0 && familyClashes > 0 && " Also: games at the same time at different venues."}
+            </p>
+          </div>
+        )}
 
         {[...days.entries()].map(([day, entries]) => (
           <section key={day}>
@@ -136,7 +203,18 @@ function GameCard({ e }: { e: Entry }) {
   const home = game.home === team.league_name;
   const meet = team.meet_minutes > 0 ? meetingTime(game, team.meet_minutes, tz) : null;
   return (
-    <li className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+    <li
+      className={`rounded-2xl border bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
+    >
+      {e.clashes.map((c) => (
+        <p
+          key={c.text}
+          className={`mb-2 rounded-xl px-3 py-2 text-xs font-medium ${c.kind === "child" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900"}`}
+        >
+          {c.kind === "child" ? "Clash: " : "Heads-up: "}
+          {c.text}
+        </p>
+      ))}
       <Link href={`/${team.id}`} className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={logoSrc(team)} alt="" className="size-10 shrink-0 object-contain" />
