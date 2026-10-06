@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { generateDrawAction, previewDrawAction } from "./actions";
 import type { DrawSettings } from "@/lib/season-draw";
+import { DrawPreview } from "./DrawPreview";
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 const label = "mb-1 block text-sm font-medium";
@@ -380,16 +381,7 @@ function FixtureWizard({
                   {preview.keeping} games already played (or with results) are kept; the draw continues after them.
                 </p>
               )}
-              {preview.sample.map((r) => (
-                  <div key={r.round}>
-                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-400">Round {r.round}</div>
-                    <ul className="space-y-0.5 text-xs text-zinc-700">
-                      {r.games.map((g) => (
-                        <li key={g}>{g}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+              {preview.games.length > 0 && <DrawPreview games={preview.games} teams={teams} breaks={s.breaks} />}
               {preview.total > 0 && (
                 <details>
                   <summary className="cursor-pointer text-zinc-500">Fairness per team</summary>
