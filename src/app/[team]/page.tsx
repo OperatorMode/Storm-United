@@ -1,6 +1,7 @@
 import { Card } from "@/components/Card";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ChildrenPicker } from "@/components/ChildrenPicker";
+import { LeaveTeam } from "@/components/LeaveTeam";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { pushPublicKey } from "@/lib/push";
@@ -339,6 +340,14 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             )}
           </p>
         )}
+
+        <div className="pt-4 text-center">
+          <LeaveTeam
+            teamId={team.id}
+            teamName={team.name}
+            className="rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-600"
+          />
+        </div>
       </main>
       <TabBar teamId={team.id} active="home" {...tabs} />
     </div>
