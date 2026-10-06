@@ -10,14 +10,12 @@ import { now } from "@/lib/clock";
 import { getAttendance, setAttendance, upsertBallot, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
 import {
   COOKIE_OPTS,
-  SUPER_COOKIE,
   adminCookie,
   adminToken,
   canView,
   currentChildren,
   joinCookie,
   joinToken,
-  superToken,
   voterCookie,
 } from "@/lib/session";
 
@@ -116,17 +114,18 @@ export async function enterJoinCode(_: unknown, formData: FormData) {
   return { ok: true };
 }
 
-// Accepts the team's admin PIN, or the super admin PIN (unlocks every team).
+// Accepts this team's own manager PIN only. (The Sidelnr owner PIN works only
+// on /super, so a team PIN can never unlock other teams.)
 export async function adminLogin(_: unknown, formData: FormData) {
   const team = await getTeam(String(formData.get("team") ?? ""));
   if (!team) return { error: "Team not found." };
   const pin = String(formData.get("pin") ?? "").trim();
   const store = await cookies();
   const superPin = process.env.ADMIN_PIN?.trim();
-  if (superPin && pin === superPin) {
-    store.set(SUPER_COOKIE, superToken()!, COOKIE_OPTS);
-  } else if (verifySecret(pin, team.admin_pin_hash)) {
+  if (verifySecret(pin, team.admin_pin_hash)) {
     store.set(adminCookie(team.id), adminToken(team)!, COOKIE_OPTS);
+  } else if (superPin && pin === superPin) {
+    return { error: "That’s the Sidelnr owner PIN, which isn’t used here. Enter this team’s own manager PIN (its owner sets it under My Team, by editing the team), or use sidelnr.app/super." };
   } else {
     return { error: "Wrong PIN." };
   }

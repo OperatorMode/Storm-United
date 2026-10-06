@@ -74,12 +74,19 @@ const myTeamIds = cache(async (): Promise<string[]> => {
   return id ? (await managedTeams(id)).map((t) => t.team_id) : [];
 });
 
-// Team admin = super admin, the team PIN on this device, or a signed-in manager of the team.
-export async function isTeamAdmin(team: Team): Promise<boolean> {
-  if (await isSuperAdmin()) return true;
+// How this browser has access to a team's Manager's Corner, if at all: a
+// signed-in manager of the team, the team's own PIN on this device, or the
+// Sidelnr owner (super admin, every team).
+export async function adminAccess(team: Team): Promise<"manager" | "pin" | "owner" | null> {
+  if ((await myTeamIds()).includes(team.id)) return "manager";
   const token = adminToken(team);
-  if (token && (await cookies()).get(adminCookie(team.id))?.value === token) return true;
-  return (await myTeamIds()).includes(team.id);
+  if (token && (await cookies()).get(adminCookie(team.id))?.value === token) return "pin";
+  if (await isSuperAdmin()) return "owner";
+  return null;
+}
+
+export async function isTeamAdmin(team: Team): Promise<boolean> {
+  return (await adminAccess(team)) !== null;
 }
 
 // Whether this browser may see the team's page at all.

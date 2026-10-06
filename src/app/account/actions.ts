@@ -47,8 +47,7 @@ export async function claimTeam(_: unknown, formData: FormData) {
   const pin = String(formData.get("pin") ?? "").trim();
   if (!input || !pin) return { error: "Enter the team and its manager PIN.", team: input };
   const found = await lookupTeam(input);
-  const superPin = process.env.ADMIN_PIN?.trim();
-  if (!found || !(verifySecret(pin, found.team.admin_pin_hash) || (!!superPin && pin === superPin))) {
+  if (!found || !verifySecret(pin, found.team.admin_pin_hash)) {
     return { error: "Team or PIN not recognised.", team: input };
   }
   await linkManager(found.team.id, managerId);
