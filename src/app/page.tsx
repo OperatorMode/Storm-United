@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { knownTeamIds } from "@/lib/known-teams";
+import { TeamBadge } from "@/components/TeamBadge";
+import { competitionLabel, getCompetition } from "@/lib/league";
+import { tabData } from "@/lib/tabs";
+import { listChat } from "@/lib/messages";
 import { LegalLinks } from "@/components/LegalPage";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
-import { getTeam } from "@/lib/teams";
+import { firstName, getTeam, playerName } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
-import { currentManager } from "@/lib/session";
+import { chatAuthor, currentChildren, currentManager } from "@/lib/session";
 import { emailEnabled } from "@/lib/email";
 
 // Landing page with four doors: parents join a team; My Team, My League and My Event
@@ -36,6 +40,25 @@ export default async function Landing() {
     currentManager(),
   ]);
   const signIn = (next: string) => (emailEnabled() ? `/login?next=${encodeURIComponent(next)}` : next);
+  // Each team: its competition, which of this phone's kids play in it, and what's new.
+  const rows = await Promise.all(
+    known.map(async (t) => {
+      const [competition, children, tabs, me, chat] = await Promise.all([
+        t.competition_id ? getCompetition(t.competition_id) : Promise.resolve(null),
+        currentChildren(t),
+        tabData(t),
+        chatAuthor(t),
+        listChat(t.id).catch(() => []),
+      ]);
+      return {
+        team: t,
+        league: competition ? competitionLabel(competition) : t.division,
+        kids: children.map((c) => firstName(playerName(t, c))),
+        boardUnread: tabs.boardUnread,
+        chatTimes: chat.filter((m) => m.author_id !== me).slice(-50).map((m) => m.created_at),
+      };
+    }),
+  );
 
   return (
     <div className="jersey min-h-dvh px-4 pb-10 pt-[calc(env(safe-area-inset-top)+2.5rem)]">
@@ -56,12 +79,19 @@ export default async function Landing() {
               </span>
               <span aria-hidden>→</span>
             </Link>
-            {known.map((t) => (
+            {rows.map(({ team: t, league, kids, boardUnread, chatTimes }) => (
               <Link key={t.id} href={`/${t.id}`} className="flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoSrc(t)} alt="" className="size-10 shrink-0 object-contain" />
-                <span className="flex-1 font-semibold">{t.name}</span>
-                <span className="text-sm text-zinc-500">Continue →</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{t.name}</span>
+                  <span className="block truncate text-xs text-zinc-500">{league}</span>
+                  {kids.length > 0 && <span className="block truncate text-xs font-medium text-zinc-700">{kids.join(" & ")}</span>}
+                </span>
+                <TeamBadge teamId={t.id} boardUnread={boardUnread} chatTimes={chatTimes} />
+                <span className="text-zinc-400" aria-hidden>
+                  →
+                </span>
               </Link>
             ))}
           </div>
