@@ -3,6 +3,7 @@ import { SidelnrLink } from "@/components/SidelnrLink";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/Card";
+import { Section } from "@/components/Section";
 import { TabBar } from "@/components/TabBar";
 import { tabData } from "@/lib/tabs";
 import { AdminLogin } from "./AdminLogin";
@@ -169,12 +170,12 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           Lock it at the bottom of this page.
         </p>
         {seasonOver && (
-          <Card title="New season" aside="Season finished">
+          <Section title="New season" aside="Season finished" open>
             <p className="mb-3 text-sm text-zinc-500">
               The last game has been played. Before {team.name} rolls into a new season, answer three quick questions.
             </p>
             {rollover}
-          </Card>
+          </Section>
         )}
       {created && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
@@ -215,7 +216,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         </Link>
       </div>
 
-      <Card title="Training" aside="Parents answer on the team page">
+      <Section title="Training" aside="Sessions">
         <TrainingAdmin
           teamId={team.id}
           squad={team.players.length}
@@ -238,14 +239,14 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
               };
             })}
         />
-      </Card>
+      </Section>
 
-      <Card title="Fair playing time" aside="Rests shared over the season">
+      <Section title="Fair playing time" aside="Rotations">
         <RotationAdmin
           teamId={team.id}
           players={team.players}
           allSaved={seasonRotations}
-          defaults={{ periods: lastPlan?.periods ?? 2, onField: lastPlan?.onField ?? 6 }}
+          defaults={{ shape: lastPlan?.shape ?? { parts: 2, partMinutes: 20, swapEvery: 10 }, onField: lastPlan?.onField ?? 6 }}
           games={ourGames
             .filter((g) => g.kickoff.getTime() + 3 * 60 * 60 * 1000 > now.getTime() && g.time !== "Postponed")
             .slice(0, 4)
@@ -262,9 +263,9 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
               };
             })}
         />
-      </Card>
+      </Section>
 
-      <Card title="Duty roster" aside="Oranges, snacks and more">
+      <Section title="Duty roster" aside="Oranges, snacks…">
         <DutyAdmin
           teamId={team.id}
           duties={duties}
@@ -279,9 +280,9 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
               slots: duties.map((duty) => ({ duty, playerId: dutySignups.find((d) => d.game_id === g.id && d.duty === duty)?.player_id ?? null })),
             }))}
         />
-      </Card>
+      </Section>
 
-      <Card title="Season MVP" aside="Managers only">
+      <Section title="Season MVP" aside="Tally">
         <table className="w-full text-sm tabular-nums">
           <thead>
             <tr className="text-left text-xs text-zinc-500">
@@ -302,40 +303,16 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             ))}
           </tbody>
         </table>
-      </Card>
+      </Section>
 
-      {team.goalie_enabled && (
-        <>
-          <Card title="Goalie tally" aside="Played games · full game = 2 halves">
-            {goalieRows.every((r) => r.halves === 0) ? (
-              <p className="text-sm text-zinc-500">No goalies recorded for played games yet.</p>
-            ) : (
-              <table className="w-full text-sm tabular-nums">
-                <thead>
-                  <tr className="text-left text-xs text-zinc-500">
-                    <th className="py-1.5 font-medium">Player</th>
-                    <th className="py-1.5 font-medium">Games</th>
-                    <th className="py-1.5 text-right font-medium">Halves</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {goalieRows.map((r) => (
-                    <tr key={r.playerId} className="border-t border-zinc-100 align-top">
-                      <td className="py-2 pr-2">{nameOf(r.playerId)}</td>
-                      <td className="py-2 text-xs text-zinc-600">
-                        {r.games.length ? r.games.map((g) => `Rd ${g.round} ${SLOT[g.goalie]}`).join(" · ") : "-"}
-                      </td>
-                      <td className="py-2 text-right font-semibold">{r.halves}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </Card>
-
-          <Card title="Assign goalies" aside="Overrides parents' ticks">
+      {team.goalie_enabled &&
+        (() => {
+          const upcoming = ourGames.filter((g) => g.kickoff.getTime() + 2 * 60 * 60 * 1000 > now.getTime());
+          const soon = upcoming.slice(0, 3);
+          const rest = ourGames.filter((g) => !soon.includes(g));
+          const assign = (games: typeof ourGames) => (
             <ul className="space-y-4">
-              {ourGames.map((g) => {
+              {games.map((g) => {
                 const { first, second } = goaliesForGame(attendance, g.id);
                 const clash = first.length > 1 || second.length > 1;
                 const players = team.players.map((p) => ({
@@ -348,13 +325,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                     <div className="mb-1 text-xs text-zinc-500">
                       {roundLabel(g)} vs {opponent(g, us)} · {formatDay(g.kickoff, tz)}
                     </div>
-                    <GoalieAssign
-                      teamId={team.id}
-                      gameId={g.id}
-                      players={players}
-                      first={first[0] ?? null}
-                      second={second[0] ?? null}
-                    />
+                    <GoalieAssign teamId={team.id} gameId={g.id} players={players} first={first[0] ?? null} second={second[0] ?? null} />
                     {clash && (
                       <div className="mt-1 text-xs text-amber-700">
                         Several volunteers. 1st: {names(first)} · 2nd: {names(second)}
@@ -364,11 +335,41 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 );
               })}
             </ul>
-          </Card>
-        </>
-      )}
+          );
+          return (
+            <Section title="Goalies" aside="Assign · tally">
+              {soon.length ? assign(soon) : <p className="text-sm text-zinc-500">No upcoming games.</p>}
+              {rest.length > 0 && (
+                <details className="mt-4 border-t border-zinc-100 pt-3 text-sm">
+                  <summary className="cursor-pointer text-zinc-600">Other games ({rest.length})</summary>
+                  <div className="mt-3">{assign(rest)}</div>
+                </details>
+              )}
+              <details className="mt-3 border-t border-zinc-100 pt-3 text-sm">
+                <summary className="cursor-pointer text-zinc-600">Goalie tally (halves in goal)</summary>
+                {goalieRows.every((r) => r.halves === 0) ? (
+                  <p className="mt-2 text-zinc-500">No goalies recorded for played games yet.</p>
+                ) : (
+                  <table className="mt-2 w-full tabular-nums">
+                    <tbody>
+                      {goalieRows.map((r) => (
+                        <tr key={r.playerId} className="border-t border-zinc-100 align-top">
+                          <td className="py-1.5 pr-2">{nameOf(r.playerId)}</td>
+                          <td className="py-1.5 text-xs text-zinc-600">
+                            {r.games.length ? r.games.map((g) => `Rd ${g.round} ${SLOT[g.goalie]}`).join(" · ") : "-"}
+                          </td>
+                          <td className="py-1.5 text-right font-semibold">{r.halves}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </details>
+            </Section>
+          );
+        })()}
 
-      <Card title="Votes by game">
+      <Section title="Votes by game">
         {played.length === 0 ? (
           <p className="text-sm text-zinc-500">No games played yet.</p>
         ) : (
@@ -401,9 +402,9 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             })}
           </ul>
         )}
-      </Card>
+      </Section>
 
-      <Card title="Backup scores" aside="Used only if the league hasn't posted one">
+      <Section title="Backup scores" aside="If the league hasn't">
         {played.length === 0 ? (
           <p className="text-sm text-zinc-500">Scores can be entered once a game has kicked off.</p>
         ) : (
@@ -419,30 +420,28 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             ))}
           </ul>
         )}
-      </Card>
+      </Section>
 
       {removed.length > 0 && (
-        <Card title="Merge players" aside="Renamed someone?">
+        <Section title="Merge players" aside="Renamed someone?">
           <p className="mb-3 text-xs text-zinc-500">
             These removed players still have history. If one is just an old spelling of a current player, merge them to
             move everything across.
           </p>
           <MergePlayers teamId={team.id} removed={removed} current={team.players} />
-        </Card>
+        </Section>
       )}
 
       {!seasonOver && (
-        <details className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-zinc-500">New season</summary>
-          <p className="mb-3 mt-2 text-sm text-zinc-500">Moving up an age group or into next season’s competition? Set it up here.</p>
+        <Section title="New season" aside="Next season or age group">
+          <p className="mb-3 text-sm text-zinc-500">Moving up an age group or into next season’s competition? Set it up here.</p>
           {rollover}
-        </details>
+        </Section>
       )}
 
       {earlier.length > 0 && (
-        <details className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <summary className="cursor-pointer text-sm font-semibold uppercase tracking-wide text-zinc-500">Earlier seasons: MVP points</summary>
-          <ul className="mt-3 space-y-1 text-sm">
+        <Section title="Earlier seasons" aside="MVP points">
+          <ul className="space-y-1 text-sm">
             {earlier.map((r) => (
               <li key={r.playerId} className="flex justify-between">
                 <span>{nameOf(r.playerId)}</span>
@@ -450,10 +449,10 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
               </li>
             ))}
           </ul>
-        </details>
+        </Section>
       )}
 
-      <Card title="Team settings">
+      <Section title="Team settings">
         <TeamSettings
           teamId={team.id}
           players={team.players.map((p) => p.name).join("\n")}
@@ -461,7 +460,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           meetMinutes={team.meet_minutes}
           goalieEnabled={team.goalie_enabled}
         />
-      </Card>
+      </Section>
 
       <div className="flex items-center justify-center gap-6 pt-2 text-sm text-zinc-500">
         {superAdmin && (
