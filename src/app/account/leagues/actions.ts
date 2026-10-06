@@ -3,8 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
-import { competitionTz, getCompetition, listCompetitions } from "@/lib/league";
-import { formatWhen, isTimezone, minutesOfDay } from "@/lib/time";
+import { competitionTz, getCompetition, listCompetitions, pitchLabel } from "@/lib/league";
+import { formatDay, formatTime, formatWhen, isTimezone, isoDateIn, minutesOfDay } from "@/lib/time";
 import { buildSeasonDraw, type DrawSettings } from "@/lib/season-draw";
 import { listTeams } from "@/lib/store";
 import { slugify } from "@/lib/teams";
@@ -502,7 +502,7 @@ async function drawFor(competitionId: string, raw: DrawSettings) {
 export async function previewDrawAction(competitionId: string, raw: DrawSettings) {
   const res = await drawFor(competitionId, raw);
   if (!res) {
-    return { errors: ["Not authorised."], warnings: [], summary: null, total: 0, keeping: 0, replacing: 0, sample: [], balance: [] };
+    return { errors: ["Not authorised."], warnings: [], summary: null, total: 0, keeping: 0, replacing: 0, games: [], balance: [] };
   }
   const { tz, teams, draw, kept, replaced } = res;
   // Balance per team: home games and average kick-off.
@@ -516,11 +516,19 @@ export async function previewDrawAction(competitionId: string, raw: DrawSettings
       avgStart: minutes.length ? Math.round(minutes.reduce((a, b) => a + b, 0) / minutes.length) : null,
     };
   });
-  const rounds = new Map<number, string[]>();
-  for (const f of draw.fixtures.slice().sort((a, b) => a.kickoff.localeCompare(b.kickoff))) {
-    if ((f.round ?? 0) > (draw.fixtures[0]?.round ?? 0) + 1) continue; // first two rounds as a sample
-    rounds.set(f.round ?? 0, [...(rounds.get(f.round ?? 0) ?? []), `${formatWhen(f.kickoff, tz)} · ${f.pitch} · ${f.home} v ${f.away}`]);
-  }
+  // Every game, for the list and calendar views.
+  const games = draw.fixtures
+    .slice()
+    .sort((x, y) => x.kickoff.localeCompare(y.kickoff) || (x.pitch ?? "").localeCompare(y.pitch ?? "", undefined, { numeric: true }))
+    .map((f) => ({
+      round: f.round ?? 0,
+      date: isoDateIn(f.kickoff, tz),
+      day: formatDay(new Date(f.kickoff), tz),
+      time: formatTime(new Date(f.kickoff), tz),
+      pitch: f.pitch ? pitchLabel(f.pitch) : "",
+      home: f.home,
+      away: f.away,
+    }));
   return {
     errors: draw.errors,
     warnings: draw.warnings,
@@ -528,7 +536,7 @@ export async function previewDrawAction(competitionId: string, raw: DrawSettings
     total: draw.fixtures.length,
     keeping: kept.length,
     replacing: replaced.length,
-    sample: [...rounds.entries()].map(([round, games]) => ({ round, games })),
+    games,
     balance,
   };
 }

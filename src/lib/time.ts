@@ -50,6 +50,17 @@ export function isTimezone(tz: string): boolean {
   }
 }
 
+/** The calendar date of an instant in a timezone, as yyyy-mm-dd. */
+export function isoDateIn(d: Date | string, tz = DEFAULT_TZ): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(
+      typeof d === "string" ? new Date(d) : d,
+    );
+  } catch {
+    return new Date(d).toISOString().slice(0, 10);
+  }
+}
+
 /** Every IANA timezone the runtime knows (for pickers). */
 export function allTimezones(): string[] {
   try {
