@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { getPushPrefs, savePushSubscription } from "@/app/[team]/messaging-actions";
 
-type Prefs = { board: boolean; chat: boolean };
+type Prefs = { board: boolean; chat: boolean; games: boolean; reminders: boolean };
 type Mode = "loading" | "unsupported" | "ios-install" | "blocked" | "ready";
 
 function urlBase64ToUint8Array(base64: string) {
@@ -19,7 +19,7 @@ async function registration() {
 // Per-device switches for message-board and chat notifications.
 export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vapidKey: string | null }) {
   const [mode, setMode] = useState<Mode>("loading");
-  const [prefs, setPrefs] = useState<Prefs>({ board: false, chat: false });
+  const [prefs, setPrefs] = useState<Prefs>({ board: false, chat: false, games: false, reminders: false });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -50,7 +50,7 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
       try {
         const reg = await registration();
         let sub = await reg.pushManager.getSubscription();
-        if (!sub && (next.board || next.chat)) {
+        if (!sub && (next.board || next.chat || next.games || next.reminders)) {
           if ((await Notification.requestPermission()) !== "granted") {
             setMode(Notification.permission === "denied" ? "blocked" : "ready");
             return;
@@ -77,7 +77,7 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
       <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium [&::-webkit-details-marker]:hidden">
         <span>Notifications</span>
         <span className="text-xs font-normal text-zinc-500">
-          {mode === "ready" ? (prefs.board || prefs.chat ? "On" : "Off") : "Unavailable"}
+          {mode === "ready" ? (prefs.board || prefs.chat || prefs.games || prefs.reminders ? "On" : "Off") : "Unavailable"}
         </span>
       </summary>
       <div className="mt-3 space-y-3 text-sm">
@@ -93,6 +93,20 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
         )}
         {mode === "ready" && (
           <>
+            <Toggle
+              label="Game changes"
+              hint="New time or pitch, postponed or cancelled"
+              checked={prefs.games}
+              disabled={pending}
+              onChange={(v) => update({ ...prefs, games: v })}
+            />
+            <Toggle
+              label="Reminders"
+              hint="“Can your child play?” two days before, and on game day"
+              checked={prefs.reminders}
+              disabled={pending}
+              onChange={(v) => update({ ...prefs, reminders: v })}
+            />
             <Toggle label="Message board" hint="When the coach posts" checked={prefs.board} disabled={pending} onChange={(v) => update({ ...prefs, board: v })} />
             <Toggle label="Team chat" hint="When someone writes in the chat" checked={prefs.chat} disabled={pending} onChange={(v) => update({ ...prefs, chat: v })} />
             <p className="text-xs text-zinc-400">Applies to this phone only.</p>

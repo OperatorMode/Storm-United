@@ -66,6 +66,9 @@ export type LocalDb = {
   acks?: { announcement_id: string; player_id: string; created_at: string }[];
   chat?: { id: string; team_id: string; author_id: string; body: string; created_at: string }[];
   subs?: PushSubRow[];
+  // Game alerts (see game-alerts.ts).
+  game_state?: { team_id: string; games: GameSnapshot; updated_at: string }[];
+  notification_log?: { team_id: string; key: string; sent_at: string }[];
 };
 
 export type LeagueRow = {
@@ -123,7 +126,13 @@ export type PushSubRow = {
   auth: string;
   notify_board: boolean;
   notify_chat: boolean;
+  notify_games?: boolean; // time/pitch changes, postponed, cancelled
+  notify_reminders?: boolean; // "can your child play?" and match-day reminders
+  children?: string | null; // player ids this phone picked, comma-separated
 };
+
+/** A team's upcoming games at the last alert check: game id -> details. */
+export type GameSnapshot = Record<string, { k: string; p: string | null; t: string; o: string }>;
 
 let supabase: SupabaseClient | null = null;
 export function db(): SupabaseClient | null {

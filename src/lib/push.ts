@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { deletePushSub, getPushSubs } from "./messages";
+import type { PushSubRow } from "./store";
 
 // Web push. Keys come from env (VAPID_*); without them push is simply off and
 // the app still shows unread badges in the tab bar.
@@ -20,31 +21,36 @@ function ready(): boolean {
   return true;
 }
 
+type Payload = { title: string; body: string; url: string; icon: string; tag?: string };
+
+/** Sends one notification to one phone; forgets phones the browser dropped. */
+export async function sendPush(sub: PushSubRow, payload: Payload): Promise<void> {
+  if (!ready()) return;
+  try {
+    await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify(payload), {
+      TTL: 60 * 60 * 24,
+    });
+  } catch (err) {
+    // 404/410: the browser dropped this subscription, forget it.
+    const code = (err as { statusCode?: number }).statusCode;
+    if (code === 404 || code === 410) await deletePushSub(sub.team_id, sub.endpoint);
+  }
+}
+
+export const pushEnabled = () => ready();
+
 // Notifies everyone in the team who opted in to `kind`, except the author's own devices.
 export async function notifyTeam(
   teamId: string,
   kind: "board" | "chat",
-  payload: { title: string; body: string; url: string; icon: string },
+  payload: Payload,
   exceptAuthor: string | null,
 ): Promise<void> {
   if (!ready()) return;
   const subs = (await getPushSubs(teamId)).filter(
     (s) => (kind === "board" ? s.notify_board : s.notify_chat) && (!exceptAuthor || s.author_id !== exceptAuthor),
   );
-  const message = JSON.stringify({ ...payload, tag: `${teamId}-${kind}` });
-  await Promise.allSettled(
-    subs.map(async (s) => {
-      try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, message, {
-          TTL: 60 * 60 * 24,
-        });
-      } catch (err) {
-        // 404/410: the browser dropped this subscription, forget it.
-        const code = (err as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) await deletePushSub(teamId, s.endpoint);
-      }
-    }),
-  );
+  await Promise.allSettled(subs.map((s) => sendPush(s, { ...payload, tag: `${teamId}-${kind}` })));
 }
 
 export function preview(text: string, max = 120): string {
