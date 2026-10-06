@@ -24,8 +24,10 @@ export function AttendanceButtons({
   status,
   goalie,
   goalieEnabled,
+  playerId,
 }: {
   teamId: string;
+  playerId: string;
   gameId: string;
   goalieEnabled: boolean;
   status: AttendanceStatus | null;
@@ -44,7 +46,7 @@ export function AttendanceButtons({
   function save(change: { status: AttendanceStatus } | { goalie: GoalieHalf | null }) {
     start(async () => {
       setOptimistic(change);
-      const res = await updateAttendance(teamId, gameId, change);
+      const res = await updateAttendance(teamId, gameId, change, playerId);
       setError(res.error ?? null);
     });
   }

@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getTeam, firstName, playerName, type Team } from "@/lib/teams";
-import { canView, chatAuthor, currentVoter, isTeamAdmin } from "@/lib/session";
+import { canView, chatAuthor, currentChildren, currentVoter, isTeamAdmin } from "@/lib/session";
 import {
   COACH_AUTHOR,
   ackAnnouncement,
@@ -57,9 +57,11 @@ export async function removeAnnouncement(teamId: string, id: string) {
 export async function acknowledge(teamId: string, id: string) {
   const team = await viewableTeam(teamId);
   if (!team) return { error: "Team not found." };
-  const voter = await currentVoter(team);
-  if (!voter) return { error: "Pick your child first." };
-  if (!(await ackAnnouncement(team.id, id, voter))) return { error: "Message not found." };
+  const children = await currentChildren(team);
+  if (!children.length) return { error: "Pick your child first." };
+  for (const child of children) {
+    if (!(await ackAnnouncement(team.id, id, child))) return { error: "Message not found." };
+  }
   revalidatePath(`/${team.id}`, "layout");
   return { ok: true };
 }
