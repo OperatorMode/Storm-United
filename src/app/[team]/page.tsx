@@ -2,6 +2,9 @@ import { Card } from "@/components/Card";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ChildrenPicker } from "@/components/ChildrenPicker";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { AddToCalendar } from "@/components/AddToCalendar";
+import { calendarToken } from "@/lib/calendar";
+import { headers } from "next/headers";
 import { AttendanceButtons } from "@/components/AttendanceButtons";
 import { BallotForm } from "@/components/BallotForm";
 import {
@@ -46,6 +49,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
     currentChildren(team),
     tabData(team),
   ]);
+  const [calToken, host] = await Promise.all([calendarToken([team]), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
   const voter = children[0] ?? null; // the family's id (one MVP ballot per family)
   const us = team.league_name;
   const PLAYERS = team.players;
@@ -85,6 +89,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
 
       <main className="-mt-2 space-y-4 px-4">
         <InstallPrompt name={team.name} icon={`/${team.id}/icon/192`} />
+        {calToken && children.length > 0 && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} />}
         {!voter && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Welcome! Who are you?</h2>
