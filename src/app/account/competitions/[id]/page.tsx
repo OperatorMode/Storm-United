@@ -14,7 +14,8 @@ import {
   ResultRow,
   TeamsEditor,
 } from "../../leagues/LeagueForms";
-import { FixtureWizardLauncher } from "../../leagues/FixtureWizard";
+import { FixtureWizard } from "../../leagues/FixtureWizard";
+import { FixtureOptions } from "../../leagues/FixtureOptions";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
@@ -68,6 +69,17 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const upcoming = fixtures.filter((f) => new Date(f.kickoff).getTime() > now);
   const past = fixtures.filter((f) => new Date(f.kickoff).getTime() <= now).reverse();
   const tz = competitionTz(competition);
+  const feed =
+    competition.feed_type && competition.feed_url
+      ? {
+          type: competition.feed_type,
+          url: competition.feed_url,
+          filter: competition.feed_filter ?? null,
+          team: competition.feed_team ?? null,
+          syncedAt: competition.feed_synced_at ?? null,
+          error: competition.feed_error ?? null,
+        }
+      : null;
   const event = competition.kind === "tournament";
   const poolGames = fixtures.filter((f) => isPoolStage(f.stage)).length;
   // Event finals games can have their teams filled in later.
@@ -138,46 +150,47 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         <TeamsEditor competitionId={id} teams={teams} />
       </Card>
 
-      {!event && (
-        <Card title="Create fixtures" aside="Step by step">
-          <FixtureWizardLauncher competitionId={id} teams={teams} venue={competition.league.venue ?? ""} existing={upcoming.length} />
-        </Card>
-      )}
-
-      {!event && (
-      <Card title="Fixtures from a link" aside="Auto-updating">
-        <FeedPanel
-          competitionId={id}
-          aiEnabled={!!process.env.ANTHROPIC_API_KEY}
-          tz={tz}
-          connected={
-            competition.feed_type && competition.feed_url
-              ? {
-                  type: competition.feed_type,
-                  url: competition.feed_url,
-                  filter: competition.feed_filter ?? null,
-                  team: competition.feed_team ?? null,
-                  syncedAt: competition.feed_synced_at ?? null,
-                  error: competition.feed_error ?? null,
-                }
-              : null
-          }
-        />
-      </Card>
-      )}
-
-      <Card title="Import fixtures" aside="CSV / spreadsheet">
-        <ImportCsvForm competitionId={id} />
-      </Card>
-
-      <Card title={event ? "Add a finals game" : "Add a fixture"}>
-        <AddFixtureForm
-          competitionId={id}
-          teams={teams}
-          event={event}
-          defaultDate={event && competition.season && /^\d{4}-\d{2}-\d{2}$/.test(competition.season) ? competition.season : undefined}
-        />
-      </Card>
+      <FixtureOptions
+        defaultOpen={fixtures.length === 0}
+        aside={fixtures.length ? `${fixtures.length} games` : "None yet"}
+        options={[
+          ...(event
+            ? []
+            : [
+                {
+                  key: "auto",
+                  title: "Create automatically",
+                  hint: "Answer a few questions — Sidelnr builds the whole season",
+                  content: <FixtureWizard competitionId={id} teams={teams} venue={competition.league.venue ?? ""} existing={upcoming.length} />,
+                },
+                {
+                  key: "link",
+                  title: "From a link",
+                  hint: feed ? "Connected · updates automatically" : "Google Sheet, CSV, calendar or a website",
+                  content: <FeedPanel competitionId={id} aiEnabled={!!process.env.ANTHROPIC_API_KEY} tz={tz} connected={feed} />,
+                },
+              ]),
+          {
+            key: "file",
+            title: "From a file",
+            hint: "Upload or paste a CSV / spreadsheet",
+            content: <ImportCsvForm competitionId={id} />,
+          },
+          {
+            key: "manual",
+            title: event ? "Add a finals game" : "Add manually",
+            hint: event ? "Semi-finals, final, placeholders like “1st Pool A”" : "One game at a time",
+            content: (
+              <AddFixtureForm
+                competitionId={id}
+                teams={teams}
+                event={event}
+                defaultDate={event && competition.season && /^\d{4}-\d{2}-\d{2}$/.test(competition.season) ? competition.season : undefined}
+              />
+            ),
+          },
+        ]}
+      />
 
       <Card title="Results" aside={past.length ? "Enter scores after each game" : undefined}>
         {past.length === 0 ? (

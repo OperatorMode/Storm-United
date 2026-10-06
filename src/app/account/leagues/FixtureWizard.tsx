@@ -54,38 +54,18 @@ const clock = (min: number) => {
   return `${((h + 11) % 12) + 1}:${String(min % 60).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 };
 
-// Button that opens the wizard. The wizard itself only renders in the browser,
-// so it can pick up answers saved from last time.
-export function FixtureWizardLauncher(props: { competitionId: string; teams: string[]; venue: string; existing: number }) {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <div className="space-y-2 text-sm">
-        <p className="text-zinc-500">
-          Answer a few questions (season dates, days and times, venue, game length) and Sidelnr builds the whole draw —
-          everyone plays everyone, with early and late kick-offs shared fairly. You see it before anything is saved.
-        </p>
-        <button type="button" onClick={() => setOpen(true)} className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-on-accent">
-          Create fixtures automatically
-        </button>
-      </div>
-    );
-  }
-  return <FixtureWizard {...props} onClose={() => setOpen(false)} />;
-}
-
-function FixtureWizard({
+// Opened from the Fixtures section; mounts only in the browser (when the
+// section is expanded), so it can pick up answers saved from last time.
+export function FixtureWizard({
   competitionId,
   teams,
   venue,
   existing,
-  onClose,
 }: {
   competitionId: string;
   teams: string[];
   venue: string;
   existing: number;
-  onClose: () => void;
 }) {
   const [s, setS] = useState<DrawSettings>(() => loadSaved(competitionId, venue));
   const [step, setStep] = useState(0);
@@ -124,9 +104,6 @@ function FixtureWizard({
     return (
       <div className="space-y-3 text-sm">
         <p className="rounded-xl bg-amber-50 px-3 py-2 text-amber-900">Add the teams first (Teams card above), then come back here.</p>
-        <button type="button" onClick={onClose} className="text-zinc-500 underline">
-          Close
-        </button>
       </div>
     );
   }
@@ -135,8 +112,16 @@ function FixtureWizard({
     return (
       <div className="space-y-3 text-sm">
         <p className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-900">{done} They’re in the fixtures list below and on every team’s page.</p>
-        <button type="button" onClick={onClose} className="text-zinc-500 underline">
-          Close
+        <button
+          type="button"
+          onClick={() => {
+            setDone(null);
+            setPreview(null);
+            setStep(0);
+          }}
+          className="text-zinc-500 underline"
+        >
+          Change the answers and redo the draw
         </button>
       </div>
     );
@@ -424,9 +409,13 @@ function FixtureWizard({
       )}
 
       <div className="flex items-center justify-between border-t border-zinc-100 pt-3">
-        <button type="button" onClick={step === 0 ? onClose : () => goTo(step - 1)} className="text-zinc-500 underline">
-          {step === 0 ? "Cancel" : "Back"}
-        </button>
+        {step > 0 ? (
+          <button type="button" onClick={() => goTo(step - 1)} className="text-zinc-500 underline">
+            Back
+          </button>
+        ) : (
+          <span />
+        )}
         {step < STEPS.length - 1 && (
           <button type="button" onClick={() => goTo(step + 1)} className="rounded-xl bg-zinc-900 px-5 py-2 font-semibold text-white">
             {step === STEPS.length - 2 ? "Preview" : "Next"}
