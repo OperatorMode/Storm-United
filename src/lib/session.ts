@@ -95,12 +95,21 @@ export async function canView(team: Team): Promise<boolean> {
 const LEGACY_VOTER_COOKIE = "su_voter";
 const LEGACY_TEAM = "storm-united";
 
-export async function currentVoter(team: Team): Promise<string | null> {
+/** The child, or children (siblings in the same team), this phone belongs to. */
+export async function currentChildren(team: Team): Promise<string[]> {
   const store = await cookies();
-  const id =
+  const raw =
     store.get(voterCookie(team.id))?.value ??
     (team.id === LEGACY_TEAM ? store.get(LEGACY_VOTER_COOKIE)?.value : undefined);
-  return id && isActivePlayer(team, id) ? id : null;
+  return [...new Set((raw ?? "").split(","))].filter((id) => id && isActivePlayer(team, id));
+}
+
+/**
+ * The family's id: its first child. One MVP ballot per family, chat posts
+ * and message acknowledgements hang off it.
+ */
+export async function currentVoter(team: Team): Promise<string | null> {
+  return (await currentChildren(team))[0] ?? null;
 }
 
 // Who this browser posts as in the team chat: the coach (team admin) or a family.

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTeam, firstName, playerName, type Team } from "@/lib/teams";
-import { canView, currentVoter } from "@/lib/session";
+import { canView, currentChildren } from "@/lib/session";
 import { knownTeamIds } from "@/lib/known-teams";
 import { gamePlace, getLeagueData, meetingTime, opponent, ourScore, pitchLabel, roundLabel, type Game } from "@/lib/league";
 import { getAttendance, type AttendanceStatus } from "@/lib/store";
@@ -23,7 +23,7 @@ const STATUS: Record<AttendanceStatus, { label: string; cls: string }> = {
 };
 const GAME_WINDOW_MS = 90 * 60 * 1000; // a game stays "upcoming" until ~1.5h after kick-off
 
-type Entry = { team: Team; child: string | null; game: Game; tz: string; place: string | null; status: AttendanceStatus | null };
+type Entry = { team: Team; game: Game; tz: string; place: string | null; kids: { name: string; status: AttendanceStatus | null }[] };
 
 export default async function MyPlayerPage() {
   const ids = await knownTeamIds();
@@ -33,20 +33,21 @@ export default async function MyPlayerPage() {
   const perTeam = await Promise.all(
     teams.map(async (team) => {
       if (!(await canView(team))) return [];
-      const [{ competition, tz, ourGames }, voter, attendance] = await Promise.all([
+      const [{ competition, tz, ourGames }, children, attendance] = await Promise.all([
         getLeagueData(team),
-        currentVoter(team),
+        currentChildren(team),
         getAttendance(team.id),
       ]);
-      const child = voter ? firstName(playerName(team, voter)) : null;
       return ourGames.map(
         (game): Entry => ({
           team,
-          child,
           game,
           tz,
           place: gamePlace(game.pitch, competition),
-          status: voter ? (attendance.find((a) => a.game_id === game.id && a.player_id === voter)?.status ?? null) : null,
+          kids: children.map((c) => ({
+            name: firstName(playerName(team, c)),
+            status: attendance.find((a) => a.game_id === game.id && a.player_id === c)?.status ?? null,
+          })),
         }),
       );
     }),
@@ -141,7 +142,7 @@ function GameCard({ e }: { e: Entry }) {
         <img src={logoSrc(team)} alt="" className="size-10 shrink-0 object-contain" />
         <span className="min-w-0 flex-1">
           <span className="block text-xs text-zinc-500">
-            {e.child ? `${e.child} · ` : ""}
+            {e.kids.length ? `${e.kids.map((k) => k.name).join(" & ")} · ` : ""}
             {team.name}
             {roundLabel(game) && ` · ${roundLabel(game)}`}
           </span>
@@ -157,14 +158,19 @@ function GameCard({ e }: { e: Entry }) {
           )}
         </span>
       </Link>
-      <div className="mt-2 flex items-center gap-2">
-        {e.status ? (
-          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[e.status].cls}`}>{STATUS[e.status].label}</span>
-        ) : e.child ? (
-          <Link href={`/${team.id}`} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-            Can {e.child} play? Tap to answer
-          </Link>
-        ) : null}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {e.kids.map((k) =>
+          k.status ? (
+            <span key={k.name} className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[k.status].cls}`}>
+              {e.kids.length > 1 && `${k.name}: `}
+              {STATUS[k.status].label}
+            </span>
+          ) : (
+            <Link key={k.name} href={`/${team.id}`} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
+              Can {k.name} play? Tap to answer
+            </Link>
+          ),
+        )}
         {e.place && <Directions place={e.place} className="ml-auto bg-zinc-900 text-white" />}
       </div>
     </li>

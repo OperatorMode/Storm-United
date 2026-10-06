@@ -1,6 +1,6 @@
 import { Card } from "@/components/Card";
 import { SidelnrLink } from "@/components/SidelnrLink";
-import { VoterPicker } from "@/components/VoterPicker";
+import { ChildrenPicker } from "@/components/ChildrenPicker";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { AttendanceButtons } from "@/components/AttendanceButtons";
 import { BallotForm } from "@/components/BallotForm";
@@ -31,7 +31,7 @@ import { firstName, getTeam, playerName, type Team } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
 import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
-import { canView, currentVoter } from "@/lib/session";
+import { canView, currentChildren } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
 
 export default async function TeamHome({ params }: PageProps<"/[team]">) {
@@ -39,19 +39,19 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle }, attendance, ballots, voter, tabs] = await Promise.all([
+  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle }, attendance, ballots, children, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
-    currentVoter(team),
+    currentChildren(team),
     tabData(team),
   ]);
+  const voter = children[0] ?? null; // the family's id (one MVP ballot per family)
   const us = team.league_name;
   const PLAYERS = team.players;
   const nameOf = (id: string) => playerName(team, id);
   const now = clockNow();
   const next = nextGame(ourGames, now);
-  const myChild = voter;
   const rowOf = (gameId: string, playerId: string) =>
     attendance.find((a) => a.game_id === gameId && a.player_id === playerId);
   const statusOf = (gameId: string, playerId: string) => rowOf(gameId, playerId)?.status ?? null;
@@ -72,10 +72,15 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
               <div className="text-xs text-on-team/60">{competition ? competitionLabel(competition) : team.division}</div>
             </div>
           </div>
-          <VoterPicker teamId={team.id} players={PLAYERS} current={voter} />
+          <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} />
         </div>
 
-        <NextGame team={team} competition={competition} game={next} myStatus={myChild && next ? statusOf(next.id, myChild) : null} />
+        <NextGame
+          team={team}
+          competition={competition}
+          game={next}
+          myStatuses={next ? children.flatMap((c) => (statusOf(next.id, c) ? [{ name: firstName(nameOf(c)), status: statusOf(next.id, c)! }] : [])) : []}
+        />
       </header>
 
       <main className="-mt-2 space-y-4 px-4">
@@ -84,35 +89,37 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Welcome! Who are you?</h2>
             <p className="mb-3 mt-1 text-sm text-zinc-500">
-              Pick your child once and this phone will remember it for attendance and MVP votes.
+              Tap your child once and this phone will remember it for attendance and MVP votes.
             </p>
-            <VoterPicker teamId={team.id} players={PLAYERS} current={voter} prominent />
+            <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} inline />
           </section>
         )}
 
         {next && (
           <Card title="Attendance" aside={`${roundLabel(next)} · ${formatDay(next.kickoff, tz)}`}>
-            {myChild && next.kickoff.getTime() > now.getTime() && (
-              <div className="mb-4">
-                <p className="mb-2 text-sm font-medium">Can {firstName(nameOf(myChild))} make it?</p>
-                <AttendanceButtons
-                  teamId={team.id}
-                  goalieEnabled={team.goalie_enabled}
-                  gameId={next.id}
-                  status={statusOf(next.id, myChild)}
-                  goalie={rowOf(next.id, myChild)?.goalie ?? null}
-                />
-              </div>
-            )}
-            <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={myChild} />
+            {next.kickoff.getTime() > now.getTime() &&
+              children.map((child) => (
+                <div key={child} className="mb-4">
+                  <p className="mb-2 text-sm font-medium">Can {firstName(nameOf(child))} make it?</p>
+                  <AttendanceButtons
+                    teamId={team.id}
+                    playerId={child}
+                    goalieEnabled={team.goalie_enabled}
+                    gameId={next.id}
+                    status={statusOf(next.id, child)}
+                    goalie={rowOf(next.id, child)?.goalie ?? null}
+                  />
+                </div>
+              ))}
+            <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={children} />
           </Card>
         )}
 
         <Card title="MVP votes" aside="3 · 2 · 1 points">
           {openVoting.map((g) => {
             const gameBallots = ballots.filter((b) => b.game_id === g.id);
-            const mine = myChild ? gameBallots.find((b) => b.voter_id === voter) : undefined;
-            const candidates = PLAYERS.filter((p) => p.id !== myChild && statusOf(g.id, p.id) !== "no");
+            const mine = voter ? gameBallots.find((b) => b.voter_id === voter) : undefined;
+            const candidates = PLAYERS.filter((p) => !children.includes(p.id) && statusOf(g.id, p.id) !== "no");
             const closes = formatDay(new Date(g.kickoff.getTime() + VOTING_WINDOW_MS), tz);
             return (
               <div key={g.id} className="mb-4 rounded-xl bg-zinc-50 p-3">
@@ -122,7 +129,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                     {gameBallots.length} voted · closes {closes}
                   </div>
                 </div>
-                {myChild ? (
+                {voter ? (
                   <BallotForm
                     teamId={team.id}
                     gameId={g.id}
@@ -218,7 +225,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             byes={byeRounds}
             now={now}
             attendance={attendance}
-            myChild={myChild}
+            myChildren={children}
           />
         </Card>
 
@@ -245,12 +252,12 @@ function NextGame({
   team,
   competition,
   game,
-  myStatus,
+  myStatuses,
 }: {
   team: Team;
   competition: Competition | null;
   game: Game | null;
-  myStatus: AttendanceStatus | null;
+  myStatuses: { name: string; status: AttendanceStatus }[];
 }) {
   const tz = competitionTz(competition);
   if (!game) {
@@ -297,9 +304,16 @@ function NextGame({
           <Directions place={place} className="shrink-0 bg-accent text-on-accent" />
         </div>
       )}
-      {myStatus && (
+      {myStatuses.length > 0 && (
         <div className="mt-3 text-xs text-on-team/60">
-          You said: <span className="font-medium text-on-team">{STATUS_LABEL[myStatus]}</span>
+          You said:{" "}
+          {myStatuses.map((m, i) => (
+            <span key={m.name}>
+              {i > 0 && " · "}
+              {myStatuses.length > 1 && `${m.name}: `}
+              <span className="font-medium text-on-team">{STATUS_LABEL[m.status]}</span>
+            </span>
+          ))}
         </div>
       )}
     </div>
@@ -333,7 +347,7 @@ function AttendanceList({
   players: { id: string; name: string }[];
   gameId: string;
   attendance: AttendanceRow[];
-  highlight: string | null;
+  highlight: string[];
 }) {
   const rows = players.map((p) => {
     const row = attendance.find((a) => a.game_id === gameId && a.player_id === p.id);
@@ -350,7 +364,7 @@ function AttendanceList({
       </div>
       <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
         {rows.map(({ player, status, goalie }) => (
-          <li key={player.id} className={`flex items-center gap-2 ${player.id === highlight ? "font-semibold" : ""}`}>
+          <li key={player.id} className={`flex items-center gap-2 ${highlight.includes(player.id) ? "font-semibold" : ""}`}>
             <span className={`size-2.5 shrink-0 rounded-full ${STATUS_DOT[status ?? "none"]}`} />
             <span className={`truncate ${status === "no" ? "text-zinc-400 line-through" : ""}`}>{player.name}</span>
             {goalie && (
@@ -372,7 +386,7 @@ function Fixtures({
   byes,
   now,
   attendance,
-  myChild,
+  myChildren,
 }: {
   team: Team;
   competition: Competition | null;
@@ -380,7 +394,7 @@ function Fixtures({
   byes: { round: number; date: Date | null }[];
   now: Date;
   attendance: AttendanceRow[];
-  myChild: string | null;
+  myChildren: string[];
 }) {
   const tz = competitionTz(competition);
   const items = [
@@ -407,8 +421,8 @@ function Fixtures({
         const inCount = team.players.filter((p) =>
           attendance.some((a) => a.game_id === game.id && a.player_id === p.id && a.status === "yes"),
         ).length;
-        const myRow = myChild ? attendance.find((a) => a.game_id === game.id && a.player_id === myChild) : undefined;
-        const mine = myRow?.status ?? null;
+        const rowFor = (child: string) => attendance.find((a) => a.game_id === game.id && a.player_id === child);
+        const mine = myChildren.map((c) => rowFor(c)?.status ?? null);
         const row = (
           <div className="flex items-center justify-between gap-3 py-2.5 text-sm">
             <div className="min-w-0">
@@ -427,7 +441,7 @@ function Fixtures({
               ) : upcoming ? (
                 <span className="text-xs text-zinc-500">
                   {inCount}/{team.players.length} in
-                  {mine && <span className={`ml-1.5 inline-block size-2 rounded-full ${STATUS_DOT[mine]}`} />}
+                  {mine.map((m, i) => m && <span key={i} className={`ml-1.5 inline-block size-2 rounded-full ${STATUS_DOT[m]}`} />)}
                 </span>
               ) : (
                 <span className="text-xs text-zinc-400">Awaiting score</span>
@@ -435,19 +449,27 @@ function Fixtures({
             </div>
           </div>
         );
-        if (!upcoming || !myChild) return <li key={game.id}>{row}</li>;
+        if (!upcoming || !myChildren.length) return <li key={game.id}>{row}</li>;
         return (
           <li key={game.id}>
             <details className="group">
               <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">{row}</summary>
-              <div className="pb-3">
-                <AttendanceButtons
-                  teamId={team.id}
-                  goalieEnabled={team.goalie_enabled}
-                  gameId={game.id}
-                  status={mine}
-                  goalie={myRow?.goalie ?? null}
-                />
+              <div className="space-y-3 pb-3">
+                {myChildren.map((child) => (
+                  <div key={child}>
+                    {myChildren.length > 1 && (
+                      <p className="mb-1.5 text-xs font-medium text-zinc-600">{firstName(playerName(team, child))}</p>
+                    )}
+                    <AttendanceButtons
+                      teamId={team.id}
+                      playerId={child}
+                      goalieEnabled={team.goalie_enabled}
+                      gameId={game.id}
+                      status={rowFor(child)?.status ?? null}
+                      goalie={rowFor(child)?.goalie ?? null}
+                    />
+                  </div>
+                ))}
               </div>
             </details>
           </li>

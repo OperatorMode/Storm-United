@@ -12,7 +12,7 @@ import {
   adminCookie,
   adminToken,
   canView,
-  currentVoter,
+  currentChildren,
   joinCookie,
   joinToken,
   superToken,
@@ -30,13 +30,15 @@ async function findGame(team: Team, gameId: string) {
   return ourGames.find((g) => g.id === gameId) ?? null;
 }
 
-export async function chooseVoter(teamId: string, voterId: string) {
+// The child (or children) this phone belongs to; an empty list forgets it.
+export async function setChildren(teamId: string, ids: string[]) {
   const team = await teamFor(teamId);
   if (!team) return;
   const store = await cookies();
-  if (!voterId) store.delete(voterCookie(team.id));
-  else if (isActivePlayer(team, voterId)) store.set(voterCookie(team.id), voterId, COOKIE_OPTS);
-  revalidatePath(`/${team.id}`);
+  const valid = [...new Set(ids)].filter((id) => isActivePlayer(team, id)).slice(0, 10);
+  if (!valid.length) store.delete(voterCookie(team.id));
+  else store.set(voterCookie(team.id), valid.join(","), COOKIE_OPTS);
+  revalidatePath("/", "layout");
 }
 
 // Sets attendance and/or the goalie volunteer slot. Volunteering for goal
@@ -45,11 +47,14 @@ export async function updateAttendance(
   teamId: string,
   gameId: string,
   change: { status: AttendanceStatus } | { goalie: GoalieHalf | null },
+  playerId?: string,
 ) {
   const team = await teamFor(teamId);
   if (!team) return { error: "Team not found." };
-  const voter = await currentVoter(team);
-  if (!voter) return { error: "Pick your child first." };
+  const children = await currentChildren(team);
+  if (!children.length) return { error: "Pick your child first." };
+  const voter = playerId ?? children[0];
+  if (!children.includes(voter)) return { error: "That’s not your child." };
   if ("status" in change && !["yes", "no", "maybe"].includes(change.status)) return { error: "Invalid status." };
   if ("goalie" in change) {
     if (!team.goalie_enabled) return { error: "Goalie sign-up is off for this team." };
@@ -77,7 +82,8 @@ export async function updateAttendance(
 export async function submitBallot(teamId: string, gameId: string, picks: string[]) {
   const team = await teamFor(teamId);
   if (!team) return { error: "Team not found." };
-  const voter = await currentVoter(team);
+  const children = await currentChildren(team);
+  const voter = children[0];
   if (!voter) return { error: "Pick your child first." };
   const game = await findGame(team, gameId);
   if (!game) return { error: "Game not found." };
@@ -86,7 +92,7 @@ export async function submitBallot(teamId: string, gameId: string, picks: string
   if (picks.length !== 3 || new Set(picks).size !== 3 || !picks.every((p) => isActivePlayer(team, p))) {
     return { error: "Pick three different players." };
   }
-  if (picks.includes(voter)) return { error: "You can't vote for your own child." };
+  if (picks.some((p) => children.includes(p))) return { error: "You can't vote for your own child." };
   const absent = (await getAttendance(team.id))
     .filter((a) => a.game_id === gameId && a.status === "no")
     .map((a) => a.player_id);
