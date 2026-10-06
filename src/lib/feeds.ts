@@ -249,27 +249,38 @@ export type FeedSettings = { type: FeedType; url: string; filter: string | null;
 
 // Fetches and parses a feed. For web pages, `previousHash` lets an unchanged
 // page skip the (paid) AI read: returns `unchanged: true`.
+/** A first guess from the address alone; reading the link settles it. */
+export function guessFeedType(url: string): FeedType {
+  if (/docs\.google\.com\/spreadsheets|\.csv(\?|$)|output=csv|format=csv/i.test(url)) return "csv";
+  if (/^webcal:|\.ics(\?|$)/i.test(url)) return "ics";
+  return "web";
+}
+
+// Fetches a link and works out what it is from the content: a calendar, a
+// CSV / Google Sheet, or any other web page (read by Claude). For web pages,
+// `previousHash` lets an unchanged page skip the (paid) AI read.
 export async function readFeed(
   feed: FeedSettings,
   tz: string,
   previousHash: string | null = null,
-): Promise<{ fixtures: ImportedFixture[]; errors: string[]; hash: string | null; unchanged?: boolean }> {
-  if (feed.type === "csv") {
-    const text = await fetchText(sheetCsvUrl(feed.url));
-    if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
-      throw new Error("That link opens a web page, not a CSV. For Google Sheets: Share → Anyone with the link can view.");
-    }
-    return { ...fixturesFromCsv(text, tz), hash: null };
+): Promise<{ type: FeedType; fixtures: ImportedFixture[]; errors: string[]; hash: string | null; unchanged?: boolean }> {
+  const url = feed.url.trim().replace(/^webcal:/i, "https:");
+  const csvUrl = sheetCsvUrl(url);
+  const isSheet = csvUrl !== url || /docs\.google\.com\/spreadsheets/i.test(url);
+  const text = await fetchText(csvUrl);
+  const head = text.slice(0, 5000);
+  const isHtml = /^\s*(<!doctype html|<html)/i.test(head) || /<(head|body|div|table)[\s>]/i.test(head);
+
+  if (text.includes("BEGIN:VCALENDAR")) return { type: "ics", ...fixturesFromIcs(text, feed.team, tz), hash: null };
+  if (!isHtml) return { type: "csv", ...fixturesFromCsv(text, tz), hash: null };
+  if (isSheet) {
+    throw new Error("That Google Sheet isn’t public yet. In the sheet: Share, then General access: Anyone with the link (Viewer).");
   }
-  if (feed.type === "ics") {
-    const text = await fetchText(feed.url.replace(/^webcal:/i, "https:"));
-    if (!text.includes("BEGIN:VCALENDAR")) throw new Error("That link isn’t a calendar (ICS) file.");
-    return { ...fixturesFromIcs(text, feed.team, tz), hash: null };
-  }
-  const pageText = htmlToText(await fetchText(feed.url));
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error("This link is a web page, and reading web pages isn’t switched on yet.");
+  const pageText = htmlToText(text);
   const hash = createHash("sha256").update(`${feed.filter ?? ""}|${pageText}`).digest("hex");
-  if (previousHash && hash === previousHash) return { fixtures: [], errors: [], hash, unchanged: true };
-  return { ...(await fixturesFromWebPage(pageText, feed.url, feed.filter, tz)), hash };
+  if (previousHash && hash === previousHash) return { type: "web", fixtures: [], errors: [], hash, unchanged: true };
+  return { type: "web", ...(await fixturesFromWebPage(pageText, url, feed.filter, tz)), hash };
 }
 
 // ---------- syncing into a competition ----------
@@ -299,14 +310,14 @@ export async function syncCompetitionFeed(competitionId: string, force = false):
     const tz = (await listLeagues()).find((l) => l.id === c.league_id)?.timezone || DEFAULT_TZ;
     const res = await readFeed(feed, tz, force ? null : (c.feed_hash ?? null));
     if (res.unchanged) {
-      await markSynced(competitionId, { feed_synced_at: now, feed_error: null });
+      await markSynced(competitionId, { feed_type: res.type, feed_synced_at: now, feed_error: null });
       return { count: 0, errors: [] };
     }
     if (!res.fixtures.length) throw new Error(res.errors[0] ?? "No fixtures found at that link.");
     const merged = mergeImported(competitionId, await listFixtures(competitionId), res.fixtures);
     await saveFixtures(merged);
     await addCompetitionTeams(competitionId, res.fixtures.flatMap((f) => [f.home, f.away]));
-    await markSynced(competitionId, { feed_synced_at: now, feed_error: null, feed_hash: res.hash });
+    await markSynced(competitionId, { feed_type: res.type, feed_synced_at: now, feed_error: null, feed_hash: res.hash });
     return { count: merged.length, errors: res.errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed.";

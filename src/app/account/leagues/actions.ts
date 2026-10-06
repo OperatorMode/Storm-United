@@ -32,7 +32,9 @@ import {
 } from "@/lib/fixtures";
 import type { CompetitionRow } from "@/lib/store";
 import { isPoolStage, parsePools, schedulePools } from "@/lib/events";
-import { readFeed, saveFeedSettings, syncCompetitionFeed, type FeedSettings, type FeedType } from "@/lib/feeds";
+import { guessFeedType, readFeed, saveFeedSettings, syncCompetitionFeed, type FeedSettings, type FeedType } from "@/lib/feeds";
+
+const FEED_KIND: Record<FeedType, string> = { csv: "a spreadsheet", ics: "a calendar", web: "a web page, read by AI" };
 
 
 // Fixture/result changes show up on every team page in the competition.
@@ -235,11 +237,10 @@ export async function importFixturesCsv(competitionId: string, _: unknown, formD
 
 function feedFromForm(formData: FormData): FeedSettings | { error: string } {
   const get = (k: string) => String(formData.get(k) ?? "").trim();
-  const type = get("feed_type") as FeedType;
-  if (!["csv", "ics", "web"].includes(type)) return { error: "Pick the kind of link." };
   const url = get("feed_url");
   if (!url) return { error: "Paste the link." };
-  return { type, url, filter: get("feed_filter") || null, team: get("feed_team") || null };
+  if (!/^(https?|webcal):\/\//i.test(url)) return { error: "The link should start with https://" };
+  return { type: guessFeedType(url), url, filter: get("feed_filter") || null, team: get("feed_team") || null };
 }
 
 
@@ -251,11 +252,12 @@ export async function previewFeedAction(competitionId: string, _: unknown, formD
   const feed = feedFromForm(formData);
   if ("error" in feed) return { error: feed.error };
   try {
-    const { fixtures, errors } = await readFeed(feed, tz);
+    const { type, fixtures, errors } = await readFeed(feed, tz);
     if (!fixtures.length) return { error: errors[0] ?? "No fixtures found at that link." };
     const teams = new Set(fixtures.flatMap((f) => [f.home, f.away]));
     return {
       preview: true,
+      kind: FEED_KIND[type],
       count: fixtures.length,
       teams: teams.size,
       sample: fixtures.slice(0, 8).map((f) => {
