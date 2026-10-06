@@ -410,7 +410,7 @@ export async function generatePoolsAction(competitionId: string, _: unknown, for
   if (tooSmall) return { error: `${tooSmall.name} needs at least two teams.` };
   if (!date) return { error: "Pick the event date." };
   if (!start) return { error: "Enter the first kick-off, e.g. 9:00 am." };
-  if (!Number.isInteger(slot) || slot < 5 || slot > 240) return { error: "Minutes per game should be 5–240 (include changeover)." };
+  if (!Number.isInteger(slot) || slot < 5 || slot > 240) return { error: "Minutes per game should be 5–240 (including the gap between games)." };
   if (!pitches.length || pitches.length > 50) return { error: "Enter how many pitches (e.g. 4) or their names (e.g. 1, 2, Main)." };
 
   const existing = await listFixtures(competitionId);
