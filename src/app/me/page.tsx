@@ -16,6 +16,8 @@ import { listDutySignups } from "@/lib/duties";
 import { LegalLinks } from "@/components/LegalPage";
 import { ForgetPhone } from "./ForgetPhone";
 import { MyPlayerViews } from "./MyPlayerViews";
+import { KidColours } from "./KidColours";
+import { kidKey } from "@/lib/kid-key";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 
@@ -199,6 +201,8 @@ export default async function MyPlayerPage() {
           </div>
         )}
 
+        <KidColours kids={[...new Set(upcoming.flatMap((e) => e.kids.map((k) => k.name)))]} />
+
         {days.size > 0 && (
           <MyPlayerViews
             list={
@@ -222,6 +226,9 @@ export default async function MyPlayerPage() {
               clash: entries.some((e) => e.clashes.some((c) => c.kind === "child")),
               training: entries.every((e) => e.training),
               duty: entries.some((e) => (e.duties?.length ?? 0) > 0),
+              kids: [
+                ...new Map(entries.flatMap((e) => e.kids.map((k) => [kidKey(k.name), { key: kidKey(k.name), training: !!e.training }] as const))).values(),
+              ],
               node: (
                 <ul className="space-y-2">
                   {entries.map((e) => (
@@ -272,7 +279,9 @@ function GameCard({ e }: { e: Entry }) {
   const meet = team.meet_minutes > 0 && !e.training ? meetingTime(game, team.meet_minutes, tz) : null;
   return (
     <li
-      className={`rounded-2xl border bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
+      data-kid={e.kids[0] ? kidKey(e.kids[0].name) : undefined}
+      style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
+      className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
     >
       {e.clashes.map((c) => (
         <p
@@ -288,7 +297,15 @@ function GameCard({ e }: { e: Entry }) {
         <img src={logoSrc(team)} alt="" className="size-10 shrink-0 object-contain" />
         <span className="min-w-0 flex-1">
           <span className="block text-xs text-zinc-500">
-            {e.kids.length ? `${e.kids.map((k) => k.name).join(" & ")} · ` : ""}
+            {e.kids.map((k, i) => (
+              <span key={k.name}>
+                {i > 0 && " & "}
+                <b data-kid={kidKey(k.name)} className="font-semibold" style={{ color: "var(--kid)" }}>
+                  {k.name}
+                </b>
+              </span>
+            ))}
+            {e.kids.length > 0 && " · "}
             {team.name}
             {!e.training && roundLabel(game) && ` · ${roundLabel(game)}`}
           </span>
