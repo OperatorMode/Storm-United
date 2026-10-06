@@ -5,6 +5,15 @@ import { createTraining, removeTraining, setTrainingOff } from "./actions";
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 const label = "mb-1 block text-sm font-medium";
+const DAYS = [
+  [1, "Monday"],
+  [2, "Tuesday"],
+  [3, "Wednesday"],
+  [4, "Thursday"],
+  [5, "Friday"],
+  [6, "Saturday"],
+  [0, "Sunday"],
+] as const;
 
 type Session = {
   id: string;
@@ -18,10 +27,11 @@ type Session = {
   out: number;
 };
 
-// Manager's Corner: add training (one-off or weekly), cancel a week, see who's coming.
+// Manager's Corner: weekly training on one or more days, extra sessions, cancel a week, see who's coming.
 export function TrainingAdmin({ teamId, sessions, squad }: { teamId: string; sessions: Session[]; squad: number }) {
   const [state, action, pending] = useActionState(createTraining.bind(null, teamId), null);
   const [weekly, setWeekly] = useState(true);
+  const [slots, setSlots] = useState([{ key: 0, day: 2, time: "17:00", location: "" }]);
   const [busy, start] = useTransition();
 
   return (
@@ -75,40 +85,97 @@ export function TrainingAdmin({ teamId, sessions, squad }: { teamId: string; ses
       <details className="rounded-xl bg-zinc-50 p-3" open={sessions.length === 0}>
         <summary className="cursor-pointer font-medium">+ Add training</summary>
         <form action={action} className="mt-3 space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className={label}>{weekly ? "First session" : "Date"}</span>
-              <input name="date" type="date" className={field} required />
-            </label>
-            <label className="block">
-              <span className={label}>Start</span>
-              <input name="time" type="time" defaultValue="17:00" className={field} required />
-            </label>
-            <label className="block">
-              <span className={label}>Minutes</span>
-              <input name="minutes" type="number" min={15} max={300} defaultValue={60} className={field} />
-            </label>
-            <label className="block">
-              <span className={label}>Where</span>
-              <input name="location" placeholder="e.g. Piara Waters oval" className={field} />
-            </label>
+          <input type="hidden" name="mode" value={weekly ? "weekly" : "extra"} />
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-white p-1">
+            {[
+              [true, "Weekly training"],
+              [false, "Extra session"],
+            ].map(([w, text]) => (
+              <button
+                key={String(w)}
+                type="button"
+                onClick={() => setWeekly(w as boolean)}
+                className={`rounded-lg px-2 py-1.5 text-xs font-semibold ${weekly === w ? "bg-zinc-900 text-white" : "text-zinc-500"}`}
+              >
+                {text as string}
+              </button>
+            ))}
           </div>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" name="repeat" value="weekly" checked={weekly} onChange={(e) => setWeekly(e.target.checked)} />
-            Every week
-          </label>
-          {weekly && (
-            <label className="block">
-              <span className={label}>Until</span>
-              <input name="until" type="date" className={field} required />
-            </label>
+
+          {weekly ? (
+            <>
+              <div className="space-y-2">
+                {slots.map((slot, i) => (
+                  <div key={slot.key} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+                    <label className="block">
+                      <span className={label}>Day</span>
+                      <select name="slot_day" defaultValue={slot.day} className={field}>
+                        {DAYS.map(([d, n]) => (
+                          <option key={d} value={d}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block">
+                      <span className={label}>Start</span>
+                      <input name="slot_time" type="time" defaultValue={slot.time} className={field} required />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setSlots(slots.filter((x) => x.key !== slot.key))}
+                      disabled={slots.length === 1}
+                      className="pb-2.5 text-xs text-zinc-500 underline disabled:opacity-0"
+                    >
+                      Remove
+                    </button>
+                    <input name="slot_location" placeholder="Where (e.g. Piara Waters oval)" defaultValue={slot.location} className={`${field} col-span-3`} />
+                    {i < slots.length - 1 && <div className="col-span-3 border-t border-zinc-200" />}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setSlots([...slots, { key: Date.now(), day: 4, time: "17:00", location: slots.at(-1)?.location ?? "" }])}
+                  className="text-xs font-medium text-zinc-700 underline"
+                >
+                  + Add another day
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className={label}>From</span>
+                  <input name="from" type="date" className={field} required />
+                </label>
+                <label className="block">
+                  <span className={label}>Until</span>
+                  <input name="until" type="date" className={field} required />
+                </label>
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className={label}>Date</span>
+                <input name="date" type="date" className={field} required />
+              </label>
+              <label className="block">
+                <span className={label}>Start</span>
+                <input name="time" type="time" defaultValue="17:00" className={field} required />
+              </label>
+              <input name="location" placeholder="Where" className={`${field} col-span-2`} />
+            </div>
           )}
+
+          <label className="block">
+            <span className={label}>Minutes</span>
+            <input name="minutes" type="number" min={15} max={300} defaultValue={60} className={field} />
+          </label>
           <input name="note" placeholder="Note (optional), e.g. bring water and shin pads" className={field} />
           <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white">
-            {pending ? "Adding…" : "Add training"}
+            {pending ? "Adding…" : weekly ? "Add weekly training" : "Add extra session"}
           </button>
           {state?.error && <p className="text-accent">{state.error}</p>}
-          {state?.ok && <p className="text-emerald-700">{state.count === 1 ? "Session added." : `${state.count} weekly sessions added.`}</p>}
+          {state?.ok && <p className="text-emerald-700">{state.count === 1 ? "Session added." : `${state.count} sessions added.`}</p>}
         </form>
       </details>
     </div>
