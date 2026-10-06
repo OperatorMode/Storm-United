@@ -16,6 +16,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Sidelnr",
   description: "Sidelnr, the team app for junior football: fixtures, attendance, MVP votes, team chat and the ladder.",
+  icons: { icon: "/app-icon/64", apple: "/app-icon/180" },
+  appleWebApp: { capable: true, title: "Sidelnr", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
