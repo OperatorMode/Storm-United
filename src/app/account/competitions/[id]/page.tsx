@@ -14,6 +14,7 @@ import {
   ResultRow,
   TeamsEditor,
 } from "../../leagues/LeagueForms";
+import { FixtureWizardLauncher } from "../../leagues/FixtureWizard";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
@@ -127,7 +128,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <div className="font-semibold">{competition.name} is set up</div>
           <p className="mt-1">
-            Next: add the teams and fixtures below (or import a CSV). Then teams can join it via <b>My teams → Create a
+            Next: add the teams below, then create the fixtures step by step (or import a CSV, or link a spreadsheet). Then teams can join it via <b>My teams → Create a
             team</b> and pick “{competition.league.name} · {competition.name}”.
           </p>
         </div>
@@ -136,6 +137,12 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
       <Card title="Teams" aside={`${teams.length} in the draw · ${sidelnrTeams.length} on Sidelnr`}>
         <TeamsEditor competitionId={id} teams={teams} />
       </Card>
+
+      {!event && (
+        <Card title="Create fixtures" aside="Step by step">
+          <FixtureWizardLauncher competitionId={id} teams={teams} venue={competition.league.venue ?? ""} existing={upcoming.length} />
+        </Card>
+      )}
 
       {!event && (
       <Card title="Fixtures from a link" aside="Auto-updating">

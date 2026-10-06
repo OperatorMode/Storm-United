@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { competitionTz, getCompetition, listCompetitions } from "@/lib/league";
-import { formatWhen, isTimezone } from "@/lib/time";
+import { formatWhen, isTimezone, minutesOfDay } from "@/lib/time";
+import { buildSeasonDraw, type DrawSettings } from "@/lib/season-draw";
 import { listTeams } from "@/lib/store";
 import { slugify } from "@/lib/teams";
 import {
@@ -17,6 +18,7 @@ import {
   deleteLeagueRow,
   fixturesFromCsv,
   leagueIdExists,
+  listCompetitionTeamNames,
   listFixtures,
   mergeImported,
   newFixtureId,
@@ -437,4 +439,108 @@ export async function setFixtureTeamsAction(competitionId: string, fixtureId: st
   await saveFixtures([{ ...fixture, home, away }]);
   refreshAll();
   return { ok: true };
+}
+
+// ---------- fixture wizard (a whole season from a few answers) ----------
+
+function cleanDrawSettings(raw: DrawSettings): DrawSettings {
+  const date = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+  const time = (v: unknown, d: string) => (typeof v === "string" && /^\d{2}:\d{2}$/.test(v) ? v : d);
+  const num = (v: unknown, min: number, max: number, d: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : d;
+  };
+  const text = (v: unknown, max = 80) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  return {
+    start: date(raw.start),
+    end: date(raw.end),
+    breaks: (Array.isArray(raw.breaks) ? raw.breaks : []).slice(0, 20).map((b) => ({ from: date(b?.from), to: date(b?.to) })),
+    meetings: num(raw.meetings, 1, 6, 1),
+    finalsWeeks: num(raw.finalsWeeks, 0, 8, 0),
+    days: [...new Set((Array.isArray(raw.days) ? raw.days : []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))],
+    windowStart: time(raw.windowStart, "08:30"),
+    windowEnd: time(raw.windowEnd, "14:00"),
+    venueMode: raw.venueMode === "home" ? "home" : "single",
+    venue: text(raw.venue),
+    pitches: text(raw.pitches, 200),
+    homeGrounds: Object.fromEntries(
+      Object.entries(raw.homeGrounds && typeof raw.homeGrounds === "object" ? raw.homeGrounds : {})
+        .slice(0, 200)
+        .map(([k, v]) => [String(k), text(v)]),
+    ),
+    groundPitches: num(raw.groundPitches, 1, 20, 1),
+    periods: num(raw.periods, 1, 8, 2),
+    periodMinutes: num(raw.periodMinutes, 1, 120, 20),
+    breakMinutes: num(raw.breakMinutes, 0, 60, 5),
+    changeover: num(raw.changeover, 0, 60, 5),
+  };
+}
+
+// Games with a result (or already kicked off) stay; the rest is redrawn.
+async function drawFor(competitionId: string, raw: DrawSettings) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return null;
+  const settings = cleanDrawSettings(raw);
+  const tz = competitionTz(c);
+  const [teams, existing] = await Promise.all([listCompetitionTeamNames(competitionId), listFixtures(competitionId)]);
+  const now = Date.now();
+  const kept = existing.filter((f) => f.home_score !== null || new Date(f.kickoff).getTime() <= now);
+  const replaced = existing.filter((f) => !kept.includes(f));
+  const lastKept = kept.reduce((m, f) => (f.kickoff > m ? f.kickoff : m), "");
+  if (lastKept) {
+    const dayAfter = new Date(Date.parse(lastKept) + 86_400_000).toISOString().slice(0, 10);
+    if (settings.start < dayAfter) settings.start = dayAfter;
+  }
+  const draw = buildSeasonDraw(teams, settings, {
+    timeZone: tz,
+    played: kept.filter((f) => f.status !== "cancelled"),
+    roundOffset: kept.reduce((m, f) => Math.max(m, f.round ?? 0), 0),
+  });
+  return { c, tz, teams, draw, kept, replaced };
+}
+
+export async function previewDrawAction(competitionId: string, raw: DrawSettings) {
+  const res = await drawFor(competitionId, raw);
+  if (!res) {
+    return { errors: ["Not authorised."], warnings: [], summary: null, total: 0, keeping: 0, replacing: 0, sample: [], balance: [] };
+  }
+  const { tz, teams, draw, kept, replaced } = res;
+  // Balance per team: home games and average kick-off.
+  const balance = teams.map((t) => {
+    const games = draw.fixtures.filter((f) => f.home === t || f.away === t);
+    const minutes = games.map((f) => minutesOfDay(f.kickoff, tz));
+    return {
+      team: t,
+      games: games.length,
+      home: games.filter((f) => f.home === t).length,
+      avgStart: minutes.length ? Math.round(minutes.reduce((a, b) => a + b, 0) / minutes.length) : null,
+    };
+  });
+  const rounds = new Map<number, string[]>();
+  for (const f of draw.fixtures.slice().sort((a, b) => a.kickoff.localeCompare(b.kickoff))) {
+    if ((f.round ?? 0) > (draw.fixtures[0]?.round ?? 0) + 1) continue; // first two rounds as a sample
+    rounds.set(f.round ?? 0, [...(rounds.get(f.round ?? 0) ?? []), `${formatWhen(f.kickoff, tz)} · ${f.pitch} · ${f.home} v ${f.away}`]);
+  }
+  return {
+    errors: draw.errors,
+    warnings: draw.warnings,
+    summary: draw.summary,
+    total: draw.fixtures.length,
+    keeping: kept.length,
+    replacing: replaced.length,
+    sample: [...rounds.entries()].map(([round, games]) => ({ round, games })),
+    balance,
+  };
+}
+
+export async function generateDrawAction(competitionId: string, raw: DrawSettings) {
+  const res = await drawFor(competitionId, raw);
+  if (!res) return { error: "Not authorised." };
+  const { draw, replaced } = res;
+  if (draw.errors.length) return { error: draw.errors[0] };
+  for (const f of replaced) await deleteFixture(competitionId, f.id);
+  // Same match-up in the same round keeps its id (and any attendance/votes).
+  await saveFixtures(mergeImported(competitionId, replaced, draw.fixtures));
+  refreshAll();
+  return { ok: true, count: draw.fixtures.length };
 }

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/Card";
 import { AutoRefresh } from "./AutoRefresh";
-import { competitionTz, listCompetitions, poolTables } from "@/lib/league";
+import { competitionTz, listCompetitions, pitchLabel, poolTables } from "@/lib/league";
 import { listFixtures } from "@/lib/fixtures";
 import { isPoolStage } from "@/lib/events";
 import { formatIsoDate, formatTime } from "@/lib/time";
@@ -171,7 +171,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/ev
 
 function GameRow({ f, team, when }: { f: FixtureRow; team: string | null; when?: string }) {
   const score = scoreOf(f);
-  const meta = [when, f.stage, f.pitch && `Pitch ${f.pitch}`, f.status === "postponed" && "Postponed"].filter(Boolean).join(" · ");
+  const meta = [when, f.stage, pitchLabel(f.pitch), f.status === "postponed" && "Postponed"].filter(Boolean).join(" · ");
   const name = (t: string) => <span className={t === team ? "font-semibold" : ""}>{t}</span>;
   return (
     <li className="py-2 text-sm">

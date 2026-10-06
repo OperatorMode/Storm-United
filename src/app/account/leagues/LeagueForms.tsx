@@ -402,7 +402,7 @@ export function ResultRow({
         <span>
           {fixture.stage ? `${fixture.stage} · ` : fixture.round ? `Rd ${fixture.round} · ` : ""}
           {when}
-          {fixture.pitch ? ` · Pitch ${fixture.pitch}` : ""}
+          {fixture.pitch ? ` · ${/^[a-z]?\d+[a-z]?$/i.test(fixture.pitch) ? `Pitch ${fixture.pitch}` : fixture.pitch}` : ""}
         </span>
         <span className="flex items-center gap-2">
           <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="rounded border border-zinc-200 bg-white px-1 py-0.5 text-xs">
