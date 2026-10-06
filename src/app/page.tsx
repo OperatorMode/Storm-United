@@ -6,25 +6,25 @@ import { logoSrc } from "@/lib/brand";
 import { currentManager } from "@/lib/session";
 import { emailEnabled } from "@/lib/email";
 
-// Landing page with four doors: parents join a team; team, league and event
-// managers sign in (one account covers all three). There's deliberately no
+// Landing page with four doors: parents join a team; My Team, My League and My Event
+// sign in (one account covers all three). There's deliberately no
 // public list of teams. Teams this phone has used before are one-tap shortcuts.
 
 const DOORS = [
   {
     href: "/account",
-    title: "Team manager",
+    title: "My Team",
     text: "For coaches and managers: your team, attendance, MVP and messages.",
   },
   {
     href: "/account/leagues",
-    title: "League manager",
-    text: "Run a competition: teams, fixtures, results and the ladder.",
+    title: "My League",
+    text: "For league organisers: teams, fixtures, results and the ladder.",
   },
   {
     href: "/account/events",
-    title: "Event manager",
-    text: "One-day events: pools, finals and live results on game day.",
+    title: "My Event",
+    text: "For carnivals and gala days: pools, finals and live results.",
   },
 ] as const;
 
