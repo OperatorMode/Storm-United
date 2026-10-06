@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/Card";
 import { AutoRefresh } from "./AutoRefresh";
+import { Directions } from "@/components/Directions";
 import { competitionTz, listCompetitions, pitchLabel, poolTables } from "@/lib/league";
 import { listFixtures } from "@/lib/fixtures";
 import { isPoolStage } from "@/lib/events";
@@ -63,6 +64,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/ev
         <p className="mt-1 text-sm opacity-70">
           {[date && formatIsoDate(date, tz), league.venue].filter(Boolean).join(" · ")}
         </p>
+        {league.venue && <Directions place={league.venue} className="mt-3 bg-accent text-on-accent" />}
         {divisions.length > 1 && (
           <nav className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4">
             {divisions.map((d) => (
