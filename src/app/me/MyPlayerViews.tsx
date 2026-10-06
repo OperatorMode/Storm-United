@@ -9,6 +9,7 @@ export type CalendarDay = {
   clash: boolean; // a child has two things at once that day
   training: boolean; // only training that day
   duty: boolean; // the family is on a duty that day
+  kids: { key: string; training: boolean }[]; // a dot per child (hollow = training)
   node: ReactNode; // that day's cards
 };
 
@@ -67,11 +68,17 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
         <>
           <Months days={days} selected={selected} onPick={pick} />
           <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
-            <Legend className="bg-zinc-900" text="Game" />
-            <Legend className="bg-emerald-600" text="Training" />
-            <Legend className="bg-red-600" text="Clash" />
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-sky-400" /> Your duty
+              <span className="size-2 rounded-full bg-zinc-500" /> Game
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-2 rounded-full" style={{ boxShadow: "inset 0 0 0 1.5px #71717a" }} /> Training
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="size-3 rounded ring-2 ring-red-600" /> Clash
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="text-amber-500">★</span> Your duty
             </span>
           </div>
           {selected && (
@@ -83,14 +90,6 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
         </>
       )}
     </div>
-  );
-}
-
-function Legend({ className, text }: { className: string; text: string }) {
-  return (
-    <span className="flex items-center gap-1">
-      <span className={`size-3 rounded ${className}`} /> {text}
-    </span>
   );
 }
 
@@ -129,17 +128,25 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                     </div>
                   );
                 }
-                const colour = day.clash ? "bg-red-600 text-white" : day.training ? "bg-emerald-600 text-white" : "bg-zinc-900 text-white";
                 return (
                   <button
                     key={date}
                     type="button"
                     onClick={() => onPick(date)}
-                    className={`relative rounded-lg py-2 font-semibold ${colour} ${date === selected ? "ring-2 ring-accent ring-offset-1" : ""}`}
+                    className={`relative rounded-lg bg-zinc-100 pb-3 pt-1.5 font-semibold text-zinc-900 ${day.clash ? "ring-2 ring-red-600" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
                   >
                     {i + 1}
-                    {day.count > 1 && <span className="absolute right-0.5 top-0 text-[9px] font-normal opacity-80">{day.count}</span>}
-                    {day.duty && <span className="absolute bottom-0.5 left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-sky-400" />}
+                    {day.duty && <span className="absolute left-0.5 top-0 text-[9px] text-amber-500">★</span>}
+                    <span className="absolute inset-x-0 bottom-1 flex justify-center gap-0.5">
+                      {day.kids.slice(0, 4).map((k, n) => (
+                        <span
+                          key={n}
+                          data-kid={k.key}
+                          className="size-1.5 rounded-full"
+                          style={k.training ? { boxShadow: "inset 0 0 0 1.5px var(--kid, #71717a)" } : { background: "var(--kid, #71717a)" }}
+                        />
+                      ))}
+                    </span>
                   </button>
                 );
               })}
