@@ -41,7 +41,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
     return (
       <div className="mx-auto max-w-md p-4">
         <p className="text-sm text-zinc-500">
-          {competition.league.name} gets its fixtures and results from its own website automatically — nothing to edit here.
+          {competition.league.name} gets its fixtures and results from its own website automatically, so there’s nothing to edit here.
         </p>
       </div>
     );
@@ -119,7 +119,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           <div className="font-semibold">{competition.name} is set up</div>
           <p className="mt-1">
             Next: type the pools below and build the draw, then add any finals. Share the public page with everyone on the
-            day — results update live. Teams on Sidelnr can pick “{competition.league.name} · {competition.name}” as their
+            day; results update live. Teams on Sidelnr can pick “{competition.league.name} · {competition.name}” as their
             competition.
           </p>
         </div>
@@ -160,7 +160,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
                 {
                   key: "auto",
                   title: "Create automatically",
-                  hint: "Answer a few questions — Sidelnr builds the whole season",
+                  hint: "Answer a few questions and Sidelnr builds the whole season",
                   content: <FixtureWizard competitionId={id} teams={teams} venue={competition.league.venue ?? ""} existing={upcoming.length} />,
                 },
                 {

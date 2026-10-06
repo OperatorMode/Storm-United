@@ -15,7 +15,7 @@ export async function GET(_: Request, ctx: RouteContext<"/[team]/manifest.webman
       id: `/${team.id}`,
       name: team.name,
       short_name: team.name,
-      description: `${team.name} — fixtures, attendance, MVP votes and the ladder.`,
+      description: `${team.name}: fixtures, attendance, MVP votes and the ladder.`,
       start_url: `/${team.id}`,
       scope: `/${team.id}`,
       display: "standalone",

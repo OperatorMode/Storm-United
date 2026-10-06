@@ -65,7 +65,7 @@ export async function joinCodeFields(
   if (!code) return { join_code_hash: current?.join_code_hash ?? null, join_code_key: current?.join_code_key ?? null };
   if (code.length < 4) return { error: "Join code needs at least 4 characters." };
   const owner = await teamIdForJoinCode(code);
-  if (owner && owner !== teamId) return { error: "That join code is already used by another team — pick a different one." };
+  if (owner && owner !== teamId) return { error: "That join code is already used by another team. Pick a different one." };
   return { join_code_hash: hashSecret(code), join_code_key: joinCodeKey(code) };
 }
 

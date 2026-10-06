@@ -39,7 +39,7 @@ export async function notifyTeam(
           TTL: 60 * 60 * 24,
         });
       } catch (err) {
-        // 404/410: the browser dropped this subscription — forget it.
+        // 404/410: the browser dropped this subscription, forget it.
         const code = (err as { statusCode?: number }).statusCode;
         if (code === 404 || code === 410) await deletePushSub(teamId, s.endpoint);
       }

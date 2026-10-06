@@ -1,7 +1,7 @@
 import { adminLeagueIds } from "./fixtures";
 import { listCompetitions, type Competition } from "./league";
 
-// Leagues (and events — leagues whose competitions are one-day events) that a
+// Leagues (and events, leagues whose competitions are one-day events) that a
 // manager administers.
 export type ManagedLeague = { id: string; name: string; competitions: Competition[]; isEvent: boolean };
 

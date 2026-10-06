@@ -10,7 +10,7 @@ import { formatIsoDate, formatTime } from "@/lib/time";
 import type { FixtureRow } from "@/lib/store";
 
 // The public game-day page for an event: the draw by time and pitch, live
-// results, pool tables and finals. No sign-in — share the link on the day.
+// results, pool tables and finals. No sign-in, share the link on the day.
 
 async function eventDivisions(id: string) {
   const divisions = (await listCompetitions()).filter((c) => c.league_id === id);

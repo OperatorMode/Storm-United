@@ -33,7 +33,7 @@ export function GoalieAssign({
         }}
         className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm"
       >
-        <option value="">—</option>
+        <option value="">-</option>
         {players.map((p) => (
           <option key={p.id} value={p.id}>
             {p.name}

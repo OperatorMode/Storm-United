@@ -33,8 +33,8 @@ export function TeamSettings({
         <span className="mb-1 block font-medium">Join code</span>
         <span className="mb-1.5 block text-xs text-zinc-500">
           {hasJoinCode
-            ? "Set — parents need it once to open the team page. Type a new one to change it."
-            : "Not set — anyone with the link can open the team page."}
+            ? "Set. Parents need it once to open the team page. Type a new one to change it."
+            : "Not set. Anyone with the link can open the team page."}
         </span>
         <input name="join_code" autoComplete="off" placeholder={hasJoinCode ? "New code (optional)" : "e.g. storm26"} className={field} />
         {hasJoinCode && (

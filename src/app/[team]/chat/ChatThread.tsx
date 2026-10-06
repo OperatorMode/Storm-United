@@ -85,7 +85,7 @@ export function ChatThread({
     <>
       <main className="flex-1 space-y-1 px-4 pb-44 pt-3">
         {messages.length === 0 && (
-          <p className="py-10 text-center text-sm text-zinc-500">No messages yet — say hi to the team.</p>
+          <p className="py-10 text-center text-sm text-zinc-500">No messages yet. Say hi to the team.</p>
         )}
         {messages.map((m, i) => {
           const mine = m.author_id === me;

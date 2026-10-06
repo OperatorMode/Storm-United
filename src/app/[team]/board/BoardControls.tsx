@@ -16,7 +16,7 @@ export function AnnouncementComposer({ teamId }: { teamId: string }) {
         name="body"
         rows={3}
         maxLength={2000}
-        placeholder="e.g. No training this Thursday — see you Monday at 5:15!"
+        placeholder="e.g. No training this Thursday. See you Monday at 5:15!"
         className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-base"
       />
       <button disabled={pending} className="mt-2 w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white">

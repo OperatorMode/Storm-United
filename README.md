@@ -1,6 +1,6 @@
 # Sidelnr
 
-The team app for junior football — live at [sidelnr.app](https://sidelnr.app). Teams live at `sidelnr.app/<team>`.
+The team app for junior football, live at [sidelnr.app](https://sidelnr.app). Teams live at `sidelnr.app/<team>`.
 
 Team app for the TPP 6 A-Side League 2026: next game and meeting time, attendance (with goalie sign-up), 3-2-1 MVP voting and the live ladder. One mobile-first Next.js app hosts every team, each at its own link (e.g. `/storm-united`). Hosted on Vercel, data in Supabase.
 
@@ -17,14 +17,14 @@ Team app for the TPP 6 A-Side League 2026: next game and meeting time, attendanc
 
 ## Admin
 
-- **`/<team>/admin`** — the team's admin PIN (or the super admin PIN): season MVP tally, goalie tally and assignment, votes per game, backup scores, and team settings (players, join code, meeting time, goalie sign-up).
-- **`/super`** — the super admin PIN (`ADMIN_PIN` env var): add/edit/delete teams — pick the team from the TPP draw, set colours, upload a logo (or use the generated crest), players, team admin PIN and join code.
+- **`/<team>/admin`**: the team's admin PIN (or the super admin PIN): season MVP tally, goalie tally and assignment, votes per game, backup scores, and team settings (players, join code, meeting time, goalie sign-up).
+- **`/super`**: the super admin PIN (`ADMIN_PIN` env var): add/edit/delete teams, pick the team from the TPP draw, set colours, upload a logo (or use the generated crest), players, team admin PIN and join code.
 
 ## Setup
 
 1. Create a Supabase project. In the SQL editor run `supabase/schema.sql`, then `supabase/migrations/001_multi_team.sql` and `002_multi_team_keys.sql` and `003_messaging.sql` in order.
 2. In Vercel, set the env vars from `.env.example`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PIN`, and `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` for notifications.
-3. Vercel's free (Hobby) plan is non-commercial — switch to Pro before charging teams.
+3. Vercel's free (Hobby) plan is non-commercial, so switch to Pro before charging teams.
 
 ## Local dev
 

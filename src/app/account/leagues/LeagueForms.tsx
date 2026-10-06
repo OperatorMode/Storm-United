@@ -276,7 +276,7 @@ export function AddFixtureForm({
     <form action={action} className="space-y-3 text-sm">
       {event && (
         <p className="text-zinc-500">
-          For finals, use placeholders like “1st Pool A” or “Winner SF1” — fill in the real teams once they’re known.
+          For finals, use placeholders like “1st Pool A” or “Winner SF1”, then fill in the real teams once they’re known.
         </p>
       )}
       <div className="grid grid-cols-3 gap-2">
@@ -557,7 +557,7 @@ export function PoolDrawForm({
       {state?.error && <p className="text-accent">{state.error}</p>}
       {state?.ok && (
         <p className="text-emerald-700">
-          {state.count} games scheduled{state.finish ? ` — last game ${state.finish}` : ""}.
+          {state.count} games scheduled{state.finish ? `, last game ${state.finish}` : ""}.
         </p>
       )}
     </form>
@@ -605,7 +605,7 @@ export function FeedPanel({
           </div>
         </div>
         <p className="text-xs text-zinc-500">
-          Re-checked automatically ({connected.type === "web" ? "hourly — the AI only re-reads the page when it changes" : "every 10 minutes"}) whenever
+          Re-checked automatically ({connected.type === "web" ? "hourly; the AI only re-reads the page when it changes" : "every 10 minutes"}) whenever
           someone opens a team page. Results from the link update the ladder; you can still enter scores here.
         </p>
         <div className="flex gap-2">
@@ -652,8 +652,8 @@ export function FeedPanel({
       <p className="text-xs text-zinc-500">
         {type === "csv" &&
           "A link to a CSV file, or a Google Sheet shared as “Anyone with the link can view”. Same columns as the upload template."}
-        {type === "ics" && "A calendar link (ics/webcal) — e.g. a team’s fixture calendar export. Event titles like “Sharks vs Tigers”."}
-        {type === "web" && "Any page that lists the fixtures or results — Claude reads it and turns it into fixtures. Check the preview before connecting."}
+        {type === "ics" && "A calendar link (ics/webcal), e.g. a team’s fixture calendar export. Event titles like “Sharks vs Tigers”."}
+        {type === "web" && "Any page that lists the fixtures or results. Claude reads it and turns it into fixtures. Check the preview before connecting."}
       </p>
       <input name="feed_url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className={field} />
       {type === "web" && (
@@ -742,7 +742,7 @@ export function DangerZone({
 
       {impact.sidelnrTeams.length > 0 ? (
         <p className="rounded-xl border border-red-200 p-3 text-red-800">
-          Can’t delete yet — Sidelnr teams still use it: <b>{impact.sidelnrTeams.join(", ")}</b>. Their managers need to
+          Can’t delete yet. Sidelnr teams still use it: <b>{impact.sidelnrTeams.join(", ")}</b>. Their managers need to
           move or delete those teams first, so nobody’s team page breaks.
         </p>
       ) : (

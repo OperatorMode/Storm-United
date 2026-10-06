@@ -19,7 +19,7 @@ export default async function NewTeamPage() {
       <div>
         <h1 className="text-xl font-semibold">Create a team</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Pick your competition and your team in its draw — fixtures, results and the ladder then load automatically.
+          Pick your competition and your team in its draw. Fixtures, results and the ladder then load automatically.
         </p>
       </div>
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -30,7 +30,7 @@ export default async function NewTeamPage() {
         <Link href="/account/leagues/new" className="font-medium text-zinc-900 underline">
           Add it
         </Link>{" "}
-        — then create your team in it.
+        and then create your team in it.
       </p>
     </div>
   );
