@@ -8,6 +8,7 @@ import {
   competitionTz,
   roundLabel,
   pitchLabel,
+  gamePlace,
   VOTING_WINDOW_MS,
   formatDay,
   formatIsoDate,
@@ -21,6 +22,7 @@ import {
   type Game,
 } from "@/lib/league";
 import { notFound } from "next/navigation";
+import { Directions } from "@/components/Directions";
 import { JoinGate } from "@/components/JoinGate";
 import { TabBar } from "@/components/TabBar";
 import { tabData } from "@/lib/tabs";
@@ -264,6 +266,7 @@ function NextGame({
     );
   }
   const home = game.home === team.league_name;
+  const place = gamePlace(game.pitch, competition);
   return (
     <div className="mt-6">
       <div className="text-xs uppercase tracking-widest text-on-team/50">Next game · {roundLabel(game, true)}</div>
@@ -286,6 +289,12 @@ function NextGame({
         <Stat label="Kick-off" value={game.time} />
         <Stat label="Pitch" value={`${game.pitch} · ${home ? "Home" : "Away"}`} />
       </div>
+      {place && (
+        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-on-team/60">
+          <span className="truncate">{place}</span>
+          <Directions place={place} className="shrink-0 bg-accent text-on-accent" />
+        </div>
+      )}
       {myStatus && (
         <div className="mt-3 text-xs text-on-team/60">
           You said: <span className="font-medium text-on-team">{STATUS_LABEL[myStatus]}</span>

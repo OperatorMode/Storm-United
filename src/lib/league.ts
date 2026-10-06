@@ -247,3 +247,18 @@ export function roundLabel(g: { round: number | null; stage?: string | null }, l
   if (g.round === null) return "";
   return long ? `Round ${g.round}` : `Rd ${g.round}`;
 }
+
+/**
+ * Where a game is, for directions: a named ground ("Lions Park", or "Lions
+ * Park · Pitch 2") when the pitch is one, otherwise the league's venue.
+ */
+export function gamePlace(pitch: string | null, competition: Competition | null): string | null {
+  const ground = pitch?.split(" · ")[0].trim() ?? "";
+  // A real place name has a few words ("Lions Park"); "1" or "Main" is just a pitch.
+  if (ground && /\s|,/.test(ground)) return ground;
+  return competition?.league.venue?.trim() || null;
+}
+
+/** A maps link that opens Google Maps (app or web) with directions. */
+export const directionsUrl = (place: string) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place)}`;

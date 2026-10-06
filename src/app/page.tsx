@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { knownTeamIds } from "@/lib/known-teams";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
 import { getTeam } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
@@ -29,15 +29,9 @@ const DOORS = [
 ] as const;
 
 export default async function Landing() {
-  const all = (await cookies()).getAll();
-  const ids = new Set(
-    all.flatMap((c) => {
-      const m = c.name.match(/^su_(?:voter|join|admin)_([a-z0-9-]+)$/);
-      return m ? [m[1]] : c.name === "su_voter" ? ["storm-united"] : [];
-    }),
-  );
+  const ids = await knownTeamIds();
   const [known, manager] = await Promise.all([
-    Promise.all([...ids].map((id) => getTeam(id))).then((ts) => ts.filter((t) => t !== null)),
+    Promise.all(ids.map((id) => getTeam(id))).then((ts) => ts.filter((t) => t !== null)),
     currentManager(),
   ]);
   const signIn = (next: string) => (emailEnabled() ? `/login?next=${encodeURIComponent(next)}` : next);
@@ -54,6 +48,13 @@ export default async function Landing() {
 
         {known.length > 0 && (
           <div className="space-y-2">
+            <Link href="/me" className="flex items-center gap-3 rounded-2xl bg-accent p-4 text-on-accent shadow-lg">
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">My Player</span>
+                <span className="block text-xs opacity-80">All your games in one place: when, where and directions.</span>
+              </span>
+              <span aria-hidden>→</span>
+            </Link>
             {known.map((t) => (
               <Link key={t.id} href={`/${t.id}`} className="flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
