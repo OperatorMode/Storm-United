@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useOptimistic, useTransition } from "react";
-import { leaveTeam, setChildren } from "@/app/[team]/actions";
+import { setChildren } from "@/app/[team]/actions";
+import { LeaveTeam } from "./LeaveTeam";
 
 // Which child (or children: siblings in the same team) this phone belongs to.
 // `inline` shows the list straight away (first visit); otherwise it's a small
@@ -82,24 +83,7 @@ export function ChildrenPicker({
       <div className="absolute right-0 z-20 mt-2 w-72 rounded-2xl bg-white p-3 text-zinc-950 shadow-xl">
         <p className="mb-2 text-xs text-zinc-500">Tick your child, or all of them if you have more than one in this team.</p>
         {list}
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => {
-            if (!confirm("Leave this team on this phone? It disappears from your home page and My Player, and notifications for it stop. You can join again with the team code.")) return;
-            start(async () => {
-              let endpoint: string | null = null;
-              try {
-                const reg = await navigator.serviceWorker?.getRegistration();
-                endpoint = (await reg?.pushManager.getSubscription())?.endpoint ?? null;
-              } catch {}
-              await leaveTeam(teamId, endpoint);
-            });
-          }}
-          className="mt-3 w-full border-t border-zinc-100 pt-3 text-left text-xs text-red-700 underline"
-        >
-          Leave this team
-        </button>
+        <LeaveTeam teamId={teamId} teamName="this team" className="mt-3 w-full border-t border-zinc-100 pt-3 text-left text-xs text-red-700 underline" />
       </div>
     </details>
   );
