@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { CompetitionPicker } from "./CompetitionPicker";
+import { drawTeams } from "@/app/competition-actions";
 
 export type TeamFormValues = {
   id: string;
@@ -19,23 +21,19 @@ export type TeamFormValues = {
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 
-export type CompetitionOption = { id: string; league: string; name: string; teams: string[] };
-
 type SaveResult = { error?: string } | null | undefined;
 
 // Used by the super admin (/super) and by managers (self-serve). Actions are
 // passed in, so each caller applies its own permissions.
 export function TeamForm({
-  competitions,
-  taken,
+  competitionLabel,
   initial,
   save,
   remove,
   lockCompetition = false,
   allowTaken = false,
 }: {
-  competitions: CompetitionOption[];
-  taken: Record<string, string>; // "competitionId|team" -> the Sidelnr team already following it
+  competitionLabel: string | null; // the current competition's label (editing)
   initial: TeamFormValues | null; // null = new team
   save: (prev: SaveResult, formData: FormData) => Promise<SaveResult>;
   remove?: () => Promise<unknown>;
@@ -43,11 +41,23 @@ export function TeamForm({
   allowTaken?: boolean; // super admin: may follow a draw team that's already on Sidelnr (demo teams)
 }) {
   const [state, action, pending] = useActionState(save, null);
-  const [competitionId, setCompetitionId] = useState(initial?.competition_id ?? competitions[0]?.id ?? "");
+  const [competitionId, setCompetitionId] = useState(initial?.competition_id ?? "");
+  const [label, setLabel] = useState(competitionLabel);
   const [leagueName, setLeagueName] = useState(initial?.league_name ?? "");
   const [name, setName] = useState(initial?.name ?? "");
-  const options = competitions.find((c) => c.id === competitionId)?.teams ?? [];
-  const leagues = [...new Set(competitions.map((c) => c.league))];
+  // The chosen competition's draw: its teams, and which already have a Sidelnr team.
+  const [draw, setDraw] = useState<{ id: string; teams: string[]; taken: Record<string, string> } | null>(null);
+  useEffect(() => {
+    if (!competitionId || lockCompetition) return;
+    let live = true;
+    drawTeams(competitionId, initial?.id ?? null).then((d) => live && setDraw({ id: competitionId, ...d }));
+    return () => {
+      live = false;
+    };
+  }, [competitionId, lockCompetition, initial?.id]);
+  const options = draw?.id === competitionId ? draw.teams : [];
+  const taken = draw?.id === competitionId ? draw.taken : {};
+  const loadingDraw = !!competitionId && draw?.id !== competitionId;
 
   return (
     <form action={action} className="space-y-4 text-sm">
@@ -56,35 +66,22 @@ export function TeamForm({
       {lockCompetition && initial ? (
         <div className="rounded-xl bg-zinc-50 px-3 py-2 text-zinc-600">
           <div className="text-xs uppercase tracking-wide text-zinc-400">Competition</div>
-          {competitions.find((c) => c.id === initial.competition_id)?.league} ·{" "}
-          {competitions.find((c) => c.id === initial.competition_id)?.name} · as “{initial.league_name}”
+          {competitionLabel ?? "No competition"} · as “{initial.league_name}”
         </div>
       ) : (
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
+      <div className="space-y-3">
+        <div>
           <span className="mb-1 block font-medium">Competition</span>
-          <select
-            name="competition_id"
+          <CompetitionPicker
             value={competitionId}
-            onChange={(e) => {
-              setCompetitionId(e.target.value);
+            label={label}
+            onChange={(id, l) => {
+              setCompetitionId(id);
+              setLabel(l);
               setLeagueName("");
             }}
-            className={field}
-          >
-            {leagues.map((l) => (
-              <optgroup key={l} label={l}>
-                {competitions
-                  .filter((c) => c.league === l)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
+          />
+        </div>
         <label className="block">
           <span className="mb-1 block font-medium">Team (in the draw)</span>
           <select
@@ -97,9 +94,9 @@ export function TeamForm({
             className={field}
             required
           >
-            <option value="">Select…</option>
+            <option value="">{!competitionId ? "Pick the competition first" : loadingDraw ? "Loading the draw…" : "Select…"}</option>
             {options.map((t) => {
-              const usedBy = t !== initial?.league_name ? taken[`${competitionId}|${t}`] : undefined;
+              const usedBy = t !== initial?.league_name ? taken[t] : undefined;
               return (
                 <option key={t} value={t} disabled={!!usedBy && !allowTaken}>
                   {t}

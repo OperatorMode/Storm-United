@@ -6,7 +6,7 @@ import { deleteMyTeam, updateMyTeam } from "../../team-actions";
 import { currentManagerId } from "@/lib/session";
 import { managedTeams } from "@/lib/accounts";
 import { getTeam } from "@/lib/teams";
-import { teamFormData } from "@/lib/team-form-data";
+import { currentCompetitionLabel } from "@/lib/team-form-data";
 
 export const metadata: Metadata = { title: "Edit team · Sidelnr", robots: { index: false } };
 
@@ -18,7 +18,7 @@ export default async function EditMyTeamPage({ params }: PageProps<"/account/tea
   const team = role ? await getTeam(id) : null;
   if (!team) notFound();
 
-  const { competitions, taken } = await teamFormData(team.id);
+  const competitionLabel = await currentCompetitionLabel(team.competition_id);
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
       <Link href="/account" className="text-sm text-zinc-500">
@@ -27,8 +27,7 @@ export default async function EditMyTeamPage({ params }: PageProps<"/account/tea
       <h1 className="text-xl font-semibold">Edit {team.name}</h1>
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <TeamForm
-          competitions={competitions}
-          taken={taken}
+          competitionLabel={competitionLabel}
           lockCompetition
           initial={{
             id: team.id,

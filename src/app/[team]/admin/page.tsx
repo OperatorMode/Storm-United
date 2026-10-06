@@ -143,7 +143,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     <SeasonRollover
       teamId={team.id}
       teamName={team.name}
-      competitions={competitions.map((c) => ({ id: c.id, label: competitionLabel(c) }))}
+      currentLabel={competitions.find((c) => c.id === team.competition_id) ? competitionLabel(competitions.find((c) => c.id === team.competition_id)!) : null}
       currentCompetition={team.competition_id}
       currentName={team.league_name}
       players={team.players}
