@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sidelnr logo concepts</title>
+<style>
+  :root { --bg: #f4f4f5; --card: #fff; --ink: #18181b; --muted: #71717a; --line: #e4e4e7; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b0b0c; --card: #18181b; --ink: #fafafa; --muted: #a1a1aa; --line: #27272a; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { color: var(--muted); margin: 0 0 24px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 18px; }
+  h2 { font-size: 17px; margin: 0; }
+  .why { color: var(--muted); margin: 2px 0 14px; font-size: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .tile { border-radius: 22%; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .phone { display: grid; grid-template-columns: repeat(4, 60px); gap: 14px 18px; padding: 16px; border-radius: 22px;
+           background: linear-gradient(160deg, #1e3a5f, #3b2a5a 60%, #5a2a3a); }
+  .phone .app { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #fff; font-size: 11px; }
+  .phone .dummy { width: 60px; height: 60px; border-radius: 22%; background: rgba(255,255,255,.18); }
+  .tab { display: flex; align-items: center; gap: 8px; background: #e4e4e7; color: #18181b; border-radius: 10px 10px 0 0; padding: 8px 12px; font-size: 13px; width: 200px; }
+  .dark-tab { background: #2b2b2f; color: #f4f4f5; }
+  .word { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 30px; letter-spacing: -0.5px; }
+  .word .dot { color: #e5334b; }
+  .label { font-weight: 700; color: var(--ink); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- One S centre line used by A: a smooth S -->
+    <path id="sCurve" d="M352 150 C352 116 312 104 256 104 C190 104 156 136 156 182 C156 230 202 244 256 256 C316 268 356 286 356 334 C356 382 318 408 256 408 C196 408 160 392 156 358" />
+  </defs>
+
+  <!-- A · Two lanes: the S as two parallel lines (thicker, survives small sizes), red dot where it starts -->
+  <symbol id="logoA" viewBox="0 0 512 512">
+    <rect width="512" height="512" fill="#111114" />
+    <use href="#sCurve" fill="none" stroke="#fff" stroke-width="118" stroke-linecap="butt" />
+    <use href="#sCurve" fill="none" stroke="#111114" stroke-width="40" stroke-linecap="butt" />
+    <circle cx="400" cy="124" r="30" fill="#e5334b" />
+  </symbol>
+
+  <!-- B · Three lanes: your concept redrawn with even line weights; red flick runs on from the top lane -->
+  <symbol id="logoB" viewBox="0 0 512 512">
+    <rect width="512" height="512" fill="#111114" />
+    <g transform="translate(256 262) scale(0.8) translate(-256 -256)">
+    <use href="#sCurve" fill="none" stroke="#fff" stroke-width="150" stroke-linecap="butt" />
+    <use href="#sCurve" fill="none" stroke="#111114" stroke-width="106" stroke-linecap="butt" />
+    <use href="#sCurve" fill="none" stroke="#fff" stroke-width="62" stroke-linecap="butt" />
+    <use href="#sCurve" fill="none" stroke="#111114" stroke-width="18" stroke-linecap="butt" />
+    <path d="M400 64 L446 64 L412 116 L366 116 Z" fill="#e5334b" />
+    </g>
+  </symbol>
+
+  <!-- C · S. : one bold S and the red full stop from the name -->
+  <symbol id="logoC" viewBox="0 0 512 512">
+    <rect width="512" height="512" fill="#111114" />
+    <g transform="translate(-28 0)">
+      <use href="#sCurve" fill="none" stroke="#fff" stroke-width="74" stroke-linecap="butt" />
+    </g>
+    <rect x="368" y="356" width="64" height="64" rx="6" fill="#e5334b" />
+  </symbol>
+</svg>
+
+<main>
+  <h1>Sidelnr logo concepts</h1>
+  <p class="lead">Three directions, each shown at the sizes that matter: app icon, phone home screen, notification and browser tab. Judge them small, that’s where icons live.</p>
+
+  <section data-logo="logoA">
+    <h2>A · Two lanes</h2>
+    <p class="why">Your idea, simplified: two thick parallel lines instead of three thin ones, so it stays crisp small. The red dot is the “.” from Sidelnr.</p>
+  </section>
+
+  <section data-logo="logoB">
+    <h2>B · Three lanes (your version, redrawn)</h2>
+    <p class="why">Your concept with even line weights and the red flick tidied up. Compare it with A at 24 and 16: that’s where three lines start to blur together.</p>
+  </section>
+
+  <section data-logo="logoC">
+    <h2>C · S.</h2>
+    <p class="why">The simplest: one bold S and the red full stop, matching the “Sidelnr.” wordmark exactly. Strongest at tiny sizes, least distinctive.</p>
+  </section>
+</main>
+
+<script>
+  const icon = (id, size) =>
+    `<svg width="${size}" height="${size}" class="tile" style="border-radius:22%"><use href="#${id}"/></svg>`;
+  for (const s of document.querySelectorAll("section[data-logo]")) {
+    const id = s.dataset.logo;
+    s.insertAdjacentHTML("beforeend", `
+      <div class="row">
+        <div class="cell">${icon(id, 180)}<span>App icon 180</span></div>
+        <div class="cell">
+          <div class="phone">
+            <div class="app"><div class="dummy"></div>Photos</div>
+            <div class="app">${icon(id, 60)}Sidelnr</div>
+            <div class="app"><div class="dummy"></div>Maps</div>
+            <div class="app"><div class="dummy"></div>Mail</div>
+          </div>
+          <span>Home screen 60</span>
+        </div>
+        <div class="cell">${icon(id, 40)}<span>Notification 40</span></div>
+        <div class="cell">${icon(id, 24)}<span>24</span></div>
+        <div class="cell">
+          <div class="tab">${icon(id, 16)}<span>Sidelnr</span></div>
+          <div class="tab dark-tab">${icon(id, 16)}<span>Sidelnr</span></div>
+          <span>Browser tab 16</span>
+        </div>
+        <div class="cell"><div class="word">${icon(id, 44)}<span>Sidelnr<span class="dot">.</span></span></div><span>With the wordmark</span></div>
+      </div>`);
+  }
+</script>
+</body>
+</html>
