@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { SidelnrLink } from "@/components/SidelnrLink";
 import { JoinGate } from "@/components/JoinGate";
 import { TabBar } from "@/components/TabBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
@@ -28,6 +29,7 @@ export default async function ChatPage({ params }: PageProps<"/[team]/chat">) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col">
       <header className="jersey sticky top-0 z-10 px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
+        <SidelnrLink />
         <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
         <h1 className="mt-0.5 text-xl font-semibold">Team chat</h1>
       </header>

@@ -1,4 +1,5 @@
 import { Card } from "@/components/Card";
+import { SidelnrLink } from "@/components/SidelnrLink";
 import { VoterPicker } from "@/components/VoterPicker";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { AttendanceButtons } from "@/components/AttendanceButtons";
@@ -61,6 +62,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   return (
     <div className="mx-auto max-w-md pb-24">
       <header className="jersey px-4 pb-6 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+        <SidelnrLink />
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}

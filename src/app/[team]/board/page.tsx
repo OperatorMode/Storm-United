@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { SidelnrLink } from "@/components/SidelnrLink";
 import { JoinGate } from "@/components/JoinGate";
 import { TabBar } from "@/components/TabBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
@@ -27,6 +28,7 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
   return (
     <div className="mx-auto max-w-md pb-24">
       <header className="jersey px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+        <SidelnrLink />
         <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
         <h1 className="mt-1 text-2xl font-semibold">Message board</h1>
         <p className="mt-1 text-sm text-on-team/60">Updates from the coach. Tap “Got it” so they know you’ve seen it.</p>
