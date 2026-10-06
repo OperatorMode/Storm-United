@@ -1,4 +1,6 @@
 "use server";
+import { redirect } from "next/navigation";
+import { deletePushSub } from "@/lib/messages";
 import { listTraining } from "@/lib/training";
 import { listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
 
@@ -168,4 +170,18 @@ export async function volunteerForDuty(teamId: string, gameId: string, duty: str
   }
   revalidatePath(`/${team.id}`);
   return { ok: true };
+}
+
+// A family leaves a team on this phone: forgets the team code and the children
+// picked, and stops this phone's notifications for the team.
+export async function leaveTeam(teamId: string, pushEndpoint: string | null) {
+  const team = await getTeam(teamId);
+  if (!team) return;
+  const store = await cookies();
+  store.delete(voterCookie(team.id));
+  store.delete(joinCookie(team.id));
+  if (team.id === "storm-united") store.delete("su_voter"); // from before teams had their own links
+  if (pushEndpoint) await deletePushSub(team.id, pushEndpoint);
+  revalidatePath("/", "layout");
+  redirect("/");
 }
