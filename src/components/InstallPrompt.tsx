@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
-const DISMISS_KEY = "su_install_dismissed";
+// The family app and the team apps are dismissed separately.
+const dismissKey = (name: string) => (name === "Sidelnr" ? "su_install_dismissed_sidelnr" : "su_install_dismissed");
 
 // Android/Chrome: offers a real "Install" button via beforeinstallprompt.
 // iPhone/iPad Safari has no install API, so we explain Share → Add to Home Screen.
@@ -18,7 +19,7 @@ export function InstallPrompt({ name, icon }: { name: string; icon: string }) {
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     let dismissed = false;
     try {
-      dismissed = localStorage.getItem(DISMISS_KEY) === "1";
+      dismissed = localStorage.getItem(dismissKey(name)) === "1";
     } catch {}
     if (standalone || dismissed) return;
 
@@ -39,13 +40,13 @@ export function InstallPrompt({ name, icon }: { name: string; icon: string }) {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, []);
+  }, [name]);
 
   if (mode === "hidden") return null;
 
   function dismiss() {
     try {
-      localStorage.setItem(DISMISS_KEY, "1");
+      localStorage.setItem(dismissKey(name), "1");
     } catch {}
     setMode("hidden");
   }
@@ -55,9 +56,11 @@ export function InstallPrompt({ name, icon }: { name: string; icon: string }) {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={icon} alt="" className="size-10 shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1">
-        <div className="font-semibold">Get the app</div>
+        <div className="font-semibold">{name === "Sidelnr" ? "Get the Sidelnr app" : "Get the app"}</div>
         {mode === "android" ? (
-          <p className="mt-0.5 text-sm text-zinc-500">Add {name} to your home screen.</p>
+          <p className="mt-0.5 text-sm text-zinc-500">
+            {name === "Sidelnr" ? "One icon for all your kids’ teams, straight to My Player." : `Add ${name} to your home screen.`}
+          </p>
         ) : (
           <p className="mt-0.5 text-sm text-zinc-500">
             Tap <ShareIcon /> <b className="font-medium text-zinc-700">Share</b> in Safari, then{" "}

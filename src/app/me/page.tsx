@@ -10,6 +10,7 @@ import { logoSrc } from "@/lib/brand";
 import { now as clockNow } from "@/lib/clock";
 import { Directions } from "@/components/Directions";
 import { AddToCalendar } from "@/components/AddToCalendar";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 
@@ -133,6 +134,7 @@ export default async function MyPlayerPage() {
       </header>
 
       <main className="mt-4 space-y-5 px-4">
+        {teams.length > 0 && <InstallPrompt name="Sidelnr" icon="/app-icon/192" />}
         {teams.length === 0 && (
           <div className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
             No teams on this phone yet.{" "}
