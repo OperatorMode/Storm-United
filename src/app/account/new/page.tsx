@@ -4,13 +4,11 @@ import { redirect } from "next/navigation";
 import { TeamForm } from "@/components/TeamForm";
 import { createMyTeam } from "../team-actions";
 import { currentManagerId } from "@/lib/session";
-import { teamFormData } from "@/lib/team-form-data";
 
 export const metadata: Metadata = { title: "Create a team · Sidelnr", robots: { index: false } };
 
 export default async function NewTeamPage() {
   if (!(await currentManagerId())) redirect("/login?next=/account/new");
-  const { competitions, taken } = await teamFormData(null);
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
       <Link href="/account" className="text-sm text-zinc-500">
@@ -23,7 +21,7 @@ export default async function NewTeamPage() {
         </p>
       </div>
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-        <TeamForm competitions={competitions} taken={taken} initial={null} save={createMyTeam} />
+        <TeamForm competitionLabel={null} initial={null} save={createMyTeam} />
       </section>
       <p className="text-center text-sm text-zinc-500">
         Can’t find your league or competition?{" "}

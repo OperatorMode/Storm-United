@@ -9,7 +9,7 @@ import { superLogout } from "./actions";
 import { isSuperAdmin } from "@/lib/session";
 import { listTeams } from "@/lib/store";
 import { getTeam } from "@/lib/teams";
-import { competitionLabel, competitionTeams, listCompetitions } from "@/lib/league";
+import { competitionLabel, listCompetitions } from "@/lib/league";
 import { logoSrc } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "All teams · Admin", robots: { index: false } };
@@ -31,9 +31,6 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const saved = typeof params.saved === "string" ? params.saved : null;
 
   const [teams, competitions] = await Promise.all([listTeams(), listCompetitions()]);
-  const taken = Object.fromEntries(
-    teams.filter((t) => t.id !== editId).map((t) => [`${t.competition_id}|${t.league_name}`, t.name]),
-  );
   const labelOf = (id: string | null) => {
     const c = competitions.find((x) => x.id === id);
     return c ? competitionLabel(c) : "No competition";
@@ -48,15 +45,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
         </Link>
         <Card title={editing ? `Edit ${editing.name}` : "New team"}>
           <TeamForm
-            competitions={await Promise.all(
-              competitions.map(async (c) => ({
-                id: c.id,
-                league: c.league.name,
-                name: c.name,
-                teams: await competitionTeams(c.id),
-              })),
-            )}
-            taken={taken}
+            competitionLabel={editing ? labelOf(editing.competition_id) : null}
             save={saveTeam}
             remove={editing ? removeTeam.bind(null, editing.id) : undefined}
             allowTaken

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { drawTeamNames, rolloverSeason } from "./actions";
+import { CompetitionPicker } from "@/components/CompetitionPicker";
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 const label = "mb-1 block text-sm font-medium";
@@ -11,20 +12,21 @@ const label = "mb-1 block text-sm font-medium";
 export function SeasonRollover({
   teamId,
   teamName,
-  competitions,
+  currentLabel,
   currentCompetition,
   currentName,
   players,
 }: {
   teamId: string;
   teamName: string;
-  competitions: { id: string; label: string }[];
+  currentLabel: string | null;
   currentCompetition: string | null;
   currentName: string;
   players: { id: string; name: string }[];
 }) {
   const [step, setStep] = useState<"questions" | "confirm" | "done">("questions");
   const [competition, setCompetition] = useState(currentCompetition ?? "");
+  const [compLabel, setCompLabel] = useState(currentLabel ?? "");
   const [name, setName] = useState(currentName);
   const [drawTeams, setDrawTeams] = useState<string[]>([]);
   const [keep, setKeep] = useState<string[]>(players.map((p) => p.id));
@@ -44,7 +46,6 @@ export function SeasonRollover({
 
   const added = newPlayers.split(/\r?\n/).map((n) => n.trim()).filter(Boolean);
   const leaving = players.filter((p) => !keep.includes(p.id));
-  const compLabel = competitions.find((c) => c.id === competition)?.label ?? "";
 
   if (step === "done") {
     return <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900">All set: {teamName} is in its new season. Parents see the new fixtures straight away.</p>;
@@ -93,14 +94,15 @@ export function SeasonRollover({
     <div className="space-y-4 text-sm">
       <div>
         <span className={label}>1. Which competition is {teamName} in next season?</span>
-        <select value={competition} onChange={(e) => setCompetition(e.target.value)} className={field}>
-          <option value="">Choose…</option>
-          {competitions.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+        <CompetitionPicker
+          name="rollover_competition"
+          value={competition}
+          label={compLabel}
+          onChange={(id, l) => {
+            setCompetition(id);
+            setCompLabel(l);
+          }}
+        />
         <span className="mt-0.5 block text-xs text-zinc-500">Not listed? Ask your league to add it, or add it yourself under My League.</span>
       </div>
       <label className="block">
