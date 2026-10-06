@@ -537,7 +537,7 @@ export function PoolDrawForm({
         <label className="block">
           <span className={label}>Minutes per game</span>
           <input name="slot_minutes" type="number" min={5} max={240} value={slot} onChange={(e) => setSlot(e.target.value)} className={field} />
-          <span className="mt-0.5 block text-xs text-zinc-400">Incl. changeover</span>
+          <span className="mt-0.5 block text-xs text-zinc-400">Incl. the gap between games</span>
         </label>
         <label className="block">
           <span className={label}>Pitches</span>

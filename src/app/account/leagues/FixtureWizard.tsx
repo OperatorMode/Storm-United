@@ -336,14 +336,16 @@ function FixtureWizard({
             <label className="block">
               <span className={label}>{s.periods === 2 ? "Half-time (min)" : "Breaks in total (min)"}</span>
               <input type="number" min={0} max={60} value={s.breakMinutes} onChange={(e) => set({ breakMinutes: Number(e.target.value) })} className={field} />
+              <span className="mt-0.5 block text-xs text-zinc-400">During a game</span>
             </label>
             <label className="block">
-              <span className={label}>Changeover (min)</span>
+              <span className={label}>Gap between games (min)</span>
               <input type="number" min={0} max={60} value={s.changeover} onChange={(e) => set({ changeover: Number(e.target.value) })} className={field} />
+              <span className="mt-0.5 block text-xs text-zinc-400">Teams off, next teams on</span>
             </label>
           </div>
           <p className="rounded-xl bg-zinc-50 px-3 py-2 text-zinc-600">
-            A game takes {gameMinutes} min; with changeover, a new game starts on each pitch every {gameMinutes + s.changeover} min.
+            A game takes {gameMinutes} min. With the gap, a new game starts on each pitch every {gameMinutes + s.changeover} min.
           </p>
         </div>
       )}
