@@ -3,12 +3,16 @@
 import { useActionState } from "react";
 import { enterJoinCode } from "@/app/[team]/actions";
 import { logoSrc } from "@/lib/brand";
+import { SidelnrLink } from "./SidelnrLink";
 
 // Shown instead of the team page until the team's join code is entered once.
 export function JoinGate({ team }: { team: { id: string; name: string; logo_url: string | null } }) {
   const [state, action, pending] = useActionState(enterJoinCode, null);
   return (
-    <div className="jersey flex min-h-dvh items-center justify-center p-4">
+    <div className="jersey relative flex min-h-dvh items-center justify-center p-4">
+      <div className="absolute left-4 top-[calc(env(safe-area-inset-top)+1.25rem)]">
+        <SidelnrLink />
+      </div>
       <form action={action} className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 text-zinc-950 shadow-xl">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}

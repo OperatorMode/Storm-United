@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SidelnrLink } from "@/components/SidelnrLink";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/Card";
@@ -35,6 +36,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
   const tabsPromise = tabData(team);
   const header = (
     <header className="jersey px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+      <SidelnrLink />
       <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
       <h1 className="mt-1 text-2xl font-semibold">Manager’s Corner</h1>
     </header>
