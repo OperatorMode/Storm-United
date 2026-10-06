@@ -6,6 +6,8 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 import { pushPublicKey } from "@/lib/push";
 import { AddToCalendar } from "@/components/AddToCalendar";
 import { TrainingButtons } from "@/components/TrainingButtons";
+import { DutyList } from "@/components/DutyList";
+import { listDuties, listDutySignups } from "@/lib/duties";
 import { listTraining } from "@/lib/training";
 import { formatTime } from "@/lib/time";
 import { calendarToken } from "@/lib/calendar";
@@ -54,11 +56,14 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
     currentChildren(team),
     tabData(team),
   ]);
-  const [calToken, host, training] = await Promise.all([
+  const [calToken, host, training, duties, dutySignups] = await Promise.all([
     calendarToken([team]),
     headers().then((h) => h.get("host") ?? "sidelnr.app"),
     listTraining(team.id),
+    listDuties(team.id),
+    listDutySignups(team.id),
   ]);
+  const family = (playerId: string) => `${firstName(playerName(team, playerId))}’s family`;
   const voter = children[0] ?? null; // the family's id (one MVP ballot per family)
   const us = team.league_name;
   const PLAYERS = team.players;
@@ -129,6 +134,34 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={children} />
           </Card>
         )}
+
+        {duties.length > 0 &&
+          (() => {
+            const games = ourGames.filter((g) => g.kickoff.getTime() > now.getTime() && g.time !== "Postponed").slice(0, 3);
+            if (!games.length) return null;
+            return (
+              <Card title="Duties" aside="Thanks for helping out">
+                <div className="space-y-3">
+                  {games.map((g) => (
+                    <div key={g.id}>
+                      <div className="text-xs font-semibold text-zinc-500">
+                        {formatDay(g.kickoff, tz)} · {g.home === us ? "vs" : "@"} {opponent(g, us)}
+                      </div>
+                      <DutyList
+                        teamId={team.id}
+                        gameId={g.id}
+                        canTake={children.length > 0}
+                        slots={duties.map((duty) => {
+                          const taken = dutySignups.find((d) => d.game_id === g.id && d.duty === duty);
+                          return { duty, takenBy: taken ? family(taken.player_id) : null, mine: !!taken && children.includes(taken.player_id) };
+                        })}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })()}
 
         {(() => {
           const upcomingTraining = training

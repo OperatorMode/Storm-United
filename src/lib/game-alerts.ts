@@ -4,6 +4,7 @@ import { sendPush } from "./push";
 import { getAttendance, type GameSnapshot, type PushSubRow } from "./store";
 import { firstName, playerName, type Team } from "./teams";
 import { formatDay, formatTime, minutesOfDay } from "./time";
+import { listDutySignups } from "./duties";
 
 // Game alerts, checked every 15 minutes by a scheduled job (api/cron/game-alerts):
 // - a game's time or pitch changed, it was postponed, or it disappeared (cancelled)
@@ -70,7 +71,7 @@ export async function checkTeam(team: Team, now = new Date()): Promise<{ changes
   const reminderSubs = subs.filter((s) => wants(s, "reminders"));
   let reminders = 0;
   if (reminderSubs.length) {
-    const attendance = await getAttendance(team.id);
+    const [attendance, dutySignups] = await Promise.all([getAttendance(team.id), listDutySignups(team.id)]);
     const statusOf = (gameId: string, child: string) => attendance.find((a) => a.game_id === gameId && a.player_id === child)?.status ?? null;
     const localMinutes = minutesOfDay(now, tz);
     for (const g of upcoming) {
@@ -101,11 +102,12 @@ export async function checkTeam(team: Team, now = new Date()): Promise<{ changes
         await Promise.allSettled(
           reminderSubs.map((s) => {
             const kids = kidsOf(s);
-            if (kids.length && kids.every((k) => statusOf(g.id, k) === "no")) return null; // not playing today
+            const jobs = dutySignups.filter((d) => d.game_id === g.id && kids.includes(d.player_id)).map((d) => d.duty);
+            if (kids.length && kids.every((k) => statusOf(g.id, k) === "no") && !jobs.length) return null; // not playing today
             reminders++;
             return sendPush(s, {
               title: `Game day: ${team.name} ${opp}`,
-              body: `Kick-off ${formatTime(g.kickoff, tz)}.${meet}${place ? ` at ${place}` : ""}.`,
+              body: `Kick-off ${formatTime(g.kickoff, tz)}.${meet}${place ? ` at ${place}` : ""}.${jobs.length ? ` You’re on: ${jobs.join(", ")}.` : ""}`,
               url,
               icon,
               tag: `${team.id}-day-${g.id}`,

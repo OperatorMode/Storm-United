@@ -1,5 +1,6 @@
 "use server";
 import { listTraining } from "@/lib/training";
+import { listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -145,5 +146,27 @@ export async function updateTrainingAttendance(teamId: string, sessionId: string
   await setAttendance(team.id, { game_id: sessionId, player_id: playerId, status, goalie: null });
   revalidatePath(`/${team.id}`);
   revalidatePath("/me");
+  return { ok: true };
+}
+
+// ---------- duty roster (parents) ----------
+
+// "I'll do it": the family takes a duty for a game; "Undo" gives it back.
+export async function volunteerForDuty(teamId: string, gameId: string, duty: string, take: boolean) {
+  const team = await teamFor(teamId);
+  if (!team) return { error: "Team not found." };
+  const children = await currentChildren(team);
+  if (!children.length) return { error: "Pick your child first." };
+  if (!(await listDuties(team.id)).includes(duty)) return { error: "That duty doesn’t exist." };
+  const game = await findGame(team, gameId);
+  if (!game || game.kickoff.getTime() < now().getTime()) return { error: "That game has already started." };
+  if (take) {
+    if (!(await takeDuty(team.id, gameId, duty, children[0]))) return { error: "Someone just took that one." };
+  } else {
+    const mine = (await listDutySignups(team.id)).find((d) => d.game_id === gameId && d.duty === duty);
+    if (!mine || !children.includes(mine.player_id)) return { error: "That’s not yours to give back." };
+    await releaseDuty(team.id, gameId, duty);
+  }
+  revalidatePath(`/${team.id}`);
   return { ok: true };
 }
