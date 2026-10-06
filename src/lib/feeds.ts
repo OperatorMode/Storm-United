@@ -185,9 +185,6 @@ const Extracted = z.object({
 
 async function fixturesFromWebPage(pageText: string, url: string, filter: string | null, tz: string) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("Website reading isn’t set up yet (no ANTHROPIC_API_KEY).");
-  if (pageText.length < 40) {
-    throw new Error("That page has no readable fixtures. It may load them with JavaScript. Try its CSV or calendar export instead.");
-  }
   if (pageText.length > MAX_PAGE_CHARS) throw new Error("That page is too large to read. Link to the specific competition’s page.");
   const client = new Anthropic();
   const today = new Date().toISOString().slice(0, 10);
@@ -249,6 +246,26 @@ export type FeedSettings = { type: FeedType; url: string; filter: string | null;
 
 // Fetches and parses a feed. For web pages, `previousHash` lets an unchanged
 // page skip the (paid) AI read: returns `unchanged: true`.
+// Fixture platforms whose pages build the match list with JavaScript after
+// the page opens, so a plain read sees no games.
+const JS_PLATFORMS: [RegExp, string][] = [
+  [/squadi\.com/i, "Squadi"],
+  [/playhq\.com/i, "PlayHQ"],
+  [/dribl\.com/i, "Dribl"],
+  [/sportstg\.com|mygameday\.app/i, "GameDay"],
+  [/teamapp\.com/i, "Team App"],
+  [/ecal\.(net|com)/i, "ECAL"],
+];
+
+/** The message shown when a web page has no games Sidelnr can read. */
+function noGamesMessage(url: string, html: string): string {
+  const platform = JS_PLATFORMS.find(([re]) => re.test(url) || re.test(html))?.[1];
+  const why = platform
+    ? `This page gets its fixtures from ${platform}, which only loads them once the page is open in a browser, so Sidelnr can’t see them yet.`
+    : "Either the fixtures aren’t published yet, or the page only loads them once it’s open in a browser, which Sidelnr can’t see yet.";
+  return `No games found on this page. ${why} For now, use a calendar or spreadsheet link if the site offers one, or add the fixtures another way (create them automatically, upload a file or add them manually).`;
+}
+
 /** A first guess from the address alone; reading the link settles it. */
 export function guessFeedType(url: string): FeedType {
   if (/docs\.google\.com\/spreadsheets|\.csv(\?|$)|output=csv|format=csv/i.test(url)) return "csv";
@@ -280,7 +297,15 @@ export async function readFeed(
   const pageText = htmlToText(text);
   const hash = createHash("sha256").update(`${feed.filter ?? ""}|${pageText}`).digest("hex");
   if (previousHash && hash === previousHash) return { type: "web", fixtures: [], errors: [], hash, unchanged: true };
-  return { type: "web", ...(await fixturesFromWebPage(pageText, url, feed.filter, tz)), hash };
+  if (pageText.length < 40) throw new Error(noGamesMessage(url, text));
+  const read = await fixturesFromWebPage(pageText, url, feed.filter, tz);
+  // Nothing found: a clear explanation instead of the AI's own wording.
+  if (!read.fixtures.length) {
+    const platform = JS_PLATFORMS.some(([re]) => re.test(url) || re.test(text));
+    if (platform || !feed.filter) throw new Error(noGamesMessage(url, text));
+    throw new Error(`No games found for “${feed.filter}” on this page. Check the name matches the page exactly, or clear it under More options to read every game.`);
+  }
+  return { type: "web", ...read, hash };
 }
 
 // ---------- syncing into a competition ----------

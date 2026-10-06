@@ -595,7 +595,7 @@ export function FeedPanel({
           {connected.filter && <div className="text-xs text-zinc-500">Competition on page: {connected.filter}</div>}
           <div className="mt-1 text-xs text-zinc-500">
             {connected.error ? (
-              <span className="text-accent">Last sync failed: {connected.error}</span>
+              <span className="text-accent">Couldn’t sync. {connected.error}</span>
             ) : connected.syncedAt ? (
               `Last synced ${formatWhen(connected.syncedAt, tz)}`
             ) : (
