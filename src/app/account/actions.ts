@@ -15,13 +15,13 @@ async function safeNext(next: string | null | undefined): Promise<string> {
 }
 
 export async function requestLoginLink(_: unknown, formData: FormData) {
-  if (!emailEnabled()) return { error: "Email sign-in isn’t available yet — use your team PIN for now.", email: "" };
+  if (!emailEnabled()) return { error: "Email sign-in isn’t available yet. Use your team PIN for now.", email: "" };
   const email = normaliseEmail(String(formData.get("email") ?? ""));
   if (!isEmail(email)) return { error: "Enter a valid email address.", email };
   const next = await safeNext(String(formData.get("next") ?? ""));
 
   const token = await createLoginToken(email);
-  if (!token) return { error: "Too many sign-in emails — wait a few minutes and try again.", email };
+  if (!token) return { error: "Too many sign-in emails. Wait a few minutes and try again.", email };
 
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "sidelnr.app";

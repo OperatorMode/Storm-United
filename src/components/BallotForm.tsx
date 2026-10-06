@@ -29,7 +29,7 @@ export function BallotForm({
   return (
     <div>
       <p className="mb-3 text-sm text-zinc-500">
-        Tap your top 3 in order — 1st gets 3 points, 2nd gets 2, 3rd gets 1.
+        Tap your top 3 in order: 1st gets 3 points, 2nd gets 2, 3rd gets 1.
       </p>
       <div className="grid grid-cols-2 gap-2">
         {candidates.map((c) => {
@@ -59,7 +59,7 @@ export function BallotForm({
         onClick={() =>
           start(async () => {
             const res = await submitBallot(teamId, gameId, picks);
-            setMessage(res.error ? { ok: false, text: res.error } : { ok: true, text: "Votes saved — thanks!" });
+            setMessage(res.error ? { ok: false, text: res.error } : { ok: true, text: "Votes saved, thanks!" });
           })
         }
         className="mt-3 w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40"

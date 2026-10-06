@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { check, db, readLocal, writeLocal } from "./store";
 
-// Manager accounts: email + one-time login links. Same pattern as store.ts —
+// Manager accounts: email + one-time login links. Same pattern as store.ts -
 // Supabase in production, a local JSON file in dev.
 
 export type Manager = { id: string; email: string; name: string | null };

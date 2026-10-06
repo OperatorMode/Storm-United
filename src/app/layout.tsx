@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 // Team pages override these (name, icon, install manifest) in [team]/layout.tsx.
 export const metadata: Metadata = {
   title: "Sidelnr",
-  description: "Sidelnr — the team app for junior football: fixtures, attendance, MVP votes, team chat and the ladder.",
+  description: "Sidelnr, the team app for junior football: fixtures, attendance, MVP votes, team chat and the ladder.",
 };
 
 export const viewport: Viewport = {

@@ -4,7 +4,7 @@ import path from "path";
 
 // All persistence goes through here, server-side only. In production that's
 // Supabase (service-role key, never sent to the browser). Without Supabase env
-// vars — i.e. local dev — it falls back to a JSON file in .data/ so the app is
+// vars, i.e. local dev, it falls back to a JSON file in .data/ so the app is
 // usable before the database is connected.
 //
 // Everything is scoped by team id (the URL slug).

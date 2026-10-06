@@ -79,7 +79,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
   const now = clockNow();
   const linked = !!managerId && managers.includes(managerId);
 
-  // Removed players who still have history — candidates for "Merge players".
+  // Removed players who still have history, candidates for "Merge players".
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const removed = team.allPlayers
     .filter((p) => !p.active)
@@ -130,7 +130,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             their home screen.
           </p>
           <p className="mt-2 text-xs text-emerald-800">
-            Tip: post a welcome message on the Board — families get notified once they switch notifications on.
+            Tip: post a welcome message on the Board. Families get notified once they switch notifications on.
           </p>
         </div>
       )}
@@ -202,7 +202,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                     <tr key={r.playerId} className="border-t border-zinc-100 align-top">
                       <td className="py-2 pr-2">{nameOf(r.playerId)}</td>
                       <td className="py-2 text-xs text-zinc-600">
-                        {r.games.length ? r.games.map((g) => `Rd ${g.round} ${SLOT[g.goalie]}`).join(" · ") : "—"}
+                        {r.games.length ? r.games.map((g) => `Rd ${g.round} ${SLOT[g.goalie]}`).join(" · ") : "-"}
                       </td>
                       <td className="py-2 text-right font-semibold">{r.halves}</td>
                     </tr>
@@ -236,7 +236,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                     />
                     {clash && (
                       <div className="mt-1 text-xs text-amber-700">
-                        Several volunteers — 1st: {names(first)} · 2nd: {names(second)}
+                        Several volunteers. 1st: {names(first)} · 2nd: {names(second)}
                       </div>
                     )}
                   </li>

@@ -145,7 +145,7 @@ export async function addTeamsAction(competitionId: string, _: unknown, formData
 export async function removeTeamAction(competitionId: string, name: string) {
   if (!(await editableCompetition(competitionId))) return;
   const used = (await listFixtures(competitionId)).some((f) => f.home === name || f.away === name);
-  if (used) return { error: `${name} still has fixtures — delete those first.` };
+  if (used) return { error: `${name} still has fixtures. Delete those first.` };
   await removeCompetitionTeam(competitionId, name);
   refreshAll();
 }

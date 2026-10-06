@@ -1,4 +1,4 @@
--- Storm United — run once in the Supabase SQL editor.
+-- Storm United: run once in the Supabase SQL editor.
 -- The app only talks to these tables server-side with the service-role key,
 -- so RLS is enabled with no policies: the public anon key can't read or write.
 

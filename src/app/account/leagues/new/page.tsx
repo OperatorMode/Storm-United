@@ -16,7 +16,7 @@ export default async function NewLeaguePage() {
       <div>
         <h1 className="text-xl font-semibold">Add your league</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          For leagues that aren’t on Sidelnr yet — a club comp, a social league, a school competition. You’ll be its league
+          For leagues that aren’t on Sidelnr yet: a club comp, a social league, a school competition. You’ll be its league
           admin: you add the teams and fixtures (typed in or uploaded) and enter results, and every Sidelnr team in it
           gets them automatically.
         </p>

@@ -53,7 +53,7 @@ export async function fillSampleData(teamId: string) {
   const p = team.players.map((x) => x.id);
   if (p.length < 6) return { error: "Add at least 6 players first." };
   if ((await listAnnouncements(team.id)).length || (await listChat(team.id)).length) {
-    return { error: "This team already has messages — sample data only goes into an empty team." };
+    return { error: "This team already has messages. Sample data only goes into an empty team." };
   }
 
   const ago = (hours: number) => new Date(Date.now() - hours * 3600_000).toISOString();
@@ -84,7 +84,7 @@ export async function fillSampleData(teamId: string) {
 
   const chat: [string, string, number][] = [
     [p[2], "Hi all! Can anyone help with a lift on Monday? We’re coming from Byford.", 20],
-    [p[4], `We can take ${name(p[2])} — we drive past anyway`, 19.5],
+    [p[4], `We can take ${name(p[2])}, we drive past anyway`, 19.5],
     [p[2], "Legend, thank you!", 19.4],
     ["coach", "Great energy at training this week everyone. Let’s keep it up on Monday.", 6],
     [p[1], `${name(p[1])} is super keen to go in goal again.`, 5],

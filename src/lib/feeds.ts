@@ -186,9 +186,9 @@ const Extracted = z.object({
 async function fixturesFromWebPage(pageText: string, url: string, filter: string | null, tz: string) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("Website reading isn’t set up yet (no ANTHROPIC_API_KEY).");
   if (pageText.length < 40) {
-    throw new Error("That page has no readable fixtures — it may load them with JavaScript. Try its CSV or calendar export instead.");
+    throw new Error("That page has no readable fixtures. It may load them with JavaScript. Try its CSV or calendar export instead.");
   }
-  if (pageText.length > MAX_PAGE_CHARS) throw new Error("That page is too large to read — link to the specific competition’s page.");
+  if (pageText.length > MAX_PAGE_CHARS) throw new Error("That page is too large to read. Link to the specific competition’s page.");
   const client = new Anthropic();
   const today = new Date().toISOString().slice(0, 10);
   const response = await client.beta.messages.parse({

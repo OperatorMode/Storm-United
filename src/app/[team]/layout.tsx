@@ -8,7 +8,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[team]">): Prom
   if (!team) return {};
   return {
     title: team.name,
-    description: `${team.name} — fixtures, attendance, MVP votes and the ladder.`,
+    description: `${team.name}: fixtures, attendance, MVP votes and the ladder.`,
     manifest: `/${team.id}/manifest.webmanifest`,
     icons: { icon: `/${team.id}/icon/64`, apple: `/${team.id}/icon/180` },
     appleWebApp: { capable: true, title: team.name, statusBarStyle: "black-translucent" },

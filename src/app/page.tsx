@@ -14,17 +14,17 @@ const DOORS = [
   {
     href: "/account",
     title: "Team manager",
-    text: "Coaches & managers — run your team, attendance, MVP and messages.",
+    text: "For coaches and managers: your team, attendance, MVP and messages.",
   },
   {
     href: "/account/leagues",
     title: "League manager",
-    text: "Run a competition — teams, fixtures, results and the ladder.",
+    text: "Run a competition: teams, fixtures, results and the ladder.",
   },
   {
     href: "/account/events",
     title: "Event manager",
-    text: "One-day events — pools, finals and live results on game day.",
+    text: "One-day events: pools, finals and live results on game day.",
   },
 ] as const;
 
@@ -67,7 +67,7 @@ export default async function Landing() {
 
         <section className="rounded-2xl bg-white p-5 text-zinc-950 shadow-lg">
           <h2 className="font-semibold">Join your team</h2>
-          <p className="mb-3 mt-0.5 text-sm text-zinc-500">Parents & players — enter the team code from your coach.</p>
+          <p className="mb-3 mt-0.5 text-sm text-zinc-500">Parents and players: enter the team code from your coach.</p>
           <JoinTeamForm />
         </section>
 
@@ -100,7 +100,7 @@ export default async function Landing() {
         </section>
 
         <p className="text-center text-xs opacity-50">
-          Fixtures, attendance, MVP votes, team chat and live ladders — for any team sport.
+          Fixtures, attendance, MVP votes, team chat and live ladders for any team sport.
         </p>
       </div>
     </div>

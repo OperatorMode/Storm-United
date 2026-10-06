@@ -207,7 +207,7 @@ export function FixtureWizard({
             </label>
           </div>
           <p className="text-xs text-zinc-500">
-            {teams.length} teams{teams.length % 2 ? " — an odd number, so one team has a bye each round" : ""}. One round per week.
+            {teams.length} teams{teams.length % 2 ? " (an odd number, so one team has a bye each round)" : ""}. One round per week.
           </p>
         </div>
       )}
@@ -243,7 +243,7 @@ export function FixtureWizard({
               <input type="time" value={s.windowEnd} onChange={(e) => set({ windowEnd: e.target.value })} className={field} />
             </label>
           </div>
-          <p className="text-xs text-zinc-500">This is the window for the whole day — kick-off times are worked out from the game length.</p>
+          <p className="text-xs text-zinc-500">This is the window for the whole day. Kick-off times are worked out from the game length.</p>
         </div>
       )}
 
@@ -385,7 +385,7 @@ export function FixtureWizard({
                           <td className="max-w-32 truncate py-1">{b.team}</td>
                           <td className="py-1 text-center">{b.games}</td>
                           <td className="py-1 text-center">{b.home}</td>
-                          <td className="py-1 text-right">{b.avgStart === null ? "—" : clock(b.avgStart)}</td>
+                          <td className="py-1 text-right">{b.avgStart === null ? "-" : clock(b.avgStart)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -16,7 +16,7 @@ export function SampleDataButton({ teamId }: { teamId: string }) {
           if (!confirm("Add sample attendance, coach posts and chat messages to this team? Use this for demo teams only.")) return;
           start(async () => {
             const res = await fillSampleData(teamId);
-            setMsg(res.error ?? "Sample data added — open the team to see it.");
+            setMsg(res.error ?? "Sample data added. Open the team to see it.");
           });
         }}
         className="w-full rounded-xl border border-zinc-300 px-4 py-2.5 font-medium"

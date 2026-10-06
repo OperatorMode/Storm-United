@@ -10,7 +10,7 @@ export async function sendEmail(to: string, subject: string, text: string, html:
       console.log(`\n[email to ${to}] ${subject}\n${text}\n`);
       return true;
     }
-    console.error("RESEND_API_KEY is not set — email not sent");
+    console.error("RESEND_API_KEY is not set, email not sent");
     return false;
   }
   try {

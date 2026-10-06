@@ -19,7 +19,7 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <form action={action} className="space-y-3">
       <h2 className="font-semibold">Sign in with email</h2>
-      <p className="text-sm text-zinc-500">We’ll email you a one-tap sign-in link — no password needed.</p>
+      <p className="text-sm text-zinc-500">We’ll email you a one-tap sign-in link. No password needed.</p>
       <input type="hidden" name="next" value={next} />
       <input
         name="email"

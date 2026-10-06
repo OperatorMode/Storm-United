@@ -80,7 +80,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Welcome! Who are you?</h2>
             <p className="mb-3 mt-1 text-sm text-zinc-500">
-              Pick your child once — this phone will remember it for attendance and MVP votes.
+              Pick your child once and this phone will remember it for attendance and MVP votes.
             </p>
             <VoterPicker teamId={team.id} players={PLAYERS} current={voter} prominent />
           </section>

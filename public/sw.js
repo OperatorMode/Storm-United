@@ -1,5 +1,5 @@
 // Service worker: shows push notifications (message board + team chat) and
-// opens the right page when one is tapped. No offline caching on purpose —
+// opens the right page when one is tapped. No offline caching on purpose:
 // fixtures, attendance and chat should always be live.
 
 self.addEventListener("install", () => self.skipWaiting());

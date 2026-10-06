@@ -3,7 +3,7 @@ import { competitionTeams, getCompetition } from "./league";
 import { getTeam, hashSecret, joinCodeFields, mergePlayers, slugify } from "./teams";
 import { isHexColor } from "./theme";
 
-// Saving a team from the team form — shared by the super admin (/super) and
+// Saving a team from the team form, shared by the super admin (/super) and
 // managers (self-serve). Permission checks happen in the calling action.
 
 // Paths that already mean something in the app and can't be team links.
@@ -41,7 +41,7 @@ export async function applyTeamForm(formData: FormData, opts: TeamFormOptions): 
     if (other) return { error: `${leagueName} is already on Sidelnr. Ask its manager to add you in Manager’s Corner.` };
   }
   if (!id || RESERVED.has(id)) return { error: "Choose a different link name." };
-  if (!existing && (await getTeamRow(id))) return { error: `The link /${id} is taken — choose a different one.` };
+  if (!existing && (await getTeamRow(id))) return { error: `The link /${id} is taken. Choose a different one.` };
   if (!isHexColor(primary) || !isHexColor(accent)) return { error: "Pick both colours." };
 
   let logoUrl = existing?.logo_url ?? null;

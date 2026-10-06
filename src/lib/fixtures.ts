@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { check, db, readLocal, writeLocal, type CompetitionRow, type FixtureRow, type LeagueRow } from "./store";
 
 // User-created leagues: competitions, their teams, fixtures and results, and
-// who may edit them (league admins). Same pattern as store.ts — Supabase in
+// who may edit them (league admins). Same pattern as store.ts, Supabase in
 // production, a local JSON file in dev.
 
 // ---------- leagues & competitions ----------

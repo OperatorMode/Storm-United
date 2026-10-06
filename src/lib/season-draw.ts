@@ -170,7 +170,7 @@ export function buildSeasonDraw(
     return { fixtures: [], errors, warnings, summary };
   }
   if (usable.length > rounds.length) {
-    warnings.push(`${usable.length - rounds.length} spare week${usable.length - rounds.length > 1 ? "s" : ""} at the end — handy for washed-out games.`);
+    warnings.push(`${usable.length - rounds.length} spare week${usable.length - rounds.length > 1 ? "s" : ""} at the end, handy for washed-out games.`);
   }
 
   // Fairness: a team that kicked off late gets an early slot next time, and

@@ -1,6 +1,6 @@
 import { check, db, readLocal, writeLocal } from "./store";
 
-// Merges one player into another within a team — used when a name was retyped
+// Merges one player into another within a team, used when a name was retyped
 // in Team settings (which creates a new player and hides the old one). Moves
 // attendance/goalie, ballots (cast and received), board acknowledgements, chat
 // and notification ownership from `fromId` to `toId`, then deletes `fromId`.
@@ -28,7 +28,7 @@ export async function mergePlayer(teamId: string, fromId: string, toId: string):
   check(await s.from("ballots").update({ voter_id: toId }).eq("team_id", teamId).eq("voter_id", fromId));
 
   // Votes received. A ballot naming both would become invalid (same player
-  // twice) — those are dropped rather than broken.
+  // twice), those are dropped rather than broken.
   const both = (check(
     await s.from("ballots").select("game_id, voter_id, first, second, third").eq("team_id", teamId),
   ) as { game_id: string; voter_id: string; first: string; second: string; third: string }[]).filter((b) => {
@@ -42,7 +42,7 @@ export async function mergePlayer(teamId: string, fromId: string, toId: string):
     check(await s.from("ballots").update({ [col]: toId }).eq("team_id", teamId).eq(col, fromId));
   }
 
-  // Board acknowledgements (acks have no team column — go via the team's posts).
+  // Board acknowledgements (acks have no team column, go via the team's posts).
   const posts = (check(await s.from("announcements").select("id").eq("team_id", teamId)) as { id: string }[]).map((r) => r.id);
   if (posts.length) {
     const toAcked = (check(
