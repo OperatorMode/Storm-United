@@ -577,7 +577,6 @@ export function FeedPanel({
   connected: { type: "csv" | "ics" | "web"; url: string; filter: string | null; team: string | null; syncedAt: string | null; error: string | null } | null;
   aiEnabled: boolean;
 }) {
-  const [type, setType] = useState<"csv" | "ics" | "web">(connected?.type ?? "csv");
   // Controlled so the values survive Preview (forms reset after each action).
   const [url, setUrl] = useState("");
   const [filter, setFilter] = useState("");
@@ -638,31 +637,27 @@ export function FeedPanel({
 
   return (
     <form className="space-y-3 text-sm">
-      <div className="grid grid-cols-3 gap-2">
-        {(["csv", "ics", "web"] as const).map((t) => (
-          <label
-            key={t}
-            className={`cursor-pointer rounded-xl border px-2 py-2 text-center text-xs font-medium ${type === t ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300"} ${t === "web" && !aiEnabled ? "opacity-40" : ""}`}
-          >
-            <input type="radio" name="feed_type" value={t} checked={type === t} onChange={() => setType(t)} disabled={t === "web" && !aiEnabled} className="sr-only" />
-            {t === "csv" ? "Sheet / CSV" : t === "ics" ? "Calendar" : "Website (AI)"}
-          </label>
-        ))}
-      </div>
       <p className="text-xs text-zinc-500">
-        {type === "csv" &&
-          "A link to a CSV file, or a Google Sheet shared as “Anyone with the link can view”. Same columns as the upload template."}
-        {type === "ics" && "A calendar link (ics/webcal), e.g. a team’s fixture calendar export. Event titles like “Sharks vs Tigers”."}
-        {type === "web" && "Any page that lists the fixtures or results. Claude reads it and turns it into fixtures. Check the preview before connecting."}
+        Paste any link that lists the fixtures: the league’s website{aiEnabled ? " (read by AI)" : ""}, a Google Sheet shared as
+        “Anyone with the link”, a CSV file or a calendar link. Sidelnr works out which it is. Check the preview before connecting.
       </p>
       <input name="feed_url" type="url" required value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className={field} />
-      {type === "web" && (
-        <input name="feed_filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Which competition on that page? e.g. “Under 10s” (optional)" className={field} />
-      )}
-      {type === "ics" && <input name="feed_team" value={team} onChange={(e) => setTeam(e.target.value)} placeholder="Your team’s name (if titles don’t include it)" className={field} />}
+      <details className="text-xs">
+        <summary className="cursor-pointer text-zinc-500">More options</summary>
+        <div className="mt-2 space-y-2">
+          <input
+            name="feed_filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Web page with several competitions? Which one, e.g. “Under 10s”"
+            className={field}
+          />
+          <input name="feed_team" value={team} onChange={(e) => setTeam(e.target.value)} placeholder="Calendar link? Your team’s name, if titles leave it out" className={field} />
+        </div>
+      </details>
       <div className="flex gap-2">
         <button formAction={previewAction} disabled={previewing || connecting} className="flex-1 rounded-xl border border-zinc-300 px-4 py-2.5 font-semibold">
-          {previewing ? (type === "web" ? "Reading page…" : "Checking…") : "Preview"}
+          {previewing ? "Reading the link…" : "Preview"}
         </button>
         <button formAction={connectAction} disabled={previewing || connecting} className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white">
           {connecting ? "Connecting…" : "Connect & import"}
@@ -672,7 +667,7 @@ export function FeedPanel({
       {preview && "preview" in preview && (
         <div className="rounded-xl bg-zinc-50 p-3 text-xs">
           <div className="mb-1 font-semibold">
-            Found {preview.count} games between {preview.teams} teams. First few:
+            Read as {preview.kind}. Found {preview.count} games between {preview.teams} teams. First few:
           </div>
           <ul className="space-y-0.5 text-zinc-600">
             {(preview.sample ?? []).map((s) => (
