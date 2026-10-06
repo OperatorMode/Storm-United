@@ -11,6 +11,8 @@ import { now as clockNow } from "@/lib/clock";
 import { Directions } from "@/components/Directions";
 import { AddToCalendar } from "@/components/AddToCalendar";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { LegalLinks } from "@/components/LegalPage";
+import { ForgetPhone } from "./ForgetPhone";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 
@@ -202,6 +204,8 @@ export default async function MyPlayerPage() {
             </ul>
           </section>
         )}
+        {teams.length > 0 && <ForgetPhone />}
+        <LegalLinks className="pt-2 text-zinc-400" />
       </main>
     </div>
   );

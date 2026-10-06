@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { requestLoginLink } from "@/app/account/actions";
 
@@ -20,6 +21,17 @@ export function LoginForm({ next }: { next: string }) {
     <form action={action} className="space-y-3">
       <h2 className="font-semibold">Sign in with email</h2>
       <p className="text-sm text-zinc-500">We’ll email you a one-tap sign-in link. No password needed.</p>
+      <p className="text-xs text-zinc-400">
+        By signing in you agree to the{" "}
+        <Link href="/terms" className="underline">
+          terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="underline">
+          privacy policy
+        </Link>
+        .
+      </p>
       <input type="hidden" name="next" value={next} />
       <input
         name="email"

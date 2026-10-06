@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { knownTeamIds } from "@/lib/known-teams";
+import { LegalLinks } from "@/components/LegalPage";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
 import { getTeam } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
@@ -103,6 +104,7 @@ export default async function Landing() {
         <p className="text-center text-xs opacity-50">
           Fixtures, attendance, MVP votes, team chat and live ladders for any team sport.
         </p>
+        <LegalLinks className="opacity-60" />
       </div>
     </div>
   );
