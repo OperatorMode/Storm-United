@@ -39,7 +39,8 @@ import { headers } from "next/headers";
 import { addAnnouncement } from "@/lib/messages";
 import { notifyManagers, notifyTeam, preview } from "@/lib/push";
 import { getManager, teamManagerIds } from "@/lib/accounts";
-import { leagueMessageEmail, sendEmail } from "@/lib/email";
+import { leagueCodeEmail, leagueMessageEmail, sendEmail } from "@/lib/email";
+import { confirmEmailClaim, officialDomains, requestReview, startEmailClaim } from "@/lib/league-verify";
 import { addLeagueMessage } from "@/lib/league-messages";
 
 const FEED_KIND: Record<FeedType, string> = { csv: "a spreadsheet", ics: "a calendar", web: "a web page, read by AI" };
@@ -653,11 +654,13 @@ export async function sendLeagueMessage(competitionId: string, _: unknown, formD
   const body = String(formData.get("body") ?? "").trim();
   const audience = formData.get("audience") === "managers" ? "managers" : "all";
   const wholeLeague = formData.get("scope") === "league";
+  if (!c.league.verified_at) return { error: "Only official (verified) leagues can send announcements." };
   if (!body) return { error: "Write something first." };
   if (body.length > 2000) return { error: "Keep it under 2000 characters." };
 
   const comps = wholeLeague ? (await listCompetitions()).filter((x) => x.league_id === c.league_id).map((x) => x.id) : [c.id];
-  const teams = (await listTeams()).filter((t) => t.competition_id && comps.includes(t.competition_id));
+  // Teams that turned league announcements off don't get them.
+  const teams = (await listTeams()).filter((t) => t.competition_id && comps.includes(t.competition_id) && !t.mute_league);
   if (!teams.length) return { error: "No teams on Sidelnr in this league yet, so there’s nobody to tell yet." };
   const league = c.league.short_name ?? c.league.name;
   const h = await headers();
@@ -690,4 +693,43 @@ export async function sendLeagueMessage(competitionId: string, _: unknown, formD
   });
   refreshAll();
   return { ok: true, teams: teams.length, audience, sentAt: new Date().toISOString() };
+}
+
+// ---------- verifying a league as official ----------
+
+// Step 1: a code to an email on the league's own domain.
+export async function sendLeagueCode(competitionId: string, email: string) {
+  const c = await editableCompetition(competitionId);
+  const managerId = await currentManagerId();
+  if (!c || !managerId) return { error: "Not authorised." };
+  if (c.league.verified_at) return { error: "This league is already verified." };
+  const feeds = (await listCompetitions()).filter((x) => x.league_id === c.league_id).map((x) => x.feed_url);
+  const res = await startEmailClaim(c.league, officialDomains(c.league, feeds), managerId, email);
+  if ("error" in res) return res;
+  const mail = leagueCodeEmail(c.league.name, res.code);
+  if (!(await sendEmail(email.trim().toLowerCase(), mail.subject, mail.text, mail.html))) {
+    return { error: "We couldn’t send the email just now. Please try again shortly." };
+  }
+  return { sent: true };
+}
+
+// Step 2: the code back; the league is then official.
+export async function confirmLeagueCode(competitionId: string, code: string) {
+  const c = await editableCompetition(competitionId);
+  const managerId = await currentManagerId();
+  if (!c || !managerId) return { error: "Not authorised." };
+  const res = await confirmEmailClaim(c.league_id, managerId, code);
+  if ("ok" in res) refreshAll();
+  return res;
+}
+
+// No league domain: ask Sidelnr to check by hand.
+export async function requestLeagueReview(competitionId: string, note: string) {
+  const c = await editableCompetition(competitionId);
+  const managerId = await currentManagerId();
+  if (!c || !managerId) return { error: "Not authorised." };
+  if (c.league.verified_at) return { error: "This league is already verified." };
+  const res = await requestReview(c.league_id, managerId, note);
+  if ("ok" in res) refreshAll();
+  return res;
 }

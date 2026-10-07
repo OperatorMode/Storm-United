@@ -21,6 +21,8 @@ import { FixtureOptions } from "../../leagues/FixtureOptions";
 import { UpdateNow } from "../../leagues/UpdateNow";
 import { LeagueMessageForm } from "../../leagues/LeagueMessage";
 import { listLeagueMessages } from "@/lib/league-messages";
+import { VerifyLeague } from "../../leagues/VerifyLeague";
+import { leagueClaims, officialDomains } from "@/lib/league-verify";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
@@ -103,8 +105,19 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const when = (iso: string) => `${formatDay(new Date(iso), tz)}, ${formatTime(new Date(iso), tz)}`;
 
   // League announcements to the Sidelnr teams in the league (all teams, or managers only).
-  const sent = await listLeagueMessages(competition.league_id, 5);
-  const messageCard = (
+  // Only official (verified) leagues can send them; others see how to verify.
+  const verified = !!competition.league.verified_at;
+  const [sent, claims] = await Promise.all([listLeagueMessages(competition.league_id, 5), verified ? [] : leagueClaims(competition.league_id)]);
+  const waitingReview = claims.find((c) => c.kind === "review" && c.status === "pending");
+  const messageCard = !verified ? (
+    <Card title="League announcement" aside="Verify to unlock">
+      <VerifyLeague
+        competitionId={id}
+        domains={officialDomains(competition.league, siblings.map((c) => c.feed_url))}
+        reviewRequested={waitingReview ? formatDay(new Date(waitingReview.created_at), tz) : null}
+      />
+    </Card>
+  ) : (
     <Card title="League announcement" aside={`${leagueImpact.sidelnrTeams.length} team${leagueImpact.sidelnrTeams.length === 1 ? "" : "s"} on Sidelnr`}>
       <LeagueMessageForm
         competitionId={id}
@@ -155,7 +168,10 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           <Link href="/account/leagues">← My leagues</Link>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-400">{competition.league.name}</div>
+          <div className="text-xs uppercase tracking-widest text-zinc-400">
+          {competition.league.name}
+          {verified && <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-normal text-emerald-800">✓ Official</span>}
+        </div>
           <h1 className="text-xl font-semibold">{competition.name}</h1>
           {siblings.length > 1 && (
             <div className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -294,7 +310,10 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
         )}
       </div>
       <div>
-        <div className="text-xs uppercase tracking-widest text-zinc-400">{competition.league.name}</div>
+        <div className="text-xs uppercase tracking-widest text-zinc-400">
+          {competition.league.name}
+          {verified && <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold tracking-normal text-emerald-800">✓ Official</span>}
+        </div>
         <h1 className="text-xl font-semibold">{competition.name}</h1>
         {siblings.length > 1 && (
           <div className="mt-2 flex flex-wrap gap-2 text-xs">

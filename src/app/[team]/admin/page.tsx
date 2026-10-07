@@ -465,6 +465,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           roleName={team.role_name ?? null}
           gameParts={gp.count}
           partName={gp.name}
+          muteLeague={team.competition_id ? !!team.mute_league : null}
         />
       </Section>
 

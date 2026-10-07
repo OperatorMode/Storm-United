@@ -9,6 +9,7 @@ import { getLeagueData, nextGame } from "@/lib/league";
 import { ackAnnouncement, addAnnouncement, addChat, listAnnouncements, listChat } from "@/lib/messages";
 import { getTeam } from "@/lib/teams";
 import { COOKIE_OPTS, SUPER_COOKIE, isSuperAdmin, superToken } from "@/lib/session";
+import { decideReview, unverifyLeague } from "@/lib/league-verify";
 
 
 export async function superLogin(_: unknown, formData: FormData) {
@@ -93,4 +94,18 @@ export async function fillSampleData(teamId: string) {
 
   revalidatePath(`/${team.id}`, "layout");
   return { ok: true };
+}
+
+// ---------- official leagues ----------
+
+export async function decideLeagueReview(claimId: string, approve: boolean) {
+  if (!(await isSuperAdmin())) return;
+  await decideReview(claimId, approve);
+  revalidatePath("/", "layout");
+}
+
+export async function removeLeagueVerification(leagueId: string) {
+  if (!(await isSuperAdmin())) return;
+  await unverifyLeague(leagueId);
+  revalidatePath("/", "layout");
 }

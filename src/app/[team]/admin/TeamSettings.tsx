@@ -15,6 +15,7 @@ export function TeamSettings({
   roleName,
   gameParts,
   partName,
+  muteLeague,
 }: {
   teamId: string;
   players: string;
@@ -24,6 +25,7 @@ export function TeamSettings({
   roleName: string | null;
   gameParts: number;
   partName: string;
+  muteLeague: boolean | null; // null: the team isn't in a league
 }) {
   const [state, action, pending] = useActionState(saveTeamSettings.bind(null, teamId), null);
   const field = "w-full rounded-xl border border-zinc-300 px-3 py-2 text-base";
@@ -83,6 +85,16 @@ export function TeamSettings({
 
       <PartsField count={gameParts} name={partName} />
       <RoleField enabled={goalieEnabled} name={roleName} />
+
+      {muteLeague !== null && (
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="league_news" defaultChecked={!muteLeague} className="mt-1 size-4" />
+          <span>
+            <span className="block font-medium">Receive league announcements</span>
+            <span className="block text-xs text-zinc-500">From your league, if it’s verified as official. Untick to stop them for this team.</span>
+          </span>
+        </label>
+      )}
 
       <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white">
         {pending ? "Saving…" : "Save settings"}

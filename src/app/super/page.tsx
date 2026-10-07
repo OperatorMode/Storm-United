@@ -5,7 +5,10 @@ import { SuperLogin } from "./SuperLogin";
 import { TeamForm } from "@/components/TeamForm";
 import { removeTeam, saveTeam } from "./actions";
 import { SampleDataButton } from "./SampleDataButton";
-import { superLogout } from "./actions";
+import { decideLeagueReview, removeLeagueVerification, superLogout } from "./actions";
+import { pendingReviews } from "@/lib/league-verify";
+import { getManager } from "@/lib/accounts";
+import { listLeagues } from "@/lib/store";
 import { isSuperAdmin } from "@/lib/session";
 import { listTeams } from "@/lib/store";
 import { getTeam } from "@/lib/teams";
@@ -33,7 +36,11 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const creating = params.new !== undefined;
   const saved = typeof params.saved === "string" ? params.saved : null;
 
-  const [teams, competitions] = await Promise.all([listTeams(), listCompetitions()]);
+  const [teams, competitions, leagues, reviews] = await Promise.all([listTeams(), listCompetitions(), listLeagues(), pendingReviews()]);
+  // Who asked for each review (their sign-in email).
+  const reviewers = Object.fromEntries(
+    await Promise.all(reviews.map(async (r) => [r.manager_id, (await getManager(r.manager_id))?.email ?? null] as const)),
+  ) as Record<string, string | null>;
   const labelOf = (id: string | null) => {
     const c = competitions.find((x) => x.id === id);
     return c ? competitionLabel(c) : "No competition";
@@ -92,6 +99,52 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
       </div>
 
       {saved && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Saved /{saved}.</p>}
+
+      {/* Official leagues: review requests to approve, and verified leagues (can be revoked). */}
+      {(() => {
+        const nameOf = (leagueId: string) => leagues.find((l) => l.id === leagueId)?.name ?? leagueId;
+        const official = leagues.filter((l) => l.verified_at);
+        return (
+          <Card title="Official leagues" aside={reviews.length ? `${reviews.length} to review` : undefined}>
+            <div className="space-y-4 text-sm">
+              {reviews.map((r) => (
+                <div key={r.id} className="space-y-2 rounded-xl bg-amber-50 p-3">
+                  <div className="font-semibold">{nameOf(r.league_id)}</div>
+                  <div className="text-xs text-zinc-600">From {reviewers[r.manager_id] ?? "unknown"} · {r.created_at.slice(0, 10)}</div>
+                  <p className="whitespace-pre-wrap break-words">{r.note}</p>
+                  <div className="flex gap-2">
+                    <form action={decideLeagueReview.bind(null, r.id, true)}>
+                      <button className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white">Approve</button>
+                    </form>
+                    <form action={decideLeagueReview.bind(null, r.id, false)}>
+                      <button className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs">Decline</button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+              {official.length ? (
+                <ul className="divide-y divide-zinc-100">
+                  {official.map((l) => (
+                    <li key={l.id} className="flex items-center justify-between gap-3 py-2">
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">✓ {l.name}</span>
+                        <span className="block truncate text-xs text-zinc-500">
+                          {l.verified_by === "review" ? "Approved by review" : `Verified with ${l.verified_by}`}
+                        </span>
+                      </span>
+                      <form action={removeLeagueVerification.bind(null, l.id)}>
+                        <button className="shrink-0 text-xs text-red-700 underline">Remove</button>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                !reviews.length && <p className="text-zinc-500">No official leagues yet.</p>
+              )}
+            </div>
+          </Card>
+        );
+      })()}
 
       <Link href="/super?new" className="block rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm font-semibold text-white">
         + Add a team

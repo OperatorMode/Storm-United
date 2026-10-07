@@ -101,6 +101,7 @@ export async function saveTeamSettings(teamId: string, _: unknown, formData: For
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
     role_name: String(formData.get("role_name") ?? "").trim().slice(0, 30) || null,
+    mute_league: team.competition_id ? formData.get("league_news") !== "on" : !!team.mute_league,
     game_parts: Math.min(12, Math.max(1, Number(formData.get("game_parts")) || 2)),
     part_name: PART_PRESETS.some((p) => p.name === formData.get("part_name")) ? String(formData.get("part_name")) : "Half",
     ...join,

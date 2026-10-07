@@ -54,7 +54,7 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
           return (
             <article key={a.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
               <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
-                <span className="font-medium text-zinc-700">{a.source ? `From ${a.source}` : "Coach"}</span>
+                <span className="font-medium text-zinc-700">{a.source ? `From ${a.source} ✓` : "Coach"}</span>
                 <span>{formatWhen(a.created_at, tz)}</span>
               </div>
               <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{a.body}</p>

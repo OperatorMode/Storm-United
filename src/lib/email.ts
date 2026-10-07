@@ -58,3 +58,16 @@ export function leagueMessageEmail(league: string, body: string, link: string) {
 </div>`;
   return { subject: `${league}: announcement for team managers`, text, html };
 }
+
+/** The one-time code that proves someone can open a league's official inbox. */
+export function leagueCodeEmail(league: string, code: string) {
+  const text = `Your code to verify ${league} on Sidelnr: ${code}\n\nIt expires in 15 minutes. If you didn't ask for it, you can ignore this email: nothing changes without the code.`;
+  const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#09090b">
+  <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
+  <p style="margin:0 0 20px;color:#52525b">Verify ${league.replace(/[<>&]/g, "")} as an official league</p>
+  <p>Your code:</p>
+  <p style="font-size:32px;font-weight:700;letter-spacing:6px;margin:8px 0 20px">${code}</p>
+  <p style="font-size:13px;color:#71717a">It expires in 15 minutes. If you didn’t ask for it, you can ignore this email: nothing changes without the code.</p>
+</div>`;
+  return { subject: `${code} is your Sidelnr league code`, text, html };
+}
