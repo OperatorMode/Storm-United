@@ -42,7 +42,16 @@ const DOORS = [
   },
 ] as const;
 
-type Run = { href: string; title: string; detail: string; logo?: string };
+type Run = { href: string; title: string; detail: string; logo?: string; manager?: boolean };
+
+// The Manager badge: always in the card's top right corner.
+function ManagerBadge() {
+  return (
+    <span className="absolute right-3 top-2 rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+      Manager
+    </span>
+  );
+}
 
 export default async function Landing() {
   const ids = await knownTeamIds();
@@ -62,7 +71,7 @@ export default async function Landing() {
     runs.teams = await Promise.all(
       teams.map(async (t) => {
         const c = t.competition_id ? await getCompetition(t.competition_id) : null;
-        return { href: `/${t.id}`, title: t.name, detail: c ? competitionLabel(c) : t.division, logo: logoSrc(t) };
+        return { href: `/${t.id}`, title: t.name, detail: c ? competitionLabel(c) : t.division, logo: logoSrc(t), manager: true };
       }),
     );
     for (const l of leagues) {
@@ -116,16 +125,12 @@ export default async function Landing() {
               <span aria-hidden>→</span>
             </Link>
             {rows.map(({ team: t, league, kids, boardUnread, chatTimes }) => (
-              <Link key={t.id} href={`/${t.id}`} className="flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+              <Link key={t.id} href={`/${t.id}`} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+                {managing.has(t.id) && <ManagerBadge />}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoSrc(t)} alt="" className="size-10 shrink-0 object-contain" />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate font-semibold">{t.name}</span>
-                    {managing.has(t.id) && (
-                      <span className="shrink-0 rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Manager</span>
-                    )}
-                  </span>
+                  <span className={`block truncate font-semibold ${managing.has(t.id) ? "pr-16" : ""}`}>{t.name}</span>
                   <span className="block truncate text-xs text-zinc-500">{league}</span>
                   {kids.length > 0 && <span className="block truncate text-xs font-medium text-zinc-700">{kids.join(" & ")}</span>}
                 </span>
@@ -154,11 +159,12 @@ export default async function Landing() {
               </Link>
             </div>
             {runs[d.key].map((r) => (
-              <Link key={r.href} href={r.href} className="flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+              <Link key={r.href} href={r.href} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+                {r.manager && <ManagerBadge />}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {r.logo && <img src={r.logo} alt="" className="size-10 shrink-0 object-contain" />}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{r.title}</span>
+                  <span className={`block truncate font-semibold ${r.manager ? "pr-16" : ""}`}>{r.title}</span>
                   <span className="block truncate text-xs text-zinc-500">{r.detail}</span>
                 </span>
                 <span className="text-zinc-400" aria-hidden>
