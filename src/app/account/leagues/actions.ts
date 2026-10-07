@@ -641,9 +641,9 @@ export async function importLeagueAction(input: {
   return { competitionId, count: res.count, error: res.count ? undefined : (res.errors[0] ?? "No games came through yet.") };
 }
 
-// ---------- league messages ----------
+// ---------- league announcements ----------
 
-// A league admin's message to the Sidelnr teams in the league (this
+// A league announcement to the Sidelnr teams in the league (this
 // competition, or all of the league's). "all": posted on every team's Board
 // and pushed to everyone; "managers": pushed to managers' phones and emailed
 // to each team's managers.
@@ -658,7 +658,7 @@ export async function sendLeagueMessage(competitionId: string, _: unknown, formD
 
   const comps = wholeLeague ? (await listCompetitions()).filter((x) => x.league_id === c.league_id).map((x) => x.id) : [c.id];
   const teams = (await listTeams()).filter((t) => t.competition_id && comps.includes(t.competition_id));
-  if (!teams.length) return { error: "No teams on Sidelnr in this league yet, so there’s nobody to message." };
+  if (!teams.length) return { error: "No teams on Sidelnr in this league yet, so there’s nobody to tell yet." };
   const league = c.league.short_name ?? c.league.name;
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "sidelnr.app";

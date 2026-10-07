@@ -102,10 +102,10 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const teamsFor = (f: { stage: string | null }) => (event && !isPoolStage(f.stage) ? teams : undefined);
   const when = (iso: string) => `${formatDay(new Date(iso), tz)}, ${formatTime(new Date(iso), tz)}`;
 
-  // Messages to the Sidelnr teams in the league (everyone, or managers only).
+  // League announcements to the Sidelnr teams in the league (all teams, or managers only).
   const sent = await listLeagueMessages(competition.league_id, 5);
   const messageCard = (
-    <Card title="Message the league" aside={`${leagueImpact.sidelnrTeams.length} team${leagueImpact.sidelnrTeams.length === 1 ? "" : "s"} on Sidelnr`}>
+    <Card title="League announcement" aside={`${leagueImpact.sidelnrTeams.length} team${leagueImpact.sidelnrTeams.length === 1 ? "" : "s"} on Sidelnr`}>
       <LeagueMessageForm
         competitionId={id}
         competitionName={competition.name}
@@ -115,12 +115,12 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
       />
       {sent.length > 0 && (
         <details className="mt-4 border-t border-zinc-100 pt-3 text-sm">
-          <summary className="cursor-pointer text-zinc-600">Sent messages ({sent.length})</summary>
+          <summary className="cursor-pointer text-zinc-600">Sent announcements ({sent.length})</summary>
           <ul className="mt-2 space-y-3">
             {sent.map((m) => (
               <li key={m.id}>
                 <div className="text-xs text-zinc-500">
-                  {when(m.created_at)} · {m.audience === "all" ? "Everyone" : "Team managers"} · {m.teams} team{m.teams === 1 ? "" : "s"}
+                  {when(m.created_at)} · {m.audience === "all" ? "All teams" : "Team managers"} · {m.teams} team{m.teams === 1 ? "" : "s"}
                 </div>
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
               </li>

@@ -45,16 +45,16 @@ export function emailEnabled(): boolean {
   return !!process.env.RESEND_API_KEY || !process.env.VERCEL;
 }
 
-/** A league admin's message to team managers. */
+/** A league announcement for team managers. */
 export function leagueMessageEmail(league: string, body: string, link: string) {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const text = `Message from ${league} to team managers:\n\n${body}\n\nOpen Sidelnr: ${link}`;
+  const text = `Announcement from ${league} for team managers:\n\n${body}\n\nOpen Sidelnr: ${link}`;
   const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#09090b">
   <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
-  <p style="margin:0 0 20px;color:#52525b">Message from <b>${esc(league)}</b> to team managers</p>
+  <p style="margin:0 0 20px;color:#52525b">Announcement from <b>${esc(league)}</b> for team managers</p>
   <div style="white-space:pre-wrap;font-size:15px;line-height:1.5;border-left:3px solid #e5334b;padding-left:12px">${esc(body)}</div>
   <p style="margin:24px 0"><a href="${link}" style="background:#09090b;color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:600;display:inline-block">Open Sidelnr</a></p>
   <p style="font-size:13px;color:#71717a">You get this because you manage a team in ${esc(league)} on Sidelnr.</p>
 </div>`;
-  return { subject: `${league}: message for team managers`, text, html };
+  return { subject: `${league}: announcement for team managers`, text, html };
 }

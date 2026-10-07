@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { sendLeagueMessage } from "./actions";
 
-// A league admin writes to the Sidelnr teams in the league: everyone, or the
-// team managers only.
+// League announcements: one-way news from the league to the Sidelnr teams in
+// it (all teams, or the team managers only), e.g. a washed-out game day.
 export function LeagueMessageForm({
   competitionId,
   competitionName,
@@ -27,7 +27,7 @@ export function LeagueMessageForm({
   const sent = state && "ok" in state && state.ok;
 
   if (!teamsInLeague) {
-    return <p className="text-sm text-zinc-500">Once teams join on Sidelnr, you can message them all from here.</p>;
+    return <p className="text-sm text-zinc-500">Once teams join on Sidelnr, you can send them announcements from here.</p>;
   }
 
   return (
@@ -45,7 +45,7 @@ export function LeagueMessageForm({
     >
       <fieldset className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1">
         {[
-          { value: "all" as const, label: "Everyone" },
+          { value: "all" as const, label: "All teams" },
           { value: "managers" as const, label: "Team managers" },
         ].map((o) => (
           <label
@@ -77,7 +77,7 @@ export function LeagueMessageForm({
         rows={4}
         maxLength={2000}
         required
-        placeholder={audience === "all" ? "e.g. Round 6 is washed out, games move to next Saturday." : "e.g. Team sheets for the finals are due Friday."}
+        placeholder={audience === "all" ? "e.g. Saturday’s games are cancelled due to pitch conditions." : "e.g. Team sheets for the finals are due Friday."}
         className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base"
       />
       <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white disabled:opacity-30">
