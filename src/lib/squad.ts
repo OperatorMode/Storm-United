@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { fetchText, htmlToText } from "./feeds";
-import { readPage } from "./league-scan";
+import { cleanLink, readPage } from "./league-scan";
 import type { Competition } from "./league";
 import { squadNames } from "./player-names";
 
@@ -138,7 +138,7 @@ ${linkList(links.slice(0, MAX_LINKS))}
 /** A squad from a page the coach points to (their club's roster page). */
 export async function squadFromLink(rawUrl: string, team: string, league: string): Promise<SquadResult> {
   if (!process.env.ANTHROPIC_API_KEY) return { players: [], source: null, note: "Reading web pages isn’t switched on yet." };
-  const url = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`;
+  const url = cleanLink(rawUrl);
   let read = await readSquad(url, team, league);
   let source = url;
   if (read && read.players.length < 3 && read.rosterUrl && read.rosterUrl !== url) {

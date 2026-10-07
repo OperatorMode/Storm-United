@@ -164,6 +164,9 @@ export function MagicImport() {
           type="text"
           inputMode="url"
           autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           placeholder="e.g. nbl.com.au or your league’s fixtures page"
           className={field}
           required

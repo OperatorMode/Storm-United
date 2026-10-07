@@ -141,6 +141,9 @@ function OtherWays({ finder, fromLink }: { finder: ReturnType<typeof useSquadFin
             type="text"
             inputMode="url"
             autoComplete="off"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             placeholder="e.g. myclub.com.au/squad"
             aria-label="Link to the squad page"
             className="min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base"

@@ -150,8 +150,18 @@ ${text.slice(0, MAX_SCAN_CHARS)}
 
 const hostName = (url: string) => new URL(url).hostname.replace(/^www\./, "");
 
+/** A pasted link, tidied: copied text can carry hidden characters, a title
+ *  before the address ("Games | WNBL https://…"), a capital "Https", spaces
+ *  or a trailing full stop. Returns a full https:// address. */
+export function cleanLink(raw: string): string {
+  const text = raw.replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "").trim();
+  const found = text.match(/(?:https?|webcal):\/\/\S+/i)?.[0] ?? text.split(/\s+/).find((w) => /\.[a-z]{2,}/i.test(w)) ?? text;
+  const link = found.replace(/[)\].,;:!?'"]+$/, "").replace(/^webcal:/i, "https:");
+  return /^[a-z]+:\/\//i.test(link) ? link.replace(/^[a-z]+/i, (s) => s.toLowerCase()) : `https://${link}`;
+}
+
 export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
-  const url = /^[a-z]+:\/\//i.test(rawUrl.trim()) ? rawUrl.trim().replace(/^webcal:/i, "https:") : `https://${rawUrl.trim()}`;
+  const url = cleanLink(rawUrl);
   // Spreadsheets and calendars: one competition, everything in it.
   const csvUrl = sheetCsvUrl(url);
   const first = await fetchText(csvUrl);
