@@ -28,6 +28,9 @@ import { now as clockNow } from "@/lib/clock";
 
 export const metadata: Metadata = { title: "Competition · Sidelnr", robots: { index: false } };
 
+// Reading a whole season from a league's website can take a few minutes.
+export const maxDuration = 300;
+
 
 const hostOf = (url: string) => {
   try {
