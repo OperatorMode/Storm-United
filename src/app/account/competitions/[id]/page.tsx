@@ -19,6 +19,8 @@ import {
 import { FixtureWizard } from "../../leagues/FixtureWizard";
 import { FixtureOptions } from "../../leagues/FixtureOptions";
 import { UpdateNow } from "../../leagues/UpdateNow";
+import { LeagueMessageForm } from "../../leagues/LeagueMessage";
+import { listLeagueMessages } from "@/lib/league-messages";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
@@ -100,6 +102,35 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const teamsFor = (f: { stage: string | null }) => (event && !isPoolStage(f.stage) ? teams : undefined);
   const when = (iso: string) => `${formatDay(new Date(iso), tz)}, ${formatTime(new Date(iso), tz)}`;
 
+  // Messages to the Sidelnr teams in the league (everyone, or managers only).
+  const sent = await listLeagueMessages(competition.league_id, 5);
+  const messageCard = (
+    <Card title="Message the league" aside={`${leagueImpact.sidelnrTeams.length} team${leagueImpact.sidelnrTeams.length === 1 ? "" : "s"} on Sidelnr`}>
+      <LeagueMessageForm
+        competitionId={id}
+        competitionName={competition.name}
+        teamsHere={sidelnrTeams.length}
+        teamsInLeague={leagueImpact.sidelnrTeams.length}
+        severalCompetitions={siblings.length > 1}
+      />
+      {sent.length > 0 && (
+        <details className="mt-4 border-t border-zinc-100 pt-3 text-sm">
+          <summary className="cursor-pointer text-zinc-600">Sent messages ({sent.length})</summary>
+          <ul className="mt-2 space-y-3">
+            {sent.map((m) => (
+              <li key={m.id}>
+                <div className="text-xs text-zinc-500">
+                  {when(m.created_at)} · {m.audience === "all" ? "Everyone" : "Team managers"} · {m.teams} team{m.teams === 1 ? "" : "s"}
+                </div>
+                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </Card>
+  );
+
   // Pulled from a link (an official league, a linked sheet): everything comes
   // from the source and updates on its own, so there's nothing to edit here.
   if (feed) {
@@ -178,6 +209,8 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
             </p>
           </div>
         )}
+
+        {messageCard}
 
         <Card title="Source" aside={source}>
           <div className="space-y-3 text-sm">
@@ -309,6 +342,8 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           </p>
         </div>
       )}
+
+      {messageCard}
 
       <Card title="Teams" aside={`${teams.length} in the draw · ${sidelnrTeams.length} on Sidelnr`}>
         <TeamsEditor competitionId={id} teams={teams} />

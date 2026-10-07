@@ -34,6 +34,13 @@ import type { CompetitionRow } from "@/lib/store";
 import { isPoolStage, parsePools, schedulePools } from "@/lib/events";
 import { scanLeague, type LeagueScan } from "@/lib/league-scan";
 import { guessFeedType, readFeed, saveFeedSettings, syncCompetitionFeed, type FeedSettings, type FeedType } from "@/lib/feeds";
+import { after } from "next/server";
+import { headers } from "next/headers";
+import { addAnnouncement } from "@/lib/messages";
+import { notifyManagers, notifyTeam, preview } from "@/lib/push";
+import { getManager, teamManagerIds } from "@/lib/accounts";
+import { leagueMessageEmail, sendEmail } from "@/lib/email";
+import { addLeagueMessage } from "@/lib/league-messages";
 
 const FEED_KIND: Record<FeedType, string> = { csv: "a spreadsheet", ics: "a calendar", web: "a web page, read by AI" };
 
@@ -632,4 +639,55 @@ export async function importLeagueAction(input: {
   const res = await syncCompetitionFeed(competitionId, true);
   revalidatePath("/account", "layout");
   return { competitionId, count: res.count, error: res.count ? undefined : (res.errors[0] ?? "No games came through yet.") };
+}
+
+// ---------- league messages ----------
+
+// A league admin's message to the Sidelnr teams in the league (this
+// competition, or all of the league's). "all": posted on every team's Board
+// and pushed to everyone; "managers": pushed to managers' phones and emailed
+// to each team's managers.
+export async function sendLeagueMessage(competitionId: string, _: unknown, formData: FormData) {
+  const c = await editableCompetition(competitionId);
+  if (!c) return { error: "Not authorised." };
+  const body = String(formData.get("body") ?? "").trim();
+  const audience = formData.get("audience") === "managers" ? "managers" : "all";
+  const wholeLeague = formData.get("scope") === "league";
+  if (!body) return { error: "Write something first." };
+  if (body.length > 2000) return { error: "Keep it under 2000 characters." };
+
+  const comps = wholeLeague ? (await listCompetitions()).filter((x) => x.league_id === c.league_id).map((x) => x.id) : [c.id];
+  const teams = (await listTeams()).filter((t) => t.competition_id && comps.includes(t.competition_id));
+  if (!teams.length) return { error: "No teams on Sidelnr in this league yet, so there’s nobody to message." };
+  const league = c.league.short_name ?? c.league.name;
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "sidelnr.app";
+  const base = `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https")}://${host}`;
+
+  if (audience === "all") {
+    for (const t of teams) await addAnnouncement(t.id, body, undefined, league);
+  }
+  await addLeagueMessage({ league_id: c.league_id, competition_id: wholeLeague ? null : c.id, audience, body, teams: teams.length });
+
+  after(async () => {
+    const payload = (teamId: string) => ({ title: league, body: preview(body), url: `/${teamId}/${audience === "all" ? "board" : "admin"}`, icon: `/${teamId}/icon/192` });
+    if (audience === "all") {
+      await Promise.allSettled(teams.map((t) => notifyTeam(t.id, "board", payload(t.id), { endpoint: null, author: null })));
+      return;
+    }
+    await Promise.allSettled(teams.map((t) => notifyManagers(t.id, payload(t.id))));
+    // Each manager once, even if they run several teams in the league.
+    const sent = new Set<string>();
+    for (const t of teams) {
+      for (const id of await teamManagerIds(t.id)) {
+        const m = await getManager(id);
+        if (!m || sent.has(m.email)) continue;
+        sent.add(m.email);
+        const mail = leagueMessageEmail(c.league.name, body, `${base}/${t.id}/admin`);
+        await sendEmail(m.email, mail.subject, mail.text, mail.html);
+      }
+    }
+  });
+  refreshAll();
+  return { ok: true, teams: teams.length, audience, sentAt: new Date().toISOString() };
 }

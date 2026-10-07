@@ -5,7 +5,7 @@ import { check, db, readLocal, writeLocal, type GameSnapshot, type PushSubRow } 
 // Message board (coach announcements + family acknowledgements) and team chat.
 // Same pattern as store.ts: Supabase in production, a local JSON file in dev.
 
-export type Announcement = { id: string; body: string; created_at: string; acks: string[] };
+export type Announcement = { id: string; body: string; created_at: string; acks: string[]; source: string | null }; // source: a league's name; null = the coach
 export type ChatMessage = { id: string; author_id: string; body: string; created_at: string };
 
 export const COACH_AUTHOR = "coach";
@@ -20,36 +20,38 @@ export const listAnnouncements = cache(async (teamId: string): Promise<Announcem
     return (data.announcements ?? [])
       .filter((a) => a.team_id === teamId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
-      .map(({ id, body, created_at }) => ({
+      .map(({ id, body, created_at, source }) => ({
         id,
         body,
         created_at,
+        source: source ?? null,
         acks: (data.acks ?? []).filter((k) => k.announcement_id === id).map((k) => k.player_id),
       }));
   }
   const rows = check(
     await s
       .from("announcements")
-      .select("id, body, created_at, announcement_acks(player_id)")
+      .select("id, body, created_at, source, announcement_acks(player_id)")
       .eq("team_id", teamId)
       .order("created_at", { ascending: false })
       .limit(50),
-  ) as { id: string; body: string; created_at: string; announcement_acks: { player_id: string }[] }[];
+  ) as { id: string; body: string; created_at: string; source: string | null; announcement_acks: { player_id: string }[] }[];
   return rows.map(({ announcement_acks, ...a }) => ({ ...a, acks: announcement_acks.map((k) => k.player_id) }));
 });
 
-// Returns the new announcement id. `createdAt` is only for seeding demo data.
-export async function addAnnouncement(teamId: string, body: string, createdAt?: string): Promise<string> {
+// Returns the new announcement id. `source` is a league's name (league messages);
+// `createdAt` is only for seeding demo data.
+export async function addAnnouncement(teamId: string, body: string, createdAt?: string, source: string | null = null): Promise<string> {
   const id = randomUUID();
   const created_at = createdAt ?? new Date().toISOString();
   const s = db();
   if (!s) {
     const data = await readLocal();
-    (data.announcements ??= []).push({ id, team_id: teamId, body, created_at });
+    (data.announcements ??= []).push({ id, team_id: teamId, body, created_at, source });
     await writeLocal(data);
     return id;
   }
-  check(await s.from("announcements").insert({ id, team_id: teamId, body, created_at }));
+  check(await s.from("announcements").insert({ id, team_id: teamId, body, created_at, ...(source ? { source } : {}) }));
   return id;
 }
 

@@ -43,7 +43,7 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
 
         {announcements.length === 0 && (
           <p className="rounded-2xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">
-            No messages from the coach yet.
+            No messages yet.
           </p>
         )}
 
@@ -54,7 +54,7 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
           return (
             <article key={a.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
               <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
-                <span className="font-medium text-zinc-700">Coach</span>
+                <span className="font-medium text-zinc-700">{a.source ? `From ${a.source}` : "Coach"}</span>
                 <span>{formatWhen(a.created_at, tz)}</span>
               </div>
               <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{a.body}</p>

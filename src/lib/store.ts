@@ -66,7 +66,8 @@ export type LocalDb = {
   team_managers?: { team_id: string; manager_id: string; role: "owner" | "manager"; created_at: string }[];
   login_tokens?: { token_hash: string; email: string; expires_at: string; used_at: string | null; created_at: string }[];
   // Messaging (see messages.ts); optional so older local files still load.
-  announcements?: { id: string; team_id: string; body: string; created_at: string }[];
+  announcements?: { id: string; team_id: string; body: string; created_at: string; source?: string | null }[];
+  league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];
   acks?: { announcement_id: string; player_id: string; created_at: string }[];
   chat?: { id: string; team_id: string; author_id: string; body: string; created_at: string }[];
   subs?: PushSubRow[];

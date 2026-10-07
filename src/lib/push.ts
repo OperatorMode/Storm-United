@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { deletePushSub, getPushSubs } from "./messages";
+import { COACH_AUTHOR, deletePushSub, getPushSubs } from "./messages";
 import type { PushSubRow } from "./store";
 
 // Web push. Keys come from env (VAPID_*); without them push is simply off and
@@ -58,6 +58,13 @@ export async function notifyTeam(
     return !except.author || except.author === "coach" || s.author_id !== except.author;
   });
   await Promise.allSettled(subs.map((s) => sendPush(s, { ...payload, tag: `${teamId}-${kind}` })));
+}
+
+/** Notifies only the team's managers: the phones used in Manager's Corner (league messages). */
+export async function notifyManagers(teamId: string, payload: Payload): Promise<void> {
+  if (!ready()) return;
+  const subs = (await getPushSubs(teamId)).filter((s) => s.author_id === COACH_AUTHOR && s.notify_board);
+  await Promise.allSettled(subs.map((s) => sendPush(s, { ...payload, tag: `${teamId}-league` })));
 }
 
 export function preview(text: string, max = 120): string {

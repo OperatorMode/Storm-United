@@ -29,6 +29,7 @@ import { emailEnabled } from "@/lib/email";
 import { competitionLabel, formatDay, getLeagueData, listCompetitions, roundLabel, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { roleByPart, roleTally } from "@/lib/goalies";
+import { leagueMessagesFor } from "@/lib/league-messages";
 import { tally, winners } from "@/lib/mvp";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { now as clockNow } from "@/lib/clock";
@@ -93,6 +94,11 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     teamManagerIds(team.id),
     listCompetitions(),
   ]);
+  // Messages from the league's admin (to everyone, or to managers only), the last 60 days.
+  const comp = team.competition_id ? competitions.find((c) => c.id === team.competition_id) : undefined;
+  const leagueNews = comp
+    ? (await leagueMessagesFor(comp.league_id, comp.id)).filter((m) => clockNow().getTime() - new Date(m.created_at).getTime() < 60 * 24 * 60 * 60 * 1000)
+    : [];
   const [training, duties, dutySignups, rotations] = await Promise.all([
     listTraining(team.id),
     listDuties(team.id),
@@ -220,6 +226,21 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           Team chat
         </Link>
       </div>
+
+      {leagueNews.length > 0 && comp && (
+        <Section title="From the league" aside={comp.league.short_name ?? comp.league.name} open={now.getTime() - new Date(leagueNews[0].created_at).getTime() < 3 * 24 * 60 * 60 * 1000}>
+          <ul className="space-y-3 text-sm">
+            {leagueNews.map((m) => (
+              <li key={m.id}>
+                <div className="text-xs text-zinc-500">
+                  {formatDay(new Date(m.created_at), tz)} · {m.audience === "all" ? "To everyone (also on the Board)" : "To team managers"}
+                </div>
+                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       <Section title="Game rotation" aside="Fair playing time">
         <RotationAdmin
