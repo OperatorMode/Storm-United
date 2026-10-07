@@ -1,5 +1,6 @@
 "use server";
 import { redirect, RedirectType } from "next/navigation";
+import { gameParts, isSlot, slotFrom, slotParts } from "@/lib/role";
 import { deletePushSub } from "@/lib/messages";
 import { listTraining } from "@/lib/training";
 import { listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
@@ -63,8 +64,12 @@ export async function updateAttendance(
   if (!children.includes(voter)) return { error: "That’s not your child." };
   if ("status" in change && !["yes", "no", "maybe"].includes(change.status)) return { error: "Invalid status." };
   if ("goalie" in change) {
-    if (!team.goalie_enabled) return { error: "Goalie sign-up is off for this team." };
-    if (change.goalie !== null && !["1st", "2nd", "full"].includes(change.goalie)) return { error: "Invalid goalie choice." };
+    if (!team.goalie_enabled) return { error: "Role sign-up is off for this team." };
+    if (change.goalie !== null) {
+      if (!isSlot(change.goalie)) return { error: "Invalid choice." };
+      const { count } = gameParts(team);
+      change = { goalie: slotFrom(slotParts(change.goalie, count), count) }; // tidy: "1,2" of 2 halves = "full"
+    }
   }
   const game = await findGame(team, gameId);
   if (!game) return { error: "Game not found." };

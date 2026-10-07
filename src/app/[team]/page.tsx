@@ -1,5 +1,5 @@
 import { Card } from "@/components/Card";
-import { roleName } from "@/lib/role";
+import { gameParts, roleName, slotLabel, type GameParts } from "@/lib/role";
 import { OfficialLadderTable } from "@/components/OfficialLadderTable";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ChildrenPicker } from "@/components/ChildrenPicker";
@@ -42,7 +42,7 @@ import { TabBar } from "@/components/TabBar";
 import { tabData } from "@/lib/tabs";
 import { firstName, getTeam, playerName, type Team } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
-import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
+import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
 import { canView, currentChildren, isPlayerSelf } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
@@ -131,13 +131,14 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                     playerId={child}
                     goalieEnabled={team.goalie_enabled}
                     roleName={roleName(team)}
+                    gameParts={gameParts(team)}
                     gameId={next.id}
                     status={statusOf(next.id, child)}
                     goalie={rowOf(next.id, child)?.goalie ?? null}
                   />
                 </div>
               ))}
-            <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={children} role={roleName(team)} />
+            <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={children} role={roleName(team)} parts={gameParts(team)} />
           </Card>
         )}
 
@@ -451,7 +452,6 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = { yes: "Can play", maybe: "Maybe", no: "Can't make it" };
-const GOALIE_LABEL: Record<GoalieHalf, string> = { "1st": "1st", "2nd": "2nd", full: "FT" };
 const STATUS_DOT: Record<AttendanceStatus | "none", string> = {
   yes: "bg-emerald-500",
   maybe: "bg-amber-400",
@@ -465,12 +465,14 @@ function AttendanceList({
   attendance,
   highlight,
   role,
+  parts,
 }: {
   players: { id: string; name: string }[];
   gameId: string;
   attendance: AttendanceRow[];
   highlight: string[];
   role: string;
+  parts: GameParts;
 }) {
   const rows = players.map((p) => {
     const row = attendance.find((a) => a.game_id === gameId && a.player_id === p.id);
@@ -492,7 +494,7 @@ function AttendanceList({
             <span className={`truncate ${status === "no" ? "text-zinc-400 line-through" : ""}`}>{player.name}</span>
             {goalie && (
               <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700">
-                {role}: {GOALIE_LABEL[goalie]}
+                {role}: {slotLabel(goalie, parts)}
               </span>
             )}
           </li>
@@ -588,6 +590,7 @@ function Fixtures({
                       playerId={child}
                       goalieEnabled={team.goalie_enabled}
                     roleName={roleName(team)}
+                    gameParts={gameParts(team)}
                       gameId={game.id}
                       status={rowFor(child)?.status ?? null}
                       goalie={rowFor(child)?.goalie ?? null}

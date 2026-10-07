@@ -67,6 +67,8 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
                 meet_minutes: editing.meet_minutes,
                 goalie_enabled: editing.goalie_enabled,
                 role_name: editing.role_name ?? null,
+                game_parts: editing.game_parts ?? 2,
+                part_name: editing.part_name ?? "Half",
               }
             }
           />

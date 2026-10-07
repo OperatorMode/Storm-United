@@ -1,5 +1,6 @@
 // Fair playing time: who's on, who rests, for each stretch of the game. Pure
 // functions only, so the coach's screen can rebuild the plan instantly.
+import { partLabel, type GameParts } from "./role";
 //
 // A game is split into blocks: each half (or quarter) is cut every `swapEvery`
 // minutes, e.g. 2 × 20-minute halves swapping every 10 minutes = 4 blocks.
@@ -11,7 +12,8 @@ export type RotationPlan = {
   spots: Record<string, Spot[]>; // player id -> one spot per block
   minutes?: number[]; // length of each block (older plans: 1 per block)
   labels?: string[]; // e.g. "1st 0'", "1st 10'"
-  half?: ("1st" | "2nd")[]; // which half each block is in (for goalies)
+  half?: ("1st" | "2nd")[]; // older plans: which half each block is in
+  part?: number[]; // which part of the game (team's halves, quarters, innings) each block is in
   shape?: GameShape; // how the game was split (to offer the same next time)
   goaliesStayOn?: boolean; // goalies play the whole game: never rested in their outfield half
 };
@@ -25,21 +27,30 @@ const PART_NAMES: Record<number, string[]> = {
   4: ["Q1", "Q2", "Q3", "Q4"],
 };
 
-/** The blocks of a game: their lengths, labels and halves. */
-export function blocksOf({ parts, partMinutes, swapEvery }: GameShape) {
+/**
+ * The blocks of a game: their lengths, labels, and which of the team's game
+ * parts (`gp`: halves, quarters, innings) each falls in, so the special role
+ * (goalie...) can be placed. Without `gp`, a game is two halves.
+ */
+export function blocksOf({ parts, partMinutes, swapEvery }: GameShape, gp?: GameParts) {
   const step = swapEvery > 0 ? Math.min(swapEvery, partMinutes) : partMinutes;
+  const roleParts = gp?.count ?? 2;
+  const total = parts * partMinutes;
   const minutes: number[] = [];
   const labels: string[] = [];
-  const half: ("1st" | "2nd")[] = [];
+  const part: number[] = [];
   for (let p = 0; p < parts; p++) {
     for (let start = 0; start < partMinutes; start += step) {
-      minutes.push(Math.min(step, partMinutes - start));
-      const name = (PART_NAMES[parts] ?? [])[p] ?? `P${p + 1}`;
-      labels.push(`${name}${name ? " " : ""}${start}'`);
-      half.push(parts === 1 ? (start < partMinutes / 2 ? "1st" : "2nd") : p < parts / 2 ? "1st" : "2nd");
+      const len = Math.min(step, partMinutes - start);
+      minutes.push(len);
+      const name = gp && gp.count === parts ? partLabel(p, gp, true) : ((PART_NAMES[parts] ?? [])[p] ?? `P${p + 1}`);
+      labels.push(`${name === "Game" ? "" : name}${name && name !== "Game" ? " " : ""}${start}'`);
+      // The role part this block's middle falls in.
+      const mid = (p * partMinutes + start + len / 2) / Math.max(1, total);
+      part.push(Math.min(roleParts - 1, Math.floor(mid * roleParts)));
     }
   }
-  return { minutes, labels, half };
+  return { minutes, labels, part };
 }
 
 /**
@@ -53,17 +64,18 @@ export function buildRotation(opts: {
   players: string[]; // available, in squad order
   shape: GameShape;
   onField: number;
-  goalies: { first: string | null; second: string | null };
+  goalies: (string | null)[]; // who has the special role in each of the team's game parts
+  gameParts?: GameParts;
   restedSoFar: Record<string, number>; // minutes rested this season, before this game
   goaliesStayOn?: boolean; // goalies play the full game: no rest when they're in the field
 }): RotationPlan {
   const { players, onField, goalies } = opts;
   // Goalies who play the whole game never rest, so the others share it all.
-  const stayOn = new Set(opts.goaliesStayOn ? [goalies.first, goalies.second].filter((g): g is string => !!g && players.includes(g)) : []);
+  const stayOn = new Set(opts.goaliesStayOn ? goalies.filter((g): g is string => !!g && players.includes(g)) : []);
   const sharers = players.filter((p) => !stayOn.has(p));
-  const { minutes, labels, half } = blocksOf(opts.shape);
+  const { minutes, labels, part } = blocksOf(opts.shape, opts.gameParts);
   const keeperOf = (i: number) => {
-    const k = half[i] === "1st" ? goalies.first : goalies.second;
+    const k = goalies[part[i]] ?? null;
     return k && players.includes(k) ? k : null;
   };
   const restCountOf = (i: number) => {
@@ -93,7 +105,7 @@ export function buildRotation(opts: {
     for (const p of resting) rested[p] += len;
     lastRested = resting;
   });
-  return { periods: minutes.length, onField, spots, minutes, labels, half, shape: opts.shape, goaliesStayOn: !!opts.goaliesStayOn };
+  return { periods: minutes.length, onField, spots, minutes, labels, part, shape: opts.shape, goaliesStayOn: !!opts.goaliesStayOn };
 }
 
 /** Minutes each player played / rested across saved plans. */

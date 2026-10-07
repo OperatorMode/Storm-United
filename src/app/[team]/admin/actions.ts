@@ -14,7 +14,8 @@ import { releaseDuty, saveDuties, takeDuty } from "@/lib/duties";
 import { saveRotation } from "@/lib/rotation";
 import type { RotationPlan } from "@/lib/rotation-plan";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
-import { goalieSlot } from "@/lib/goalies";
+import { slotForPlayer } from "@/lib/goalies";
+import { gameParts, PART_PRESETS } from "@/lib/role";
 import { findSquad, squadFromLink, type SquadResult } from "@/lib/squad";
 import { mergePlayer } from "@/lib/merge";
 import { MANAGER_COOKIE, SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
@@ -48,10 +49,12 @@ export async function saveManualScore(teamId: string, gameId: string, home: stri
 
 // The coach's pick is final: whoever is chosen for each half gets that slot
 // (and is marked as playing); every other goalie tick for the game is cleared.
-export async function setGameGoalies(teamId: string, gameId: string, first: string | null, second: string | null) {
+// The coach's picks for the special role (goalie...): one player (or none) per game part.
+export async function setGameGoalies(teamId: string, gameId: string, assigned: (string | null)[]) {
   const team = await adminTeam(teamId);
   if (!team) return { error: "Not authorised." };
-  if ((first && !isActivePlayer(team, first)) || (second && !isActivePlayer(team, second))) {
+  const { count } = gameParts(team);
+  if (assigned.length !== count || assigned.some((id) => id && !isActivePlayer(team, id))) {
     return { error: "Unknown player." };
   }
   const { ourGames } = await getLeagueData(team);
@@ -60,7 +63,7 @@ export async function setGameGoalies(teamId: string, gameId: string, first: stri
   const rows = (await getAttendance(team.id)).filter((a) => a.game_id === gameId);
   for (const p of team.players) {
     const existing = rows.find((r) => r.player_id === p.id);
-    const goalie = goalieSlot(p.id, first, second);
+    const goalie = slotForPlayer(p.id, assigned, count);
     if ((existing?.goalie ?? null) === goalie && (!goalie || existing?.status === "yes")) continue;
     await setAttendance(team.id, {
       game_id: gameId,
@@ -98,6 +101,8 @@ export async function saveTeamSettings(teamId: string, _: unknown, formData: For
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
     role_name: String(formData.get("role_name") ?? "").trim().slice(0, 30) || null,
+    game_parts: Math.min(12, Math.max(1, Number(formData.get("game_parts")) || 2)),
+    part_name: PART_PRESETS.some((p) => p.name === formData.get("part_name")) ? String(formData.get("part_name")) : "Half",
     ...join,
   });
   await savePlayers(team.id, players);

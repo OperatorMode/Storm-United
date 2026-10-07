@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { roleInText, roleName, rolePlural } from "@/lib/role";
+import { gameParts, partLabel, partPlural, roleInText, roleName, rolePlural, slotLabel } from "@/lib/role";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -28,7 +28,7 @@ import { AddToMyTeams } from "./AccountLink";
 import { emailEnabled } from "@/lib/email";
 import { competitionLabel, formatDay, getLeagueData, listCompetitions, roundLabel, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
-import { goaliesForGame, goalieTally } from "@/lib/goalies";
+import { roleByPart, roleTally } from "@/lib/goalies";
 import { tally, winners } from "@/lib/mvp";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { now as clockNow } from "@/lib/clock";
@@ -130,10 +130,10 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
   // Tallies include players who have since left the squad, so history isn't lost.
   const everyone = team.allPlayers.map((p) => p.id);
 
-  const goalieRows = goalieTally(attendance, played, everyone).filter(
-    (r) => r.halves > 0 || team.players.some((p) => p.id === r.playerId),
+  const gp = gameParts(team); // how games are split: halves, quarters, innings...
+  const goalieRows = roleTally(attendance, played, everyone, gp.count).filter(
+    (r) => r.parts > 0 || team.players.some((p) => p.id === r.playerId),
   );
-  const SLOT = { "1st": "1st", "2nd": "2nd", full: "FT" } as const;
 
   // This season = the current competition's games; votes from earlier seasons are history.
   const seasonGames = new Set(ourGames.map((g) => g.id));
@@ -224,11 +224,12 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
       <Section title="Game rotation" aside="Fair playing time">
         <RotationAdmin
           role={team.goalie_enabled ? role : null}
+          gameParts={gp}
           teamId={team.id}
           players={team.players}
           allSaved={seasonRotations}
           defaults={{
-            shape: lastPlan?.shape ?? { parts: 2, partMinutes: 20, swapEvery: 10 },
+            shape: lastPlan?.shape ?? { parts: gp.count, partMinutes: gp.count >= 4 ? 10 : 20, swapEvery: gp.count >= 4 ? 0 : 10 },
             onField: lastPlan?.onField ?? 6,
             goaliesStayOn: lastPlan?.goaliesStayOn ?? false,
           }}
@@ -238,12 +239,12 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             .map((g) => {
               // Everyone except those who said they can't make it.
               const out = attendance.filter((a) => a.game_id === g.id && a.status === "no").map((a) => a.player_id);
-              const { first, second } = goaliesForGame(attendance, g.id);
+              const byPart = roleByPart(attendance, g.id, gp.count);
               return {
                 id: g.id,
                 label: `${formatDay(g.kickoff, tz)} · ${g.home === us ? "vs" : "@"} ${opponent(g, us)}`,
                 available: team.players.map((p) => p.id).filter((id) => !out.includes(id)),
-                goalies: { first: first[0] ?? null, second: second[0] ?? null },
+                goalies: byPart.map((ids) => ids[0] ?? null),
                 saved: seasonRotations[g.id] ?? null,
               };
             })}
@@ -258,24 +259,25 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           const assign = (games: typeof ourGames) => (
             <ul className="space-y-4">
               {games.map((g) => {
-                const { first, second } = goaliesForGame(attendance, g.id);
-                const clash = first.length > 1 || second.length > 1;
+                const byPart = roleByPart(attendance, g.id, gp.count);
+                const clashes = byPart.flatMap((ids, p) => (ids.length > 1 ? [`${partLabel(p, gp, true)}: ${ids.map((id) => firstName(nameOf(id))).join(", ")}`] : []));
                 const players = team.players.map((p) => ({
                   ...p,
                   out: attendance.some((a) => a.game_id === g.id && a.player_id === p.id && a.status === "no"),
                 }));
-                const names = (ids: string[]) => ids.map((id) => firstName(nameOf(id))).join(", ") || "none";
                 return (
                   <li key={g.id}>
                     <div className="mb-1 text-xs text-zinc-500">
                       {roundLabel(g)} vs {opponent(g, us)} · {formatDay(g.kickoff, tz)}
                     </div>
-                    <GoalieAssign teamId={team.id} gameId={g.id} players={players} first={first[0] ?? null} second={second[0] ?? null} />
-                    {clash && (
-                      <div className="mt-1 text-xs text-amber-700">
-                        Several volunteers. 1st: {names(first)} · 2nd: {names(second)}
-                      </div>
-                    )}
+                    <GoalieAssign
+                      teamId={team.id}
+                      gameId={g.id}
+                      players={players}
+                      assigned={byPart.map((ids) => ids[0] ?? null)}
+                      partNames={byPart.map((_, p) => partLabel(p, gp))}
+                    />
+                    {clashes.length > 0 && <div className="mt-1 text-xs text-amber-700">Several volunteers. {clashes.join(" · ")}</div>}
                   </li>
                 );
               })}
@@ -291,8 +293,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 </details>
               )}
               <details className="mt-3 border-t border-zinc-100 pt-3 text-sm">
-                <summary className="cursor-pointer text-zinc-600">{role} tally (halves as {roleInText(role)})</summary>
-                {goalieRows.every((r) => r.halves === 0) ? (
+                <summary className="cursor-pointer text-zinc-600">{role} tally ({partPlural(gp)} as {roleInText(role)})</summary>
+                {goalieRows.every((r) => r.parts === 0) ? (
                   <p className="mt-2 text-zinc-500">No {roleInText(rolePlural(role))} recorded for played games yet.</p>
                 ) : (
                   <table className="mt-2 w-full tabular-nums">
@@ -301,9 +303,9 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                         <tr key={r.playerId} className="border-t border-zinc-100 align-top">
                           <td className="py-1.5 pr-2">{nameOf(r.playerId)}</td>
                           <td className="py-1.5 text-xs text-zinc-600">
-                            {r.games.length ? r.games.map((g) => `Rd ${g.round} ${SLOT[g.goalie]}`).join(" · ") : "-"}
+                            {r.games.length ? r.games.map((g) => `Rd ${g.round} ${slotLabel(g.slot, gp)}`).join(" · ") : "-"}
                           </td>
-                          <td className="py-1.5 text-right font-semibold">{r.halves}</td>
+                          <td className="py-1.5 text-right font-semibold">{r.parts}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -440,6 +442,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           meetMinutes={team.meet_minutes}
           goalieEnabled={team.goalie_enabled}
           roleName={team.role_name ?? null}
+          gameParts={gp.count}
+          partName={gp.name}
         />
       </Section>
 

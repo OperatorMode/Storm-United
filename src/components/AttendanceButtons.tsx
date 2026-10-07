@@ -3,7 +3,7 @@
 import { useOptimistic, useState, useTransition } from "react";
 import { updateAttendance } from "@/app/[team]/actions";
 import type { AttendanceStatus, GoalieHalf } from "@/lib/store";
-import { roleInText } from "@/lib/role";
+import { partLabel, roleInText, slotFrom, slotParts, type GameParts } from "@/lib/role";
 
 const OPTIONS: { value: AttendanceStatus; label: string; on: string }[] = [
   { value: "yes", label: "Can play", on: "bg-emerald-600 text-white border-emerald-600" },
@@ -11,11 +11,6 @@ const OPTIONS: { value: AttendanceStatus; label: string; on: string }[] = [
   { value: "no", label: "Can't make it", on: "bg-zinc-900 text-white border-zinc-900" },
 ];
 
-const GOALIE_OPTIONS: { value: GoalieHalf; label: string }[] = [
-  { value: "1st", label: "1st Half" },
-  { value: "2nd", label: "2nd Half" },
-  { value: "full", label: "Full Game" },
-];
 
 type State = { status: AttendanceStatus | null; goalie: GoalieHalf | null };
 
@@ -26,6 +21,7 @@ export function AttendanceButtons({
   goalie,
   goalieEnabled,
   roleName = "Goalie",
+  gameParts = { count: 2, name: "Half" },
   playerId,
 }: {
   teamId: string;
@@ -33,6 +29,7 @@ export function AttendanceButtons({
   gameId: string;
   goalieEnabled: boolean;
   roleName?: string; // the team's special role, e.g. "Goalie" or "Catcher"
+  gameParts?: GameParts; // how the team's games are split (halves, quarters, innings)
   status: AttendanceStatus | null;
   goalie: GoalieHalf | null;
 }) {
@@ -44,6 +41,8 @@ export function AttendanceButtons({
       : { status: change.status ?? s.status, goalie: change.status === "no" ? null : s.goalie },
   );
   const [error, setError] = useState<string | null>(null);
+  const mine = slotParts(state.goalie, gameParts.count); // the parts ticked
+  const whole = mine.length === gameParts.count;
   const [, start] = useTransition();
 
   function save(change: { status: AttendanceStatus } | { goalie: GoalieHalf | null }) {
@@ -74,26 +73,29 @@ export function AttendanceButtons({
       {goalieEnabled && state.status !== "no" && (
         <fieldset className="mt-3">
           <legend className="mb-1.5 text-xs font-medium text-zinc-500">Happy to be {roleInText(roleName)}</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {GOALIE_OPTIONS.map((o) => {
-              const checked = state.goalie === o.value;
-              return (
-                <label
-                  key={o.value}
-                  className={`flex cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-2 text-sm transition ${
-                    checked ? "border-zinc-900 bg-zinc-50 font-medium" : "border-zinc-300 bg-white text-zinc-700"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => save({ goalie: checked ? null : o.value })}
-                    className="size-4 accent-zinc-900"
-                  />
-                  {o.label}
-                </label>
-              );
-            })}
+          <div className={`grid gap-2 ${gameParts.count === 3 || gameParts.count > 4 ? "grid-cols-3" : "grid-cols-2"}`}>
+            {[
+              // One box per part of the game (several can be ticked), then the whole game.
+              ...(gameParts.count > 1
+                ? Array.from({ length: gameParts.count }, (_, p) => ({
+                    key: String(p),
+                    label: partLabel(p, gameParts),
+                    checked: mine.includes(p),
+                    next: () => slotFrom(mine.includes(p) ? mine.filter((x) => x !== p) : [...mine, p], gameParts.count),
+                  }))
+                : []),
+              { key: "full", label: "Whole game", checked: whole, next: () => (whole ? null : "full") },
+            ].map((o) => (
+              <label
+                key={o.key}
+                className={`flex cursor-pointer items-center gap-2 rounded-xl border px-2.5 py-2 text-sm transition ${o.key === "full" ? "col-span-full" : ""} ${
+                  o.checked ? "border-zinc-900 bg-zinc-50 font-medium" : "border-zinc-300 bg-white text-zinc-700"
+                }`}
+              >
+                <input type="checkbox" checked={o.checked} onChange={() => save({ goalie: o.next() })} className="size-4 accent-zinc-900" />
+                <span className="truncate">{o.label}</span>
+              </label>
+            ))}
           </div>
         </fieldset>
       )}

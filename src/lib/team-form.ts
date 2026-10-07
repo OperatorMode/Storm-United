@@ -2,6 +2,7 @@ import { deleteTeam, getTeamRow, listTeams, savePlayers, upsertTeam, uploadLogo,
 import { competitionTeams, getCompetition } from "./league";
 import { getTeam, hashSecret, joinCodeFields, mergePlayers, slugify } from "./teams";
 import { isHexColor } from "./theme";
+import { PART_PRESETS } from "./role";
 
 // Saving a team from the team form, shared by the super admin (/super) and
 // managers (self-serve). Permission checks happen in the calling action.
@@ -77,6 +78,8 @@ export async function applyTeamForm(formData: FormData, opts: TeamFormOptions): 
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
     role_name: get("role_name").slice(0, 30) || null,
+    game_parts: Math.min(12, Math.max(1, Number(formData.get("game_parts")) || 2)),
+    part_name: PART_PRESETS.some((p) => p.name === formData.get("part_name")) ? String(formData.get("part_name")) : "Half",
   };
   await upsertTeam(row);
   await savePlayers(id, players);

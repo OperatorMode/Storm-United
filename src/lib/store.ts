@@ -11,7 +11,8 @@ import path from "path";
 
 export type AttendanceStatus = "yes" | "no" | "maybe";
 // Which half a player has volunteered to keep goal ("full" = whole game).
-export type GoalieHalf = "1st" | "2nd" | "full";
+// A special-role sign-up: "full", or part numbers like "1,4" (older rows: "1st"/"2nd"). See role.ts.
+export type GoalieHalf = string;
 export type AttendanceRow = {
   game_id: string;
   player_id: string;
@@ -42,6 +43,8 @@ export type TeamRow = {
   meet_minutes: number;
   goalie_enabled: boolean; // the special role (see role.ts) is on
   role_name?: string | null; // its name; null = "Goalie". Migration 013.
+  game_parts?: number | null; // how a game is split: 2 halves, 4 quarters, 9 innings... Migration 014.
+  part_name?: string | null; // "Half", "Quarter", "Period", "Inning", "Set", "Game"
 };
 export type PlayerRow = { id: string; name: string; sort: number; active: boolean };
 
@@ -231,7 +234,7 @@ const strip = <T extends { team_id: string }>({ team_id: _, ...rest }: T) => res
 // ---------- teams & players ----------
 
 const TEAM_COLS =
-  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled, role_name";
+  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled, role_name, game_parts, part_name";
 
 export async function listTeams(): Promise<TeamRow[]> {
   const s = db();

@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from "react";
 import { findTeamSquad, saveTeamSettings, teamSquadFromLink } from "./actions";
 import { SquadStatus, useSquadFinder } from "@/components/SquadFinder";
 import { RoleField } from "@/components/RoleField";
+import { PartsField } from "@/components/PartsField";
 
 export function TeamSettings({
   teamId,
@@ -12,6 +13,8 @@ export function TeamSettings({
   meetMinutes,
   goalieEnabled,
   roleName,
+  gameParts,
+  partName,
 }: {
   teamId: string;
   players: string;
@@ -19,6 +22,8 @@ export function TeamSettings({
   meetMinutes: number;
   goalieEnabled: boolean;
   roleName: string | null;
+  gameParts: number;
+  partName: string;
 }) {
   const [state, action, pending] = useActionState(saveTeamSettings.bind(null, teamId), null);
   const field = "w-full rounded-xl border border-zinc-300 px-3 py-2 text-base";
@@ -76,6 +81,7 @@ export function TeamSettings({
         </span>
       </label>
 
+      <PartsField count={gameParts} name={partName} />
       <RoleField enabled={goalieEnabled} name={roleName} />
 
       <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white">

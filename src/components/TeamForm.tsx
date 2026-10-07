@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { CompetitionPicker } from "./CompetitionPicker";
 import { SquadStatus, useSquadFinder } from "./SquadFinder";
 import { RoleField } from "./RoleField";
+import { PartsField } from "./PartsField";
 import { drawTeams, findSquadAction, squadFromLinkAction } from "@/app/competition-actions";
 
 export type TeamFormValues = {
@@ -20,6 +21,8 @@ export type TeamFormValues = {
   meet_minutes: number;
   goalie_enabled: boolean;
   role_name: string | null;
+  game_parts: number;
+  part_name: string;
 };
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
@@ -195,6 +198,7 @@ export function TeamForm({
           <span className="text-zinc-600">min meet before KO</span>
         </label>
       </div>
+      <PartsField count={initial?.game_parts ?? 2} name={initial?.part_name ?? "Half"} />
       <RoleField enabled={initial?.goalie_enabled ?? false} name={initial?.role_name ?? null} compact />
 
       <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white">

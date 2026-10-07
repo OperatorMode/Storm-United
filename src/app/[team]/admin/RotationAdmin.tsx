@@ -2,23 +2,23 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { saveGameRotation } from "./actions";
-import { roleInText, rolePlural } from "@/lib/role";
+import { partPlural, roleInText, rolePlural, type GameParts } from "@/lib/role";
 import { blocksOf, buildRotation, seasonTotals, type GameShape, type RotationPlan, type Spot } from "@/lib/rotation-plan";
 
 type GameInfo = {
   id: string;
   label: string;
   available: string[]; // everyone who hasn't said they can't make it
-  goalies: { first: string | null; second: string | null };
+  goalies: (string | null)[]; // who has the special role in each of the team's game parts
   saved: RotationPlan | null;
 };
 
-const PARTS = [
+const PARTS: [number, string][] = [
   [2, "Halves"],
   [4, "Quarters"],
   [3, "Thirds"],
   [1, "One period"],
-] as const;
+];
 const NEXT: Record<Spot, Spot> = { on: "rest", rest: "gk", gk: "on" };
 const CELL: Record<Spot, string> = {
   on: "bg-emerald-600 text-white",
@@ -26,6 +26,8 @@ const CELL: Record<Spot, string> = {
   gk: "bg-amber-400 text-zinc-900",
 };
 const CELL_LABEL: Record<Spot, string> = { on: "On", rest: "Rest", gk: "GK" };
+// The role's cell: "GK" for a goalie, otherwise the role's first letters ("Cat").
+const roleCell = (role: string | null) => (!role || /^goal/i.test(role) ? "GK" : role.slice(0, 3));
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 
 // Manager's Corner: a fair rotation for a game. The game is split into blocks
@@ -37,8 +39,10 @@ export function RotationAdmin({
   allSaved,
   defaults,
   role,
+  gameParts,
 }: {
   role: string | null; // the team's special role (goalie...), when it has one
+  gameParts: GameParts; // how the team's games are split
   teamId: string;
   players: { id: string; name: string }[];
   games: GameInfo[];
@@ -64,7 +68,11 @@ export function RotationAdmin({
     return Object.fromEntries(Object.entries(totals).map(([id, t]) => [id, t.rested]));
   }, [saved, gameId]);
   const season = useMemo(() => seasonTotals(Object.values(saved)), [saved]);
-  const blocks = blocksOf(shape);
+  const blocks = blocksOf(shape, gameParts);
+  // The team's own split (e.g. 9 innings) is offered too.
+  const partOptions: [number, string][] = PARTS.some(([n]) => n === gameParts.count)
+    ? PARTS
+    : [[gameParts.count, partPlural(gameParts).replace(/^./, (c) => c.toUpperCase())], ...PARTS];
 
   const pickGame = (id: string) => {
     const g = games.find((x) => x.id === id);
@@ -81,7 +89,7 @@ export function RotationAdmin({
   const make = () => {
     if (!game) return;
     const ordered = players.map((p) => p.id).filter((id) => available.includes(id));
-    setPlan(buildRotation({ players: ordered, shape, onField, goalies: game.goalies, restedSoFar, goaliesStayOn }));
+    setPlan(buildRotation({ players: ordered, shape, onField, goalies: game.goalies, gameParts, restedSoFar, goaliesStayOn }));
     setMsg(null);
   };
 
@@ -117,7 +125,7 @@ export function RotationAdmin({
         <label className="block">
           <span className="mb-1 block font-medium">Played in</span>
           <select value={shape.parts} onChange={(e) => setShape({ ...shape, parts: Number(e.target.value) })} className={field}>
-            {PARTS.map(([n, label]) => (
+            {partOptions.map(([n, label]) => (
               <option key={n} value={n}>
                 {label}
               </option>
@@ -161,8 +169,8 @@ export function RotationAdmin({
           <span>
             <span className="block font-medium">{rolePlural(role)} play the full game</span>
             <span className="block text-xs text-zinc-500">
-              {game?.goalies.first || game?.goalies.second
-                ? `Whoever is ${roleInText(role)} for a half isn’t rested in the other half either.`
+              {game?.goalies.some(Boolean)
+                ? `Whoever is ${roleInText(role)} for part of the game isn’t rested in the rest of it either.`
                 : `No ${roleInText(rolePlural(role))} assigned for this game yet (see ${rolePlural(role)}).`}
             </span>
           </span>
@@ -214,7 +222,7 @@ export function RotationAdmin({
                     {plan.spots[p].map((s, i) => (
                       <td key={i} className="px-0.5 py-0.5">
                         <button type="button" onClick={() => cycle(p, i)} className={`w-full min-w-9 rounded-md py-1.5 font-semibold ${CELL[s]}`}>
-                          {CELL_LABEL[s]}
+                          {s === "gk" ? roleCell(role) : CELL_LABEL[s]}
                         </button>
                       </td>
                     ))}
