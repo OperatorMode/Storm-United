@@ -291,15 +291,22 @@ export function embeddedPlatformUrl(html: string, pageUrl: string): string | nul
 }
 
 /** The page's HTML after its JavaScript has run. */
-export async function renderPage(url: string): Promise<string> {
+/** The page's HTML once a real browser has run its JavaScript. `settleMs`
+ *  waits a little longer for pages that keep loading after they look done. */
+export async function renderPage(url: string, settleMs = 0): Promise<string> {
   const token = process.env.BROWSERLESS_TOKEN;
   if (!token) throw new Error("Page rendering isn’t switched on.");
   const base = process.env.BROWSERLESS_URL ?? "https://production-sfo.browserless.io";
   const res = await fetch(`${base}/content?token=${encodeURIComponent(token)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, gotoOptions: { waitUntil: "networkidle2", timeout: 40_000 }, bestAttempt: true }),
-    signal: AbortSignal.timeout(55_000),
+    body: JSON.stringify({
+      url,
+      gotoOptions: { waitUntil: "networkidle2", timeout: 40_000 },
+      ...(settleMs ? { waitForTimeout: settleMs } : {}),
+      bestAttempt: true,
+    }),
+    signal: AbortSignal.timeout(55_000 + settleMs),
   });
   if (!res.ok) throw new Error(`The page couldn’t be opened for reading (${res.status}). Try again later.`);
   return res.text();
@@ -346,11 +353,11 @@ export function guessFeedType(url: string): FeedType {
 // `previousHash` lets an unchanged page skip the (paid) AI read.
 /** A page as a browser shows it, following a schedule window that its
  *  JavaScript adds (invisible to a plain read, e.g. wnbl.com.au/games). */
-export async function renderFollowingFrames(url: string): Promise<{ url: string; html: string }> {
-  const html = await renderPage(url);
+export async function renderFollowingFrames(url: string, settleMs = 0): Promise<{ url: string; html: string }> {
+  const html = await renderPage(url, settleMs);
   const inner = embeddedPlatformUrl(html, url);
   if (!inner || inner === url) return { url, html };
-  return { url: inner, html: await renderPage(inner).catch(() => html) };
+  return { url: inner, html: await renderPage(inner, settleMs).catch(() => html) };
 }
 
 export async function readFeed(
@@ -387,9 +394,10 @@ export async function readFeed(
   if (previousHash && hash === previousHash) return { type: "web", fixtures: [], errors: [], hash, unchanged: true };
   if (pageText.length < 40) throw new Error(noGamesMessage(url, text));
   let read = await fixturesFromWebPage(pageText, target, feed.filter, tz);
-  // Nothing on the plain page: try once more as a browser sees it.
-  if (!read.fixtures.length && !rendered && canRenderPages()) {
-    const page = await renderFollowingFrames(url);
+  // Nothing found: try once more as a browser sees it, giving the page extra
+  // time if it was already opened (schedules that load their games late).
+  if (!read.fixtures.length && canRenderPages()) {
+    const page = await renderFollowingFrames(url, rendered ? 8_000 : 0);
     pageText = focusOn(htmlToText(page.html), feed.filter);
     read = await fixturesFromWebPage(pageText, page.url, feed.filter, tz);
   }

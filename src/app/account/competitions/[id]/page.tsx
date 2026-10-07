@@ -141,7 +141,15 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           )}
         </div>
 
-        {isNew ? (
+        {isNew && fixtures.length === 0 ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center text-sm text-amber-900">
+            <div className="text-xl font-bold">Almost there</div>
+            <p className="mt-1">
+              {competition.name} is set up and linked to {source}, but no games came through on the first read. Big
+              schedules sometimes take a second try: press <b>Check for updates now</b> below.
+            </p>
+          </div>
+        ) : isNew ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center text-sm text-emerald-900">
             <div className="text-2xl font-bold">All done</div>
             <p className="mt-1">

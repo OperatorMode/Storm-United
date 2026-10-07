@@ -122,6 +122,14 @@ function ladderLink(html: string, pageUrl: string): string | null {
   return null;
 }
 
+/** The ladder link from the site's home page, when the pasted page (e.g. "Games") has none. */
+async function siteHomeLadder(pageUrl: string): Promise<string | null> {
+  const origin = new URL(pageUrl).origin;
+  if (`${origin}/` === pageUrl || origin === pageUrl) return null;
+  const html = await fetchText(origin).catch(() => null);
+  return html ? ladderLink(html, origin) : null;
+}
+
 async function aiScan(text: string, url: string) {
   const client = new Anthropic();
   const response = await client.beta.messages.parse({
@@ -225,7 +233,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
     venue: scan.venue,
     timezone: scan.timezone && isTimezone(scan.timezone) ? scan.timezone : null,
     ladderStyle: scan.rankedByWins ? "wins" : "points",
-    ladderUrl: ladderLink(home.html, home.url) ?? (page === home ? null : ladderLink(page.html, page.url)),
+    ladderUrl: ladderLink(home.html, home.url) ?? (await siteHomeLadder(home.url)),
     competitions: scan.competitions.filter((c) => c.games > 0),
     note: scan.competitions.some((c) => c.games > 0) ? null : (scan.note ?? "No fixtures found at that link."),
   };
