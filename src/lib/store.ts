@@ -123,6 +123,10 @@ export type CompetitionRow = {
   feed_hash?: string | null;
   // 'wins': ranked by wins and losses (basketball); else by points. Migration 011.
   ladder_style?: "points" | "wins" | null;
+  // A linked league's own ladder page, and the table read from it. Migration 012.
+  ladder_url?: string | null;
+  ladder_table?: import("./feeds").OfficialLadder | null;
+  ladder_hash?: string | null;
 };
 
 export type PushSubRow = {
@@ -243,7 +247,7 @@ export async function getTeamRow(id: string): Promise<TeamRow | null> {
 // ---------- leagues & competitions ----------
 
 const COMPETITION_COLS =
-  "id, league_id, name, season, kind, source_key, points_win, points_draw, ladder_last_round, finals_date, finals_note, feed_type, feed_url, feed_filter, feed_team, feed_synced_at, feed_error, feed_hash, ladder_style";
+  "id, league_id, name, season, kind, source_key, points_win, points_draw, ladder_last_round, finals_date, finals_note, feed_type, feed_url, feed_filter, feed_team, feed_synced_at, feed_error, feed_hash, ladder_style, ladder_url, ladder_table";
 
 export async function listLeagues(): Promise<LeagueRow[]> {
   const s = db();

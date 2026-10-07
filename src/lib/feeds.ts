@@ -411,6 +411,70 @@ async function markSynced(id: string, patch: Partial<CompetitionRow>) {
 }
 
 export async function syncCompetitionFeed(competitionId: string, force = false): Promise<{ count: number; errors: string[] }> {
+  const res = await syncFixtures(competitionId, force);
+  // The official ladder rides along; a ladder problem never fails the fixtures.
+  await syncOfficialLadder(competitionId, force).catch((e) => console.error("ladder sync", competitionId, e));
+  return res;
+}
+
+// ---------- the league's own ladder ----------
+
+export type OfficialLadder = { columns: string[]; rows: { team: string; values: string[] }[]; source: string; syncedAt: string };
+
+const LadderRead = z.object({
+  columns: z.array(z.string()).describe("The table's column headings after the team column, exactly as shown, e.g. ['G','W','L','W%','P FOR','P AG']"),
+  rows: z
+    .array(z.object({ team: z.string(), values: z.array(z.string()).describe("One value per column, as shown") }))
+    .describe("Every team in ladder order, top first"),
+});
+
+/** Reads the standings table from a league's ladder page (null if there isn't one). */
+async function readOfficialLadder(
+  url: string,
+  filter: string | null,
+  previousHash: string | null,
+): Promise<{ ladder: Omit<OfficialLadder, "source" | "syncedAt"> | null; hash: string; unchanged?: boolean }> {
+  const html = await fetchText(url);
+  const embedded = embeddedPlatformUrl(html, url);
+  let text = htmlToText(embedded ? await fetchText(embedded) : html);
+  if (canRenderPages()) text = htmlToText(await renderPage(embedded ?? url)); // ladders are usually built with JavaScript
+  const hash = createHash("sha256").update(`${filter ?? ""}|${text}`).digest("hex");
+  if (hash === previousHash) return { ladder: null, hash, unchanged: true };
+  const client = new Anthropic();
+  const response = await client.beta.messages.parse({
+    model: "claude-opus-5-5",
+    max_tokens: 8000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: "low", format: betaZodOutputFormat(LadderRead) },
+    messages: [
+      {
+        role: "user",
+        content: `Below is the text of a sports league's ladder/standings page (${url}). Copy the ${
+          filter ? `ladder for "${filter}"` : "main league ladder (the regular season, not a cup or conference table)"
+        } exactly as shown: its column headings and every team's row, in order. Leave out betting odds and links. If there's no ladder on the page, return empty lists.
+
+<page>
+${text.slice(0, MAX_PAGE_CHARS)}
+</page>`,
+      },
+    ],
+  });
+  const out = response.stop_reason === "refusal" ? null : response.parsed_output;
+  const ok = out && out.rows.length >= 2 && out.columns.length > 0;
+  return { ladder: ok ? { columns: out.columns, rows: out.rows.map((r) => ({ team: r.team.trim(), values: r.values })) } : null, hash };
+}
+
+async function syncOfficialLadder(competitionId: string, force: boolean) {
+  const c = await competitionRow(competitionId);
+  if (!c?.ladder_url || !process.env.ANTHROPIC_API_KEY) return;
+  const { ladder, hash, unchanged } = await readOfficialLadder(c.ladder_url, c.feed_filter ?? null, force ? null : (c.ladder_hash ?? null));
+  if (unchanged || !ladder) return; // nothing new, or keep the last good table
+  const source = new URL(c.ladder_url).hostname.replace(/^www\./, "");
+  await markSynced(competitionId, { ladder_table: { ...ladder, source, syncedAt: new Date().toISOString() }, ladder_hash: hash });
+}
+
+async function syncFixtures(competitionId: string, force: boolean): Promise<{ count: number; errors: string[] }> {
   const c = await competitionRow(competitionId);
   if (!c?.feed_type || !c.feed_url) return { count: 0, errors: [] };
   const now = new Date().toISOString();

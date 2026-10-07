@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/Card";
 import { Section } from "@/components/Section";
+import { OfficialLadderTable } from "@/components/OfficialLadderTable";
 import {
   AddCompetitionForm,
   AddFixtureForm,
@@ -188,6 +189,18 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
             <UpdateNow competitionId={id} />
           </div>
         </Card>
+
+        <Section title="Ladder" aside={competition.ladder_table?.rows?.length ? `from ${competition.ladder_table.source}` : "not found yet"}>
+          {competition.ladder_table?.rows?.length ? (
+            <OfficialLadderTable ladder={competition.ladder_table} us="" ourName="" tz={tz} />
+          ) : (
+            <p className="text-sm text-zinc-500">
+              {competition.ladder_url
+                ? "The ladder is read from the league’s website at the next update."
+                : "No ladder page found on the league’s website. Teams see a ladder worked out from the results instead."}
+            </p>
+          )}
+        </Section>
 
         <Section title="Teams" aside={`${teams.length} in the draw · ${sidelnrTeams.length} on Sidelnr`}>
           <ul className="flex flex-wrap gap-2 text-sm">

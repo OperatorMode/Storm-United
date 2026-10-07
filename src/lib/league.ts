@@ -7,6 +7,7 @@ import { syncIfStale } from "./feeds";
 import type { SourceData } from "./sources/types";
 import { DEFAULT_TZ, formatTime } from "./time";
 import { isPoolStage } from "./events";
+import type { OfficialLadder } from "./feeds";
 
 // League → Competition → fixtures. A team belongs to one competition; the
 // competition's league says where fixtures and results come from (its
@@ -93,6 +94,8 @@ export type LeagueData = {
   ladder: LadderRow[];
   ladderTitle: string | null; // an event's pool, e.g. "Pool A"
   ladderStyle: "points" | "wins";
+  // A linked league's ladder as its own website shows it (preferred over `ladder`).
+  officialLadder: OfficialLadder | null;
 };
 
 // `team.league_name` is the team as named in its competition's fixtures.
@@ -148,6 +151,7 @@ export async function getLeagueData(team: {
       ladder: table?.rows ?? [],
       ladderTitle: pool,
       ladderStyle: "points",
+      officialLadder: null,
     };
   }
 
@@ -160,6 +164,7 @@ export async function getLeagueData(team: {
     ladder: buildLadder(source.teams, games.filter(isRegularSeason), { ...rules, byWins: competition?.ladder_style === "wins" }),
     ladderTitle: null,
     ladderStyle: competition?.ladder_style === "wins" ? "wins" : "points",
+    officialLadder: competition?.feed_url && competition.ladder_table?.rows?.length ? competition.ladder_table : null,
   };
 }
 

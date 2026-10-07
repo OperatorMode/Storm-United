@@ -29,6 +29,7 @@ export type LeagueScan = {
   venue: string | null;
   timezone: string | null;
   ladderStyle: "points" | "wins"; // "wins" for sports ranked by wins and losses (basketball)
+  ladderUrl: string | null; // the league's own ladder/standings page, if it has one
   competitions: ScannedCompetition[]; // more than one: the user picks
   note: string | null;
 };
@@ -92,6 +93,19 @@ function fixtureLinks(html: string, pageUrl: string): string[] {
   return [...new Map(found.sort((a, b) => b.score - a.score).map((f) => [f.url, f])).values()].slice(0, 3).map((f) => f.url);
 }
 
+/** The site's ladder/standings page, if it links to one. */
+function ladderLink(html: string, pageUrl: string): string | null {
+  for (const m of html.matchAll(/<a[^>]+href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const href = m[1].replace(/&(amp|#0*38|#x0*26);/gi, "&");
+    if (!/ladder|standings|table/i.test(`${href} ${htmlToText(m[2])}`) || /cup|odds|bet/i.test(href)) continue;
+    try {
+      const u = new URL(href, pageUrl);
+      if (u.protocol === "https:" || u.protocol === "http:") return u.toString();
+    } catch {}
+  }
+  return null;
+}
+
 async function aiScan(text: string, url: string) {
   const client = new Anthropic();
   const response = await client.beta.messages.parse({
@@ -139,6 +153,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
     venue: null,
     timezone: null,
     ladderStyle: "points",
+    ladderUrl: null,
     competitions: games.length ? [{ name: "Main", teams: new Set(games.flatMap((g) => [g.home, g.away])).size, games: games.length }] : [],
     note: games.length ? null : "No games found at that link.",
   });
@@ -152,6 +167,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
   // results. Whichever lists the most games wins.
   let page = await readPage(url);
   let scan = await aiScan(page.text, page.url);
+  const home = page;
   const total = (s: typeof scan) => s.competitions.reduce((n, c) => n + c.games, 0);
   for (const link of fixtureLinks(page.html, page.url).slice(0, total(scan) ? 1 : 3)) {
     const next = await readPage(link).catch(() => null);
@@ -171,6 +187,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
     venue: scan.venue,
     timezone: scan.timezone && isTimezone(scan.timezone) ? scan.timezone : null,
     ladderStyle: scan.rankedByWins ? "wins" : "points",
+    ladderUrl: ladderLink(home.html, home.url) ?? (page === home ? null : ladderLink(page.html, page.url)),
     competitions: scan.competitions.filter((c) => c.games > 0),
     note: scan.competitions.some((c) => c.games > 0) ? null : (scan.note ?? "No fixtures found at that link."),
   };

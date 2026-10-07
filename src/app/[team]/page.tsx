@@ -1,4 +1,5 @@
 import { Card } from "@/components/Card";
+import { OfficialLadderTable } from "@/components/OfficialLadderTable";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ChildrenPicker } from "@/components/ChildrenPicker";
 import { LeaveTeam } from "@/components/LeaveTeam";
@@ -50,7 +51,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle, ladderStyle }, attendance, ballots, children, tabs] = await Promise.all([
+  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle, ladderStyle, officialLadder }, attendance, ballots, children, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
@@ -276,6 +277,11 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           )}
         </Card>
 
+        {officialLadder ? (
+          <Card title="Ladder" aside={competition?.name}>
+            <OfficialLadderTable ladder={officialLadder} us={us} ourName={team.name} tz={tz} />
+          </Card>
+        ) : (
         <Card title={ladderTitle ?? "Ladder"} aside={competition?.name}>
           <div className="-mx-4 overflow-x-auto px-4">
             <table className="w-full text-sm tabular-nums">
@@ -319,6 +325,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             {competition?.finals_note && ` ${competition.finals_note}`}
           </p>
         </Card>
+        )}
 
         <Card title="Season fixtures">
           <Fixtures

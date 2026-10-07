@@ -65,6 +65,7 @@ export function MagicImport() {
       venue: scan.venue,
       timezone: String(form.get("timezone") ?? ""),
       ladderStyle: scan.ladderStyle,
+      ladderUrl: scan.ladderUrl,
       competition,
       filter: scan.competitions.length > 1,
     }).catch(() => ({ competitionId: null, error: "Something went wrong. Try again." }));
