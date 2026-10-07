@@ -3,8 +3,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentManager } from "@/lib/session";
 import { managedLeagues } from "@/lib/my-leagues";
+import { MagicImport, ManualLink } from "./MagicImport";
 
 export const metadata: Metadata = { title: "My leagues · Sidelnr", robots: { index: false } };
+
+// Reading a league's website can take a while.
+export const maxDuration = 300;
 
 export default async function MyLeaguesPage() {
   const manager = await currentManager();
@@ -33,14 +37,21 @@ export default async function MyLeaguesPage() {
         </p>
       </div>
 
-      <Link href="/account/leagues/new" className="block rounded-xl bg-accent px-4 py-3 text-center text-sm font-semibold text-on-accent">
-        + Add a league
-      </Link>
+      {leagues.length > 0 && (
+        <Link href="/account/leagues/new" className="block rounded-xl bg-accent px-4 py-3 text-center text-sm font-semibold text-on-accent">
+          + Add a league
+        </Link>
+      )}
 
       {leagues.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
-          You don’t manage any leagues yet.
-        </p>
+        <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div>
+            <h2 className="font-semibold">Got a league website?</h2>
+            <p className="text-sm text-zinc-500">Let’s see what we can pull: competitions, teams and fixtures.</p>
+          </div>
+          <MagicImport />
+          <ManualLink />
+        </section>
       ) : (
         leagues.map((l) => (
           <section key={l.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">

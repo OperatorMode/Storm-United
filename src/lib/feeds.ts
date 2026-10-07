@@ -149,7 +149,7 @@ export function fixturesFromIcs(text: string, ourTeam: string | null, tz: string
 
 // ---------- any web page, read by Claude ----------
 
-function htmlToText(html: string): string {
+export function htmlToText(html: string): string {
   return html
     .replace(/<(script|style|noscript|svg|head)[\s\S]*?<\/\1>/gi, " ")
     .replace(/<(br|\/p|\/div|\/tr|\/li|\/h\d|\/table|\/section)[^>]*>/gi, "\n")
@@ -263,10 +263,10 @@ const JS_PLATFORMS: [RegExp, string][] = [
 
 export const canRenderPages = () => !!process.env.BROWSERLESS_TOKEN;
 
-const isPlatform = (s: string) => JS_PLATFORMS.some(([re]) => re.test(s));
+export const isPlatform = (s: string) => JS_PLATFORMS.some(([re]) => re.test(s));
 
 /** An embedded fixtures window (e.g. Football West → Squadi, NBL → its schedule page). */
-function embeddedPlatformUrl(html: string, pageUrl: string): string | null {
+export function embeddedPlatformUrl(html: string, pageUrl: string): string | null {
   for (const m of html.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)) {
     // Ampersands may be written &amp; or &#038; (WordPress) in the HTML.
     const src = m[1].replace(/&(amp|#0*38|#x0*26);/gi, "&");
@@ -282,7 +282,7 @@ function embeddedPlatformUrl(html: string, pageUrl: string): string | null {
 }
 
 /** The page's HTML after its JavaScript has run. */
-async function renderPage(url: string): Promise<string> {
+export async function renderPage(url: string): Promise<string> {
   const token = process.env.BROWSERLESS_TOKEN;
   if (!token) throw new Error("Page rendering isn’t switched on.");
   const base = process.env.BROWSERLESS_URL ?? "https://production-sfo.browserless.io";

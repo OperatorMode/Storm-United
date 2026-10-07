@@ -111,7 +111,7 @@ const noSubscribe = () => () => {};
 let zoneList: string[] | null = null;
 const clientZones = () => (zoneList ??= allTimezones());
 const noZones: string[] = [];
-function TimezoneSelect({ initial }: { initial?: string }) {
+export function TimezoneSelect({ initial }: { initial?: string }) {
   const zones = useSyncExternalStore(noSubscribe, clientZones, () => noZones);
   const browserTz = useSyncExternalStore(noSubscribe, () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", () => "");
   const [picked, setPicked] = useState<string | null>(null);

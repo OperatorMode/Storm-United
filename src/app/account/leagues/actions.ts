@@ -32,6 +32,7 @@ import {
 } from "@/lib/fixtures";
 import type { CompetitionRow } from "@/lib/store";
 import { isPoolStage, parsePools, schedulePools } from "@/lib/events";
+import { scanLeague, type LeagueScan } from "@/lib/league-scan";
 import { guessFeedType, readFeed, saveFeedSettings, syncCompetitionFeed, type FeedSettings, type FeedType } from "@/lib/feeds";
 
 const FEED_KIND: Record<FeedType, string> = { csv: "a spreadsheet", ics: "a calendar", web: "a web page, read by AI" };
@@ -553,4 +554,70 @@ export async function generateDrawAction(competitionId: string, raw: DrawSetting
   await saveFixtures(mergeImported(competitionId, replaced, draw.fixtures));
   refreshAll();
   return { ok: true, count: draw.fixtures.length };
+}
+
+// ---------- "Got a league website? Let's see what we can pull." ----------
+
+export async function scanLeagueAction(url: string): Promise<{ scan?: LeagueScan; error?: string }> {
+  if (!(await currentManagerId())) return { error: "Sign in first." };
+  if (!url.trim()) return { error: "Paste the league’s link." };
+  try {
+    return { scan: await scanLeague(url) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Couldn’t read that link." };
+  }
+}
+
+// Creates the league and competition from a scan, connects the link and
+// imports its fixtures and teams straight away.
+export async function importLeagueAction(input: {
+  feedUrl: string;
+  feedType: FeedType;
+  leagueName: string;
+  shortName: string | null;
+  venue: string | null;
+  timezone: string;
+  competition: string; // the chosen competition's name on the page
+  filter: boolean; // the page has several: only import this one
+}): Promise<{ competitionId?: string; count?: number; error?: string }> {
+  const managerId = await currentManagerId();
+  if (!managerId) return { error: "Sign in first." };
+  const name = input.leagueName.trim().slice(0, 80);
+  if (!name) return { error: "Give the league a name." };
+  if (!/^https?:\/\//i.test(input.feedUrl)) return { error: "That link doesn’t look right." };
+  const compName = (input.competition.trim() || "Main").slice(0, 80);
+
+  const leagueId = await uniqueId(name, leagueIdExists);
+  const competitionId = await uniqueId(`${leagueId}-${compName}`, competitionIdExists);
+  await createLeague(
+    {
+      id: leagueId,
+      name,
+      short_name: input.shortName?.trim().slice(0, 40) || null,
+      website: input.feedUrl,
+      venue: input.venue?.trim().slice(0, 120) || null,
+      source: "manual",
+      timezone: isTimezone(input.timezone) ? input.timezone : "UTC",
+      created_by: managerId,
+    },
+    managerId,
+  );
+  const comp: CompetitionRow = {
+    id: competitionId,
+    league_id: leagueId,
+    name: compName === "Main" ? "Main" : compName,
+    season: null,
+    kind: "season",
+    source_key: null,
+    points_win: 3,
+    points_draw: 1,
+    ladder_last_round: null,
+    finals_date: null,
+    finals_note: null,
+  };
+  await upsertCompetition(comp);
+  await saveFeedSettings(comp, { type: input.feedType, url: input.feedUrl, filter: input.filter ? compName : null, team: null });
+  const res = await syncCompetitionFeed(competitionId, true);
+  revalidatePath("/account", "layout");
+  return { competitionId, count: res.count, error: res.count ? undefined : (res.errors[0] ?? "No games came through yet.") };
 }
