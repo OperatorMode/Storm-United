@@ -10,6 +10,9 @@ import { currentCompetitionLabel } from "@/lib/team-form-data";
 
 export const metadata: Metadata = { title: "Edit team · Sidelnr", robots: { index: false } };
 
+// Finding the squad on the league's website can take a minute or two.
+export const maxDuration = 300;
+
 export default async function EditMyTeamPage({ params }: PageProps<"/account/teams/[id]">) {
   const { id } = await params;
   const managerId = await currentManagerId();

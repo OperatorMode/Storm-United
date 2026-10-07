@@ -51,10 +51,10 @@ const Scanned = z.object({
   note: z.string().nullable().describe("If no fixtures are on this page, a short reason; otherwise null"),
 });
 
-type PageRead = { url: string; html: string; text: string };
+export type PageRead = { url: string; html: string; text: string };
 
 /** A page's text as a browser shows it (embedded fixtures followed, JavaScript run). */
-async function readPage(url: string): Promise<PageRead> {
+export async function readPage(url: string): Promise<PageRead> {
   const html = await fetchText(url);
   const embedded = embeddedPlatformUrl(html, url);
   let text = htmlToText(html);

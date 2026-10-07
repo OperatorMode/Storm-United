@@ -15,6 +15,7 @@ import { saveRotation } from "@/lib/rotation";
 import type { RotationPlan } from "@/lib/rotation-plan";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
+import { findSquad, type SquadResult } from "@/lib/squad";
 import { mergePlayer } from "@/lib/merge";
 import { MANAGER_COOKIE, SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
 
@@ -287,4 +288,18 @@ export async function saveGameRotation(teamId: string, gameId: string, plan: Rot
   await saveRotation(team.id, gameId, plan);
   refresh(team.id);
   return { ok: true };
+}
+
+/** The team's players from its league's website (Team Settings). */
+export async function findTeamSquad(teamId: string): Promise<SquadResult> {
+  const team = await adminTeam(teamId);
+  if (!team) return { players: [], source: null, note: "Unlock Manager’s Corner first." };
+  const competition = team.competition_id ? await getCompetition(team.competition_id) : null;
+  if (!competition) return { players: [], source: null, note: "This team isn’t in a competition." };
+  try {
+    return await findSquad(competition, team.league_name);
+  } catch (e) {
+    console.error("findSquad", e);
+    return { players: [], source: null, note: "Couldn’t read the league website just now." };
+  }
 }

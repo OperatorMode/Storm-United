@@ -7,6 +7,9 @@ import { currentManagerId } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Create a team · Sidelnr", robots: { index: false } };
 
+// Finding the squad on the league's website can take a minute or two.
+export const maxDuration = 300;
+
 export default async function NewTeamPage() {
   if (!(await currentManagerId())) redirect("/login?next=/account/new");
   return (

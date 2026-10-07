@@ -1,6 +1,7 @@
 "use server";
 
-import { competitionLabel, competitionTeams, listCompetitions } from "@/lib/league";
+import { competitionLabel, competitionTeams, getCompetition, listCompetitions } from "@/lib/league";
+import { findSquad, type SquadResult } from "@/lib/squad";
 import { listTeams } from "@/lib/store";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 
@@ -43,4 +44,17 @@ export async function drawTeams(competitionId: string, editingId: string | null)
     sidelnr.filter((t) => t.id !== editingId && t.competition_id === competitionId).map((t) => [t.league_name, t.name]),
   );
   return { teams: [...teams].sort(), taken };
+}
+
+/** A team's players from its league's website (for the team form). */
+export async function findSquadAction(competitionId: string, team: string): Promise<SquadResult> {
+  if (!(await currentManagerId()) && !(await isSuperAdmin())) return { players: [], source: null, note: "Sign in first." };
+  const competition = await getCompetition(competitionId);
+  if (!competition || !(await competitionTeams(competitionId)).includes(team)) return { players: [], source: null, note: null };
+  try {
+    return await findSquad(competition, team);
+  } catch (e) {
+    console.error("findSquad", e);
+    return { players: [], source: null, note: "Couldn’t read the league website just now." };
+  }
 }

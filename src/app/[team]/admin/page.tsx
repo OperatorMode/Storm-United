@@ -32,6 +32,9 @@ import { tally, winners } from "@/lib/mvp";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { now as clockNow } from "@/lib/clock";
 
+// Finding the squad on the league's website can take a minute or two.
+export const maxDuration = 300;
+
 export async function generateMetadata({ params }: PageProps<"/[team]/admin">): Promise<Metadata> {
   const team = await getTeam((await params).team);
   return { title: `${team?.name ?? "Team"} · Manager’s Corner`, robots: { index: false } };

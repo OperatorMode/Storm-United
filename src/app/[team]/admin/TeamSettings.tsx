@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
-import { saveTeamSettings } from "./actions";
+import { useActionState, useRef, useState } from "react";
+import { findTeamSquad, saveTeamSettings } from "./actions";
+import { SquadStatus, useSquadFinder } from "@/components/SquadFinder";
 
 export function TeamSettings({
   teamId,
@@ -18,6 +19,9 @@ export function TeamSettings({
 }) {
   const [state, action, pending] = useActionState(saveTeamSettings.bind(null, teamId), null);
   const field = "w-full rounded-xl border border-zinc-300 px-3 py-2 text-base";
+  const [list, setList] = useState(players);
+  const listRef = useRef<HTMLTextAreaElement>(null);
+  const squad = useSquadFinder(listRef, setList);
   return (
     <form action={action} className="space-y-4 text-sm">
       <label className="block">
@@ -26,8 +30,16 @@ export function TeamSettings({
           One per line, first name + last initial (e.g. “Zane B.”). Removing a player keeps their past votes and goalie
           history.
         </span>
-        <textarea name="players" defaultValue={players} rows={Math.max(6, players.split("\n").length + 1)} className={field} />
+        <textarea
+          ref={listRef}
+          name="players"
+          value={list}
+          onChange={(e) => setList(e.target.value)}
+          rows={Math.max(6, list.split("\n").length + 1)}
+          className={field}
+        />
       </label>
+      <SquadStatus finder={squad} onFind={() => squad.find(() => findTeamSquad(teamId))} />
 
       <label className="block">
         <span className="mb-1 block font-medium">Join code</span>

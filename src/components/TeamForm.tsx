@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CompetitionPicker } from "./CompetitionPicker";
-import { drawTeams } from "@/app/competition-actions";
+import { SquadStatus, useSquadFinder } from "./SquadFinder";
+import { drawTeams, findSquadAction } from "@/app/competition-actions";
 
 export type TeamFormValues = {
   id: string;
@@ -45,6 +46,13 @@ export function TeamForm({
   const [label, setLabel] = useState(competitionLabel);
   const [leagueName, setLeagueName] = useState(initial?.league_name ?? "");
   const [name, setName] = useState(initial?.name ?? "");
+  const [players, setPlayers] = useState(initial?.players ?? "");
+  const playersRef = useRef<HTMLTextAreaElement>(null);
+  const squad = useSquadFinder(playersRef, setPlayers);
+  const findSquad = (team: string) => {
+    if (competitionId && team) squad.find(() => findSquadAction(competitionId, team));
+    else squad.reset();
+  };
   // The chosen competition's draw: its teams, and which already have a Sidelnr team.
   const [draw, setDraw] = useState<{ id: string; teams: string[]; taken: Record<string, string> } | null>(null);
   useEffect(() => {
@@ -79,6 +87,7 @@ export function TeamForm({
               setCompetitionId(id);
               setLabel(l);
               setLeagueName("");
+              squad.reset();
             }}
           />
         </div>
@@ -90,6 +99,7 @@ export function TeamForm({
             onChange={(e) => {
               setLeagueName(e.target.value);
               if (!name || name === leagueName) setName(e.target.value);
+              findSquad(e.target.value); // fill in the players from the league's website
             }}
             className={field}
             required
@@ -151,8 +161,14 @@ export function TeamForm({
       <label className="block">
         <span className="mb-1 block font-medium">Players</span>
         <span className="mb-1.5 block text-xs text-zinc-500">One per line, first name + last initial (e.g. “Zane B.”).</span>
-        <textarea name="players" defaultValue={initial?.players ?? ""} rows={9} className={field} required />
+        <textarea ref={playersRef} name="players" value={players} onChange={(e) => setPlayers(e.target.value)} rows={9} className={field} required />
       </label>
+      {(leagueName || initial) && (
+        <SquadStatus
+          finder={squad}
+          onFind={initial?.competition_id ? () => squad.find(() => findSquadAction(initial.competition_id, initial.league_name)) : undefined}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">

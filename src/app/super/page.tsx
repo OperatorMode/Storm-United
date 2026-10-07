@@ -14,6 +14,9 @@ import { logoSrc } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "All teams · Admin", robots: { index: false } };
 
+// Finding the squad on the league's website can take a minute or two.
+export const maxDuration = 300;
+
 export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   if (!(await isSuperAdmin())) {
     return (
