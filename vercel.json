@@ -2,5 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["syd1"],
-  "crons": [{ "path": "/api/cron/game-alerts", "schedule": "*/15 * * * *" }]
+  "crons": [
+    { "path": "/api/cron/game-alerts", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/league-sync", "schedule": "*/15 * * * *" }
+  ]
 }

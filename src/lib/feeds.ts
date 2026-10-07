@@ -428,10 +428,15 @@ async function markSynced(id: string, patch: Partial<CompetitionRow>) {
   check(await s.from("competitions").update(patch).eq("id", id));
 }
 
-export async function syncCompetitionFeed(competitionId: string, force = false): Promise<{ count: number; errors: string[] }> {
-  const res = await syncFixtures(competitionId, force);
-  // The official ladder rides along; a ladder problem never fails the fixtures.
-  await syncOfficialLadder(competitionId, force).catch((e) => console.error("ladder sync", competitionId, e));
+/** Reads a linked league again: its fixtures and results, and its official ladder (either can be skipped). */
+export async function syncCompetitionFeed(
+  competitionId: string,
+  force = false,
+  parts: { fixtures: boolean; ladder: boolean } = { fixtures: true, ladder: true },
+): Promise<{ count: number; errors: string[] }> {
+  const res = parts.fixtures ? await syncFixtures(competitionId, force) : { count: 0, errors: [] };
+  // The official ladder; a ladder problem never fails the fixtures.
+  if (parts.ladder) await syncOfficialLadder(competitionId, force).catch((e) => console.error("ladder sync", competitionId, e));
   return res;
 }
 
@@ -486,10 +491,13 @@ ${text.slice(0, MAX_PAGE_CHARS)}
 async function syncOfficialLadder(competitionId: string, force: boolean) {
   const c = await competitionRow(competitionId);
   if (!c?.ladder_url || !process.env.ANTHROPIC_API_KEY) return;
+  const checkedAt = new Date().toISOString();
   const { ladder, hash, unchanged } = await readOfficialLadder(c.ladder_url, c.feed_filter ?? null, force ? null : (c.ladder_hash ?? null));
-  if (unchanged || !ladder) return; // nothing new, or keep the last good table
+  // Nothing new, or no table found (keep the last good one): just note the check.
+  if (unchanged || !ladder) return markSynced(competitionId, { ladder_checked_at: checkedAt });
   const source = new URL(c.ladder_url).hostname.replace(/^www\./, "");
-  await markSynced(competitionId, { ladder_table: { ...ladder, source, syncedAt: new Date().toISOString() }, ladder_hash: hash });
+  // syncedAt = when the table last changed (the schedule stops once it has, after a game).
+  await markSynced(competitionId, { ladder_table: { ...ladder, source, syncedAt: checkedAt }, ladder_hash: hash, ladder_checked_at: checkedAt });
 }
 
 async function syncFixtures(competitionId: string, force: boolean): Promise<{ count: number; errors: string[] }> {
@@ -524,9 +532,11 @@ async function syncFixtures(competitionId: string, force: boolean): Promise<{ co
   }
 }
 
-// Called while rendering team pages: refresh a stale feed in the background.
+// Called while rendering team pages: refresh a stale spreadsheet or calendar
+// link in the background. Web pages follow the game schedule instead
+// (sync-schedule.ts, run by the league-sync cron).
 export function syncIfStale(c: Pick<CompetitionRow, "id" | "feed_type" | "feed_url" | "feed_synced_at">) {
-  if (!c.feed_type || !c.feed_url) return;
+  if (!c.feed_type || !c.feed_url || c.feed_type === "web") return;
   const age = c.feed_synced_at ? Date.now() - new Date(c.feed_synced_at).getTime() : Infinity;
   if (age < STALE_MS[c.feed_type]) return;
   try {
