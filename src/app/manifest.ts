@@ -14,7 +14,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Sidelnr",
     short_name: "Sidelnr",
     description: "Every game for your kids’ teams: when, where, attendance, MVP votes and team chat.",
-    start_url: "/me",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

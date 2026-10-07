@@ -46,11 +46,10 @@ self.addEventListener("notificationclick", (event) => {
   const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
-      for (const w of wins) {
-        if (w.url === url && "focus" in w) return w.focus();
-      }
-      const any = wins.find((w) => "navigate" in w);
-      if (any) return any.navigate(url).then((w) => w && w.focus());
+      // Always load the page fresh (even if it's already open): the app jumps
+      // to the home page after a while away, but never on a notification tap.
+      const win = wins.find((w) => w.url === url && "navigate" in w) || wins.find((w) => "navigate" in w);
+      if (win) return win.navigate(url).then((w) => w && w.focus());
       return self.clients.openWindow(url);
     }),
   );
