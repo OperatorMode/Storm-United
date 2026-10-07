@@ -584,6 +584,7 @@ export async function importLeagueAction(input: {
   shortName: string | null;
   venue: string | null;
   timezone: string;
+  ladderStyle: "points" | "wins";
   competition: string; // the chosen competition's name on the page
   filter: boolean; // the page has several: only import this one
 }): Promise<{ competitionId?: string; count?: number; error?: string }> {
@@ -621,6 +622,7 @@ export async function importLeagueAction(input: {
     ladder_last_round: null,
     finals_date: null,
     finals_note: null,
+    ladder_style: input.ladderStyle === "wins" ? "wins" : "points",
   };
   await upsertCompetition(comp);
   await saveFeedSettings(comp, { type: input.feedType, url: input.feedUrl, filter: input.filter ? compName : null, team: null });

@@ -28,6 +28,7 @@ export type LeagueScan = {
   shortName: string | null;
   venue: string | null;
   timezone: string | null;
+  ladderStyle: "points" | "wins"; // "wins" for sports ranked by wins and losses (basketball)
   competitions: ScannedCompetition[]; // more than one: the user picks
   note: string | null;
 };
@@ -39,6 +40,9 @@ const Scanned = z.object({
   shortName: z.string().nullable(),
   venue: z.string().nullable().describe("A single main venue if the league plays at one; otherwise null"),
   timezone: z.string().nullable().describe("IANA timezone where the games are played, e.g. 'Australia/Perth'; null if unclear"),
+  rankedByWins: z
+    .boolean()
+    .describe("True if the sport ranks teams by wins and losses with no draws (basketball, baseball); false for points ladders (football, rugby, hockey, netball)"),
   competitions: z
     .array(
       z.object({
@@ -104,7 +108,8 @@ async function aiScan(text: string, url: string) {
 Work out:
 - the league's name (and a short name if there is one), its main venue if it plays at a single venue, and the IANA timezone where games are played;
 - the separate competitions this page has fixtures or results for (age groups, grades, divisions, men's/women's). Stages of one season (preseason, rounds, finals, cups within the season) are NOT separate competitions. If there's just one, return one with a short name (e.g. "Men" or the division's name). Use names exactly as written on the page;
-- for each, roughly how many teams and games are listed.
+- for each, roughly how many teams and games are listed (all of them: played and upcoming);
+- whether the sport ranks teams by wins and losses (basketball, baseball) rather than a points ladder.
 
 If the page lists no fixtures or results at all, return no competitions and explain in "note".
 
@@ -133,6 +138,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
     shortName: null,
     venue: null,
     timezone: null,
+    ladderStyle: "points",
     competitions: games.length ? [{ name: "Main", teams: new Set(games.flatMap((g) => [g.home, g.away])).size, games: games.length }] : [],
     note: games.length ? null : "No games found at that link.",
   });
@@ -141,20 +147,20 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
   if (csvUrl !== url) throw new Error("That Google Sheet isn’t public yet. In the sheet: Share, then General access: Anyone with the link (Viewer).");
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("Reading web pages isn’t switched on yet.");
 
-  // The page itself, then (if it has no games) its fixtures/schedule page.
+  // The page itself, then its fixtures/schedule page: a home page often shows
+  // only the next few games, while the schedule has the whole season and its
+  // results. Whichever lists the most games wins.
   let page = await readPage(url);
   let scan = await aiScan(page.text, page.url);
-  if (!scan.competitions.some((c) => c.games > 0)) {
-    for (const link of fixtureLinks(page.html, page.url)) {
-      const next = await readPage(link).catch(() => null);
-      if (!next) continue;
-      const nextScan = await aiScan(next.text, next.url);
-      if (nextScan.competitions.some((c) => c.games > 0)) {
-        // Keep the link that was pasted when it already led to the games (e.g. an embedding page).
-        page = { ...next, url: link };
-        scan = { ...nextScan, leagueName: nextScan.leagueName || scan.leagueName };
-        break;
-      }
+  const total = (s: typeof scan) => s.competitions.reduce((n, c) => n + c.games, 0);
+  for (const link of fixtureLinks(page.html, page.url).slice(0, total(scan) ? 1 : 3)) {
+    const next = await readPage(link).catch(() => null);
+    if (!next) continue;
+    const nextScan = await aiScan(next.text, next.url).catch(() => null);
+    if (nextScan && total(nextScan) > total(scan)) {
+      page = { ...next, url: link };
+      scan = { ...nextScan, leagueName: scan.leagueName || nextScan.leagueName };
+      break;
     }
   }
   return {
@@ -164,6 +170,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
     shortName: scan.shortName,
     venue: scan.venue,
     timezone: scan.timezone && isTimezone(scan.timezone) ? scan.timezone : null,
+    ladderStyle: scan.rankedByWins ? "wins" : "points",
     competitions: scan.competitions.filter((c) => c.games > 0),
     note: scan.competitions.some((c) => c.games > 0) ? null : (scan.note ?? "No fixtures found at that link."),
   };

@@ -92,6 +92,7 @@ export type LeagueData = {
   byeRounds: { round: number; date: Date | null }[];
   ladder: LadderRow[];
   ladderTitle: string | null; // an event's pool, e.g. "Pool A"
+  ladderStyle: "points" | "wins";
 };
 
 // `team.league_name` is the team as named in its competition's fixtures.
@@ -139,7 +140,15 @@ export async function getLeagueData(team: {
   if (competition?.kind === "tournament") {
     const pool = ourGames.find((g) => isPoolStage(g.stage))?.stage ?? null;
     const table = pool ? poolTables(games, rules).find((t) => t.stage === pool) : undefined;
-    return { competition, tz: competitionTz(competition), ourGames, byeRounds: [], ladder: table?.rows ?? [], ladderTitle: pool };
+    return {
+      competition,
+      tz: competitionTz(competition),
+      ourGames,
+      byeRounds: [],
+      ladder: table?.rows ?? [],
+      ladderTitle: pool,
+      ladderStyle: "points",
+    };
   }
 
   return {
@@ -147,8 +156,10 @@ export async function getLeagueData(team: {
     tz: competitionTz(competition),
     ourGames,
     byeRounds: source.byes.filter((b) => b.team === us).map(({ round, date }) => ({ round, date })),
-    ladder: buildLadder(source.teams, games, rules),
+    // Preseason, finals and the like don't count towards the ladder.
+    ladder: buildLadder(source.teams, games.filter(isRegularSeason), { ...rules, byWins: competition?.ladder_style === "wins" }),
     ladderTitle: null,
+    ladderStyle: competition?.ladder_style === "wins" ? "wins" : "points",
   };
 }
 
@@ -167,10 +178,15 @@ export function poolTables(
   });
 }
 
+/** A regular-season game: no stage, or one that's just a round ("Round 5"). */
+function isRegularSeason(g: { stage: string | null }): boolean {
+  return !g.stage || /^(round|rd|week|regular)\b/i.test(g.stage.trim());
+}
+
 function buildLadder(
   teams: string[],
   games: Pick<Game, "home" | "away" | "score" | "round">[],
-  rules: { win: number; draw: number; lastRound: number | null },
+  rules: { win: number; draw: number; lastRound: number | null; byWins?: boolean },
 ): LadderRow[] {
   const rows = new Map<string, LadderRow>(
     teams.map((t) => [t, { team: t, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 }]),
@@ -189,10 +205,17 @@ function buildLadder(
     else if (home < away) { a.w++; h.l++; a.pts += rules.win; }
     else { h.d++; a.d++; h.pts += rules.draw; a.pts += rules.draw; }
   }
-  // Tie-breakers: points, goal difference, goals scored.
+  const pct = (r: LadderRow) => (r.p ? r.w / r.p : 0);
+  // Tie-breakers: points (or win rate), then difference, then scored.
   return [...rows.values()]
     .map((r) => ({ ...r, gd: r.gf - r.ga }))
-    .sort((x, y) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.team.localeCompare(y.team));
+    .sort(
+      (x, y) =>
+        (rules.byWins ? pct(y) - pct(x) || y.w - x.w : y.pts - x.pts) ||
+        y.gd - x.gd ||
+        y.gf - x.gf ||
+        x.team.localeCompare(y.team),
+    );
 }
 
 export function opponent(g: Game, us: string): string {

@@ -50,13 +50,14 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   if (!team) notFound();
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle }, attendance, ballots, children, tabs] = await Promise.all([
+  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle, ladderStyle }, attendance, ballots, children, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
     currentChildren(team),
     tabData(team),
   ]);
+  const byWins = ladderStyle === "wins";
   const [calToken, host, training, duties, dutySignups] = await Promise.all([
     calendarToken([team]),
     headers().then((h) => h.get("host") ?? "sidelnr.app"),
@@ -282,12 +283,12 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                 <tr className="text-left text-xs text-zinc-500">
                   <th className="w-6 py-1.5 font-medium">#</th>
                   <th className="py-1.5 font-medium">Team</th>
-                  <th className="py-1.5 text-center font-medium">P</th>
-                  <th className="py-1.5 text-center font-medium">W</th>
-                  <th className="py-1.5 text-center font-medium">D</th>
-                  <th className="py-1.5 text-center font-medium">L</th>
-                  <th className="py-1.5 text-center font-medium">GD</th>
-                  <th className="py-1.5 text-right font-medium">Pts</th>
+                  {(byWins ? ["GP", "W", "L", "Pts+", "Pts-"] : ["P", "W", "D", "L", "GD"]).map((h) => (
+                    <th key={h} className="py-1.5 text-center font-medium">
+                      {h}
+                    </th>
+                  ))}
+                  <th className="py-1.5 text-right font-medium">{byWins ? "Diff" : "Pts"}</th>
                 </tr>
               </thead>
               <tbody>
@@ -297,12 +298,14 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                     <tr key={r.team} className={mine ? "bg-team font-semibold text-on-team" : "border-t border-zinc-100"}>
                       <td className={`py-2 ${mine ? "rounded-l-lg pl-2" : ""}`}>{i + 1}</td>
                       <td className="max-w-36 truncate py-2">{mine ? team.name : r.team}</td>
-                      <td className="py-2 text-center">{r.p}</td>
-                      <td className="py-2 text-center">{r.w}</td>
-                      <td className="py-2 text-center">{r.d}</td>
-                      <td className="py-2 text-center">{r.l}</td>
-                      <td className="py-2 text-center">{r.gd > 0 ? `+${r.gd}` : r.gd}</td>
-                      <td className={`py-2 text-right ${mine ? "rounded-r-lg pr-2" : ""}`}>{r.pts}</td>
+                      {(byWins ? [r.p, r.w, r.l, r.gf, r.ga] : [r.p, r.w, r.d, r.l, r.gd > 0 ? `+${r.gd}` : r.gd]).map((v, k) => (
+                        <td key={k} className="py-2 text-center">
+                          {v}
+                        </td>
+                      ))}
+                      <td className={`py-2 text-right ${mine ? "rounded-r-lg pr-2" : ""}`}>
+                        {byWins ? (r.gd > 0 ? `+${r.gd}` : r.gd) : r.pts}
+                      </td>
                     </tr>
                   );
                 })}
@@ -310,7 +313,9 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             </table>
           </div>
           <p className="mt-3 text-xs text-zinc-500">
-            {competition?.points_win ?? 3} pts a win, {competition?.points_draw ?? 1} a draw.
+            {byWins
+              ? "Ranked by wins, then points difference."
+              : `${competition?.points_win ?? 3} pts a win, ${competition?.points_draw ?? 1} a draw.`}
             {competition?.finals_note && ` ${competition.finals_note}`}
           </p>
         </Card>

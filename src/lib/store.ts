@@ -121,6 +121,8 @@ export type CompetitionRow = {
   feed_synced_at?: string | null;
   feed_error?: string | null;
   feed_hash?: string | null;
+  // 'wins': ranked by wins and losses (basketball); else by points. Migration 011.
+  ladder_style?: "points" | "wins" | null;
 };
 
 export type PushSubRow = {
@@ -241,7 +243,7 @@ export async function getTeamRow(id: string): Promise<TeamRow | null> {
 // ---------- leagues & competitions ----------
 
 const COMPETITION_COLS =
-  "id, league_id, name, season, kind, source_key, points_win, points_draw, ladder_last_round, finals_date, finals_note, feed_type, feed_url, feed_filter, feed_team, feed_synced_at, feed_error, feed_hash";
+  "id, league_id, name, season, kind, source_key, points_win, points_draw, ladder_last_round, finals_date, finals_note, feed_type, feed_url, feed_filter, feed_team, feed_synced_at, feed_error, feed_hash, ladder_style";
 
 export async function listLeagues(): Promise<LeagueRow[]> {
   const s = db();

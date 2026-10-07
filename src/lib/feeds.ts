@@ -166,31 +166,30 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
+// One line per game keeps the answer short, so a whole season reads quickly.
+const GAME_LINE = "date|time|home|away|home score|away score|round|stage|venue";
 const Extracted = z.object({
-  fixtures: z.array(
-    z.object({
-      round: z.number().int().nullable(),
-      stage: z.string().nullable(),
-      date: z.string().describe("YYYY-MM-DD"),
-      time: z.string().nullable().describe("Local kick-off time, 24-hour HH:MM; null if not shown"),
-      pitch: z.string().nullable(),
-      home: z.string(),
-      away: z.string(),
-      home_score: z.number().int().nullable(),
-      away_score: z.number().int().nullable(),
-    }),
-  ),
+  games: z
+    .array(z.string())
+    .describe(`One line per game: ${GAME_LINE}. Leave unknown fields empty, e.g. "2026-10-08|19:30|PER|SYD|||5||RAC Arena"`),
   problem: z.string().nullable().describe("If the fixtures couldn't be found, a short reason; otherwise null"),
 });
+
+function gameFromLine(line: string) {
+  const [date = "", time = "", home = "", away = "", hs = "", as = "", round = "", stage = "", ...venue] = line.split("|").map((x) => x.trim());
+  const num = (x: string) => (/^\d+$/.test(x) ? Number(x) : null);
+  return { date, time, home, away, home_score: num(hs), away_score: num(as), round: num(round), stage: stage || null, pitch: venue.join("|") || null };
+}
 
 async function fixturesFromWebPage(pageText: string, url: string, filter: string | null, tz: string) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("Website reading isn’t set up yet (no ANTHROPIC_API_KEY).");
   if (pageText.length > MAX_PAGE_CHARS) throw new Error("That page is too large to read. Link to the specific competition’s page.");
   const client = new Anthropic();
   const today = new Date().toISOString().slice(0, 10);
-  const response = await client.beta.messages.parse({
+  // A whole season can be a few hundred games, so stream the (long) answer.
+  const stream = client.beta.messages.stream({
     model: "claude-opus-5-5",
-    max_tokens: 16000,
+    max_tokens: 64000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
     output_config: { effort: "low", format: betaZodOutputFormat(Extracted) },
@@ -203,9 +202,11 @@ async function fixturesFromWebPage(pageText: string, url: string, filter: string
 
 Rules:
 - Team names exactly as written on the page.
+- One line per game: ${GAME_LINE}
 - Dates as YYYY-MM-DD. If the year isn't shown, use the season that fits around today (${today}).
-- Times as local 24-hour HH:MM, or null if not shown.
-- Scores only for games that have been played; otherwise null.
+- Times as local 24-hour HH:MM, or empty if not shown.
+- Scores only for games that have been played; otherwise empty.
+- "stage" is empty for regular-season games. Label anything else (preseason, trial, cup or blitz games, finals) so it stays off the ladder.
 - Don't invent games. If there are no fixtures for that competition, return an empty list and explain in "problem".
 
 <page>
@@ -214,12 +215,19 @@ ${pageText}
       },
     ],
   });
+  const response = await stream.finalMessage();
   if (response.stop_reason === "refusal") throw new Error("The page couldn’t be read.");
-  const out = response.parsed_output;
-  if (!out) throw new Error("The page couldn’t be read.");
+  if (response.stop_reason === "max_tokens") throw new Error("That page has too many games to read in one go. Link to one competition’s page.");
+  const json = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+  let out: z.infer<typeof Extracted>;
+  try {
+    out = Extracted.parse(JSON.parse(json));
+  } catch {
+    throw new Error("The page couldn’t be read.");
+  }
   const fixtures: ImportedFixture[] = [];
   const errors: string[] = out.problem ? [out.problem] : [];
-  for (const f of out.fixtures) {
+  for (const f of out.games.map(gameFromLine)) {
     const date = parseDate(f.date);
     const time = f.time ? parseTime(f.time) : "12:00";
     if (!date || !time || !f.home.trim() || !f.away.trim() || f.home === f.away) {
