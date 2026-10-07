@@ -265,12 +265,14 @@ export const canRenderPages = () => !!process.env.BROWSERLESS_TOKEN;
 
 const isPlatform = (s: string) => JS_PLATFORMS.some(([re]) => re.test(s));
 
-/** A fixtures window embedded from a known platform (e.g. Football West → Squadi). */
+/** An embedded fixtures window (e.g. Football West → Squadi, NBL → its schedule page). */
 function embeddedPlatformUrl(html: string, pageUrl: string): string | null {
   for (const m of html.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)) {
     // Ampersands may be written &amp; or &#038; (WordPress) in the HTML.
     const src = m[1].replace(/&(amp|#0*38|#x0*26);/gi, "&");
-    if (!isPlatform(src)) continue;
+    // Known fixture platforms, or any embedded page that looks like a schedule
+    // (e.g. nbl.com.au/schedule embeds schedule.nbl.com.au).
+    if (!isPlatform(src) && !/schedule|fixture|draw|result|ladder|matches|games/i.test(src)) continue;
     try {
       const u = new URL(src, pageUrl);
       if (u.protocol === "https:" || u.protocol === "http:") return u.toString();
