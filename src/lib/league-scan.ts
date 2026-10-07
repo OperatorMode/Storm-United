@@ -22,6 +22,7 @@ import { isTimezone } from "./time";
 
 export type ScannedCompetition = { name: string; teams: number; games: number };
 export type LeagueScan = {
+  siteUrl: string; // the link that was pasted (the league's website)
   feedUrl: string; // the link fixtures come from (may differ from what was pasted)
   feedType: FeedType;
   leagueName: string;
@@ -75,7 +76,16 @@ export async function readPage(url: string): Promise<PageRead> {
   return { url, html, text };
 }
 
-/** Links on a page that look like its fixtures/schedule page, best first. */
+/** "www.nbl.com.au" and "schedule.nbl.com.au" → "nbl.com.au": the site a link belongs to. */
+export function siteOf(url: string): string {
+  const parts = new URL(url).hostname.toLowerCase().replace(/^www\./, "").split(".");
+  const second = parts[parts.length - 2] ?? "";
+  const keep = parts.length > 2 && parts[parts.length - 1].length === 2 && /^(com|net|org|edu|gov|asn|id|co|ac)$/.test(second) ? 3 : 2;
+  return parts.slice(-keep).join(".");
+}
+
+/** Links on a page that look like its fixtures/schedule page, best first. Only on the same
+ *  site (or its subdomains): ads and streaming links ("Watch on Kayo") don't count. */
 function fixtureLinks(html: string, pageUrl: string): string[] {
   const base = new URL(pageUrl);
   const found: { url: string; score: number }[] = [];
@@ -87,7 +97,8 @@ function fixtureLinks(html: string, pageUrl: string): string[] {
     if (!score) continue;
     try {
       const u = new URL(href, base);
-      if ((u.protocol === "https:" || u.protocol === "http:") && u.toString() !== pageUrl) found.push({ url: u.toString(), score });
+      const ok = (u.protocol === "https:" || u.protocol === "http:") && u.toString() !== pageUrl && siteOf(u.toString()) === siteOf(pageUrl);
+      if (ok) found.push({ url: u.toString(), score });
     } catch {}
   }
   return [...new Map(found.sort((a, b) => b.score - a.score).map((f) => [f.url, f])).values()].slice(0, 3).map((f) => f.url);
@@ -100,7 +111,7 @@ function ladderLink(html: string, pageUrl: string): string | null {
     if (!/ladder|standings|table/i.test(`${href} ${htmlToText(m[2])}`) || /cup|odds|bet/i.test(href)) continue;
     try {
       const u = new URL(href, pageUrl);
-      if (u.protocol === "https:" || u.protocol === "http:") return u.toString();
+      if ((u.protocol === "https:" || u.protocol === "http:") && siteOf(u.toString()) === siteOf(pageUrl)) return u.toString();
     } catch {}
   }
   return null;
@@ -146,6 +157,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
   const first = await fetchText(csvUrl);
   const isHtml = /^\s*(<!doctype html|<html)/i.test(first.slice(0, 5000)) || /<(head|body|div|table)[\s>]/i.test(first.slice(0, 5000));
   const simple = (feedType: FeedType, games: { home: string; away: string }[]): LeagueScan => ({
+    siteUrl: url,
     feedUrl: url,
     feedType,
     leagueName: hostName(url),
@@ -180,6 +192,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
     }
   }
   return {
+    siteUrl: url,
     feedUrl: page.url,
     feedType: "web",
     leagueName: scan.leagueName || hostName(url),

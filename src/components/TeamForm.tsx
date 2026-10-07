@@ -154,17 +154,21 @@ export function TeamForm({
         )}
       </label>
 
-      <label className="block">
-        <span className="mb-1 block font-medium">Players</span>
+      <div>
+        <label htmlFor="team-players" className="mb-1 block font-medium">
+          Players
+        </label>
         <span className="mb-1.5 block text-xs text-zinc-500">One per line, first name + last initial (e.g. “Zane B.”).</span>
-        <textarea ref={playersRef} name="players" value={players} onChange={(e) => setPlayers(e.target.value)} rows={9} className={field} required />
-      </label>
-      {(leagueName || initial) && (
-        <SquadStatus
-          finder={squad}
-          onFind={initial?.competition_id ? () => squad.find(() => findSquadAction(initial.competition_id, initial.league_name)) : undefined}
-        />
-      )}
+        {(leagueName || initial) && (
+          <div className="mb-2">
+            <SquadStatus
+              finder={squad}
+              onFind={initial?.competition_id ? () => squad.find(() => findSquadAction(initial.competition_id, initial.league_name)) : undefined}
+            />
+          </div>
+        )}
+        <textarea id="team-players" ref={playersRef} name="players" value={players} onChange={(e) => setPlayers(e.target.value)} rows={9} className={field} required />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">

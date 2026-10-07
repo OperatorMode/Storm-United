@@ -58,6 +58,7 @@ export function MagicImport() {
     setError(null);
     setStage("importing");
     const res = await importLeagueAction({
+      siteUrl: scan.siteUrl,
       feedUrl: scan.feedUrl,
       feedType: scan.feedType,
       leagueName,

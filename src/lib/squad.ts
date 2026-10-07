@@ -42,7 +42,10 @@ const Picked = z.object({
 const Read = z.object({
   isThisTeam: z.boolean().describe("Whether the page is about this team (or lists its squad)"),
   players: z.array(z.string()).describe("This team's players only, each as 'First Last'. No coaches or staff."),
-  rosterUrl: z.string().nullable().describe("If the players aren't listed here, the URL from the links that most likely lists them (e.g. Roster, Squad, Players); otherwise null"),
+  rosterUrl: z
+    .string()
+    .nullable()
+    .describe("If this team's players aren't listed here, the URL from the links that leads closest to them (the team's own page or club website, or a Roster/Squad/Players page); otherwise null"),
 });
 
 async function ask<T extends z.ZodType>(schema: T, prompt: string): Promise<z.infer<T> | null> {
@@ -74,7 +77,7 @@ async function readSquad(url: string, team: string, league: string) {
     Read,
     `Below is a page from the website of ${league} (${page.url}). We want the players in the team "${team}".
 
-If the page lists this team's players, return their names. If it doesn't, pick the link most likely to list them.
+If the page lists this team's players, return their names. If it doesn't, pick the link that leads closest to them: this team's page or club website, or its Roster/Squad/Players page.
 
 <page>
 ${page.text.slice(0, MAX_PAGE_CHARS)}
@@ -88,24 +91,29 @@ ${linkList(links)}
 }
 
 export async function findSquad(competition: Competition, team: string): Promise<SquadResult> {
-  const site = (competition.feed_type === "web" && competition.feed_url) || competition.league.website;
+  // The league's website (the link pasted when importing) and its fixtures page.
+  const starts = [...new Set([competition.league.website, competition.feed_type === "web" ? competition.feed_url : null].filter((u): u is string => !!u))];
+  const site = starts[0];
   if (!site) return { players: [], source: null, note: "This league has no website linked, so type the players in." };
   if (!process.env.ANTHROPIC_API_KEY) return { players: [], source: null, note: "Reading web pages isn’t switched on yet." };
   const league = competition.league.name;
 
-  // Links from the fixtures page and the site's home page.
+  // Links from those pages and their sites' home pages.
+  const origins = [...new Set(starts.map((u) => new URL(u).origin))].filter((o) => !starts.includes(o) && !starts.includes(`${o}/`));
   const pages = await Promise.all([
-    readPage(site).catch(() => null),
-    fetchText(new URL(site).origin)
-      .then((html) => ({ url: new URL(site).origin, html }))
-      .catch(() => null),
+    ...starts.map((u) => readPage(u).catch(() => null)),
+    ...origins.map((o) =>
+      fetchText(o)
+        .then((html) => ({ url: o, html }))
+        .catch(() => null),
+    ),
   ]);
   const links = [...new Map(pages.flatMap((p) => (p ? anchors(p.html, p.url) : [])).map((a) => [a.url, a])).values()];
   if (!links.length) return { players: [], source: null, note: "Couldn’t open the league website." };
 
   const picked = await ask(
     Picked,
-    `These are links from the website of ${league}. Which are most likely to show the players (squad, roster, team list) of the team "${team}" in "${competition.name}"? Prefer this team's own page or roster page. Team names on websites may be shortened or use a code.
+    `These are links from the website of ${league}. Which are most likely to lead to the players (squad, roster) of the team "${team}" in "${competition.name}"? Prefer this team's own page, club website or roster page; a page listing all the teams is next best. Team names on websites may be shortened or use a code.
 
 <links>
 ${linkList(links.slice(0, MAX_LINKS))}
@@ -114,12 +122,17 @@ ${linkList(links.slice(0, MAX_LINKS))}
   const known = new Set(links.map((a) => a.url));
   const tries = (picked?.urls ?? []).filter((u) => known.has(u)).slice(0, MAX_TRIES);
 
+  const deadline = Date.now() + 200_000; // stay inside the page's time limit
   for (const url of tries) {
+    if (Date.now() > deadline) break;
     let read = await readSquad(url, team, league);
     let source = url;
-    if (read && read.players.length < 3 && read.rosterUrl) {
+    // Follow the trail a couple of steps: teams list, club website, its Players page.
+    const seen = new Set([url]);
+    for (let hop = 0; hop < 2 && read && read.players.length < 3 && read.rosterUrl && !seen.has(read.rosterUrl) && Date.now() < deadline; hop++) {
       source = read.rosterUrl;
-      read = await readSquad(read.rosterUrl, team, league);
+      seen.add(source);
+      read = await readSquad(source, team, league);
     }
     if (read?.isThisTeam && read.players.length >= 3) {
       // Two "Sam J."s keep their full names so they can be told apart.

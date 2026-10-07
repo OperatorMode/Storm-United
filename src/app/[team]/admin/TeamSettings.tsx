@@ -24,13 +24,19 @@ export function TeamSettings({
   const squad = useSquadFinder(listRef, setList);
   return (
     <form action={action} className="space-y-4 text-sm">
-      <label className="block">
-        <span className="mb-1 block font-medium">Players</span>
+      <div>
+        <label htmlFor="settings-players" className="mb-1 block font-medium">
+          Players
+        </label>
         <span className="mb-1.5 block text-xs text-zinc-500">
           One per line, first name + last initial (e.g. “Zane B.”). Removing a player keeps their past votes and goalie
           history.
         </span>
+        <div className="mb-2">
+          <SquadStatus finder={squad} onFind={() => squad.find(() => findTeamSquad(teamId))} />
+        </div>
         <textarea
+          id="settings-players"
           ref={listRef}
           name="players"
           value={list}
@@ -38,8 +44,7 @@ export function TeamSettings({
           rows={Math.max(6, list.split("\n").length + 1)}
           className={field}
         />
-      </label>
-      <SquadStatus finder={squad} onFind={() => squad.find(() => findTeamSquad(teamId))} />
+      </div>
 
       <label className="block">
         <span className="mb-1 block font-medium">Join code</span>

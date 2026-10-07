@@ -578,6 +578,7 @@ export async function scanLeagueAction(url: string): Promise<{ scan?: LeagueScan
 // Creates the league and competition from a scan, connects the link and
 // imports its fixtures and teams straight away.
 export async function importLeagueAction(input: {
+  siteUrl: string;
   feedUrl: string;
   feedType: FeedType;
   leagueName: string;
@@ -603,7 +604,7 @@ export async function importLeagueAction(input: {
       id: leagueId,
       name,
       short_name: input.shortName?.trim().slice(0, 40) || null,
-      website: input.feedUrl,
+      website: /^https?:\/\//i.test(input.siteUrl) ? input.siteUrl : input.feedUrl, // where squads and the ladder are found
       venue: input.venue?.trim().slice(0, 120) || null,
       source: "manual",
       timezone: isTimezone(input.timezone) ? input.timezone : "UTC",
