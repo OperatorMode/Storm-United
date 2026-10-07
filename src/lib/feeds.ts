@@ -30,7 +30,7 @@ import { DEFAULT_TZ } from "./time";
 export type FeedType = "csv" | "ics" | "web";
 const STALE_MS: Record<FeedType, number> = { csv: 10 * 60_000, ics: 10 * 60_000, web: 60 * 60_000 };
 const MAX_BYTES = 3 * 1024 * 1024;
-const MAX_PAGE_CHARS = 150_000;
+const MAX_PAGE_CHARS = 300_000;
 
 // ---------- safe fetching (users type these URLs) ----------
 
@@ -257,12 +257,68 @@ const JS_PLATFORMS: [RegExp, string][] = [
   [/ecal\.(net|com)/i, "ECAL"],
 ];
 
+// ---------- pages that load their fixtures with JavaScript ----------
+// Opened in a real (hidden) browser by a rendering service (Browserless), then
+// read like any other page. Off unless BROWSERLESS_TOKEN is set.
+
+export const canRenderPages = () => !!process.env.BROWSERLESS_TOKEN;
+
+const isPlatform = (s: string) => JS_PLATFORMS.some(([re]) => re.test(s));
+
+/** A fixtures window embedded from a known platform (e.g. Football West → Squadi). */
+function embeddedPlatformUrl(html: string, pageUrl: string): string | null {
+  for (const m of html.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)) {
+    const src = m[1].replace(/&amp;/g, "&");
+    if (!isPlatform(src)) continue;
+    try {
+      const u = new URL(src, pageUrl);
+      if (u.protocol === "https:" || u.protocol === "http:") return u.toString();
+    } catch {}
+  }
+  return null;
+}
+
+/** The page's HTML after its JavaScript has run. */
+async function renderPage(url: string): Promise<string> {
+  const token = process.env.BROWSERLESS_TOKEN;
+  if (!token) throw new Error("Page rendering isn’t switched on.");
+  const base = process.env.BROWSERLESS_URL ?? "https://production-sfo.browserless.io";
+  const res = await fetch(`${base}/content?token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, gotoOptions: { waitUntil: "networkidle2", timeout: 40_000 }, bestAttempt: true }),
+    signal: AbortSignal.timeout(55_000),
+  });
+  if (!res.ok) throw new Error(`The page couldn’t be opened for reading (${res.status}). Try again later.`);
+  return res.text();
+}
+
+/**
+ * Long pages listing every division: keep just the lines around the chosen
+ * competition (e.g. "NPL M Group B"), so the AI reads only what matters.
+ */
+function focusOn(text: string, filter: string | null): string {
+  if (!filter || text.length < 60_000) return text;
+  const lines = text.split("\n");
+  const needle = filter.toLowerCase();
+  const keep = new Set<number>();
+  lines.forEach((l, i) => {
+    if (!l.toLowerCase().includes(needle)) return;
+    for (let j = Math.max(0, i - 12); j <= Math.min(lines.length - 1, i + 2); j++) keep.add(j);
+  });
+  return keep.size ? [...keep].sort((a, b) => a - b).map((i) => lines[i]).join("\n") : text;
+}
+
 /** The message shown when a web page has no games Sidelnr can read. */
 function noGamesMessage(url: string, html: string): string {
   const platform = JS_PLATFORMS.find(([re]) => re.test(url) || re.test(html))?.[1];
-  const why = platform
-    ? `This page gets its fixtures from ${platform}, which only loads them once the page is open in a browser, so Sidelnr can’t see them yet.`
-    : "Either the fixtures aren’t published yet, or the page only loads them once it’s open in a browser, which Sidelnr can’t see yet.";
+  const why = canRenderPages()
+    ? platform
+      ? `Sidelnr opened it like a browser but found no games. If ${platform} lists several competitions, check the name under More options matches the page exactly.`
+      : "Sidelnr opened it like a browser but found no games. The fixtures may not be published yet."
+    : platform
+      ? `This page gets its fixtures from ${platform}, which only loads them once the page is open in a browser, so Sidelnr can’t see them yet.`
+      : "Either the fixtures aren’t published yet, or the page only loads them once it’s open in a browser, which Sidelnr can’t see yet.";
   return `No games found on this page. ${why} For now, use a calendar or spreadsheet link if the site offers one, or add the fixtures another way (create them automatically, upload a file or add them manually).`;
 }
 
@@ -294,14 +350,30 @@ export async function readFeed(
     throw new Error("That Google Sheet isn’t public yet. In the sheet: Share, then General access: Anyone with the link (Viewer).");
   }
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("This link is a web page, and reading web pages isn’t switched on yet.");
-  const pageText = htmlToText(text);
+
+  // Fixtures loaded by JavaScript (Squadi, PlayHQ…), or a page with such a
+  // window embedded: open it in a real browser first.
+  const embedded = embeddedPlatformUrl(text, url);
+  const target = embedded ?? url;
+  let rendered = false;
+  let pageText = htmlToText(text);
+  if (canRenderPages() && (embedded || isPlatform(url) || pageText.length < 400)) {
+    pageText = htmlToText(await renderPage(target));
+    rendered = true;
+  }
+  pageText = focusOn(pageText, feed.filter);
   const hash = createHash("sha256").update(`${feed.filter ?? ""}|${pageText}`).digest("hex");
   if (previousHash && hash === previousHash) return { type: "web", fixtures: [], errors: [], hash, unchanged: true };
   if (pageText.length < 40) throw new Error(noGamesMessage(url, text));
-  const read = await fixturesFromWebPage(pageText, url, feed.filter, tz);
+  let read = await fixturesFromWebPage(pageText, target, feed.filter, tz);
+  // Nothing on the plain page: try once more as a browser sees it.
+  if (!read.fixtures.length && !rendered && canRenderPages()) {
+    pageText = focusOn(htmlToText(await renderPage(url)), feed.filter);
+    read = await fixturesFromWebPage(pageText, url, feed.filter, tz);
+  }
   // Nothing found: a clear explanation instead of the AI's own wording.
   if (!read.fixtures.length) {
-    const platform = JS_PLATFORMS.some(([re]) => re.test(url) || re.test(text));
+    const platform = isPlatform(url) || isPlatform(text);
     if (platform || !feed.filter) throw new Error(noGamesMessage(url, text));
     throw new Error(`No games found for “${feed.filter}” on this page. Check the name matches the page exactly, or clear it under More options to read every game.`);
   }
