@@ -19,6 +19,7 @@ import {
   joinCookie,
   joinToken,
   voterCookie,
+  selfCookie,
 } from "@/lib/session";
 
 // Loads the team and checks this browser is allowed in (join code).
@@ -33,11 +34,14 @@ async function findGame(team: Team, gameId: string) {
 }
 
 // The child (or children) this phone belongs to; an empty list forgets it.
-export async function setChildren(teamId: string, ids: string[]) {
+export async function setChildren(teamId: string, ids: string[], self = false) {
   const team = await teamFor(teamId);
   if (!team) return;
   const store = await cookies();
-  const valid = [...new Set(ids)].filter((id) => isActivePlayer(team, id)).slice(0, 10);
+  // A player picks just themselves; a parent can pick siblings too.
+  const valid = [...new Set(ids)].filter((id) => isActivePlayer(team, id)).slice(0, self ? 1 : 10);
+  if (self) store.set(selfCookie(team.id), "1", COOKIE_OPTS);
+  else store.delete(selfCookie(team.id));
   if (!valid.length) store.delete(voterCookie(team.id));
   else store.set(voterCookie(team.id), valid.join(","), COOKIE_OPTS);
   revalidatePath("/", "layout");
@@ -179,6 +183,7 @@ export async function leaveTeam(teamId: string, pushEndpoint: string | null) {
   if (!team) return;
   const store = await cookies();
   store.delete(voterCookie(team.id));
+  store.delete(selfCookie(team.id));
   store.delete(joinCookie(team.id));
   if (team.id === "storm-united") store.delete("su_voter"); // from before teams had their own links
   if (pushEndpoint) await deletePushSub(team.id, pushEndpoint);

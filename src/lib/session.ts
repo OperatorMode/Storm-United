@@ -16,6 +16,8 @@ export const YEAR = 60 * 60 * 24 * 365;
 export const COOKIE_OPTS = { maxAge: YEAR, httpOnly: true, sameSite: "lax", secure: true, path: "/" } as const;
 
 export const voterCookie = (teamId: string) => `su_voter_${teamId}`;
+// Set when the phone belongs to a player themselves ("I am…"), not a parent.
+export const selfCookie = (teamId: string) => `su_self_${teamId}`;
 export const joinCookie = (teamId: string) => `su_join_${teamId}`;
 export const adminCookie = (teamId: string) => `su_admin_${teamId}`;
 export const SUPER_COOKIE = "su_super";
@@ -109,6 +111,11 @@ export async function currentChildren(team: Team): Promise<string[]> {
     store.get(voterCookie(team.id))?.value ??
     (team.id === LEGACY_TEAM ? store.get(LEGACY_VOTER_COOKIE)?.value : undefined);
   return [...new Set((raw ?? "").split(","))].filter((id) => id && isActivePlayer(team, id));
+}
+
+/** Whether this phone is the player's own ("I am…") rather than a parent's. */
+export async function isPlayerSelf(team: Team): Promise<boolean> {
+  return (await cookies()).get(selfCookie(team.id))?.value === "1";
 }
 
 /**

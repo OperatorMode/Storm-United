@@ -45,6 +45,7 @@ export default async function EditMyTeamPage({ params }: PageProps<"/account/tea
             hasJoinCode: !!team.join_code_hash,
             meet_minutes: team.meet_minutes,
             goalie_enabled: team.goalie_enabled,
+            role_name: team.role_name ?? null,
           }}
           save={updateMyTeam.bind(null, team.id)}
           remove={role === "owner" ? deleteMyTeam.bind(null, team.id) : undefined}

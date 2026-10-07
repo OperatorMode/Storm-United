@@ -66,6 +66,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
                 hasJoinCode: !!editing.join_code_hash,
                 meet_minutes: editing.meet_minutes,
                 goalie_enabled: editing.goalie_enabled,
+                role_name: editing.role_name ?? null,
               }
             }
           />

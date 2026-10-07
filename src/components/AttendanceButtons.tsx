@@ -3,6 +3,7 @@
 import { useOptimistic, useState, useTransition } from "react";
 import { updateAttendance } from "@/app/[team]/actions";
 import type { AttendanceStatus, GoalieHalf } from "@/lib/store";
+import { roleInText } from "@/lib/role";
 
 const OPTIONS: { value: AttendanceStatus; label: string; on: string }[] = [
   { value: "yes", label: "Can play", on: "bg-emerald-600 text-white border-emerald-600" },
@@ -24,12 +25,14 @@ export function AttendanceButtons({
   status,
   goalie,
   goalieEnabled,
+  roleName = "Goalie",
   playerId,
 }: {
   teamId: string;
   playerId: string;
   gameId: string;
   goalieEnabled: boolean;
+  roleName?: string; // the team's special role, e.g. "Goalie" or "Catcher"
   status: AttendanceStatus | null;
   goalie: GoalieHalf | null;
 }) {
@@ -70,7 +73,7 @@ export function AttendanceButtons({
 
       {goalieEnabled && state.status !== "no" && (
         <fieldset className="mt-3">
-          <legend className="mb-1.5 text-xs font-medium text-zinc-500">Happy to be goalie</legend>
+          <legend className="mb-1.5 text-xs font-medium text-zinc-500">Happy to be {roleInText(roleName)}</legend>
           <div className="grid grid-cols-3 gap-2">
             {GOALIE_OPTIONS.map((o) => {
               const checked = state.goalie === o.value;

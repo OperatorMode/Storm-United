@@ -76,6 +76,7 @@ export async function applyTeamForm(formData: FormData, opts: TeamFormOptions): 
     ...join,
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
+    role_name: get("role_name").slice(0, 30) || null,
   };
   await upsertTeam(row);
   await savePlayers(id, players);

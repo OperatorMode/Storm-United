@@ -3,6 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import { findTeamSquad, saveTeamSettings, teamSquadFromLink } from "./actions";
 import { SquadStatus, useSquadFinder } from "@/components/SquadFinder";
+import { RoleField } from "@/components/RoleField";
 
 export function TeamSettings({
   teamId,
@@ -10,12 +11,14 @@ export function TeamSettings({
   hasJoinCode,
   meetMinutes,
   goalieEnabled,
+  roleName,
 }: {
   teamId: string;
   players: string;
   hasJoinCode: boolean;
   meetMinutes: number;
   goalieEnabled: boolean;
+  roleName: string | null;
 }) {
   const [state, action, pending] = useActionState(saveTeamSettings.bind(null, teamId), null);
   const field = "w-full rounded-xl border border-zinc-300 px-3 py-2 text-base";
@@ -29,7 +32,7 @@ export function TeamSettings({
           Players
         </label>
         <span className="mb-1.5 block text-xs text-zinc-500">
-          One per line, first name + last initial (e.g. “Zane B.”). Removing a player keeps their past votes and goalie
+          One per line, first name + last initial (e.g. “Zane B.”). Removing a player keeps their past votes and role
           history.
         </span>
         <div className="mb-2">
@@ -73,10 +76,7 @@ export function TeamSettings({
         </span>
       </label>
 
-      <label className="flex items-center gap-2">
-        <input type="checkbox" name="goalie_enabled" defaultChecked={goalieEnabled} className="size-4" />
-        <span className="font-medium">Goalie sign-up</span>
-      </label>
+      <RoleField enabled={goalieEnabled} name={roleName} />
 
       <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white">
         {pending ? "Saving…" : "Save settings"}

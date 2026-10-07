@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { saveGameRotation } from "./actions";
+import { roleInText, rolePlural } from "@/lib/role";
 import { blocksOf, buildRotation, seasonTotals, type GameShape, type RotationPlan, type Spot } from "@/lib/rotation-plan";
 
 type GameInfo = {
@@ -35,7 +36,9 @@ export function RotationAdmin({
   games,
   allSaved,
   defaults,
+  role,
 }: {
+  role: string | null; // the team's special role (goalie...), when it has one
   teamId: string;
   players: { id: string; name: string }[];
   games: GameInfo[];
@@ -146,23 +149,25 @@ export function RotationAdmin({
         <label className="block">
           <span className="mb-1 block font-medium">On the field</span>
           <input type="number" min={1} max={30} value={onField} onChange={(e) => setOnField(Number(e.target.value))} className={field} />
-          <span className="mt-0.5 block text-xs text-zinc-400">Including the goalie</span>
+          <span className="mt-0.5 block text-xs text-zinc-400">{role ? `Including the ${roleInText(role)}` : "Everyone playing at once"}</span>
         </label>
       </div>
       <p className="text-xs text-zinc-500">
         {blocks.minutes.length} changes: {blocks.labels.join(" · ")}
       </p>
-      <label className="flex items-start gap-2">
-        <input type="checkbox" checked={goaliesStayOn} onChange={(e) => setGoaliesStayOn(e.target.checked)} className="mt-1" />
-        <span>
-          <span className="block font-medium">Goalies play the full game</span>
-          <span className="block text-xs text-zinc-500">
-            {game?.goalies.first || game?.goalies.second
-              ? "Whoever’s in goal for a half isn’t rested in the other half either."
-              : "No goalies assigned for this game yet (see Goalies)."}
+      {role && (
+        <label className="flex items-start gap-2">
+          <input type="checkbox" checked={goaliesStayOn} onChange={(e) => setGoaliesStayOn(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="block font-medium">{rolePlural(role)} play the full game</span>
+            <span className="block text-xs text-zinc-500">
+              {game?.goalies.first || game?.goalies.second
+                ? `Whoever is ${roleInText(role)} for a half isn’t rested in the other half either.`
+                : `No ${roleInText(rolePlural(role))} assigned for this game yet (see ${rolePlural(role)}).`}
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      )}
 
       <div>
         <span className="mb-1 block font-medium">Who’s there ({available.length})</span>
@@ -181,7 +186,7 @@ export function RotationAdmin({
             );
           })}
         </div>
-        <span className="mt-1 block text-xs text-zinc-400">Everyone except those marked Can’t make it. Goalies come from the Goalies section.</span>
+        <span className="mt-1 block text-xs text-zinc-400">Everyone except those marked Can’t make it.{role ? ` ${rolePlural(role)} come from the ${rolePlural(role)} section.` : ""}</span>
       </div>
 
       <button type="button" onClick={make} disabled={available.length === 0} className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white disabled:opacity-30">

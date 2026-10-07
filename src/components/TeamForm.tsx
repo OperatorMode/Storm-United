@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { CompetitionPicker } from "./CompetitionPicker";
 import { SquadStatus, useSquadFinder } from "./SquadFinder";
+import { RoleField } from "./RoleField";
 import { drawTeams, findSquadAction, squadFromLinkAction } from "@/app/competition-actions";
 
 export type TeamFormValues = {
@@ -18,6 +19,7 @@ export type TeamFormValues = {
   hasJoinCode: boolean;
   meet_minutes: number;
   goalie_enabled: boolean;
+  role_name: string | null;
 };
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
@@ -192,11 +194,8 @@ export function TeamForm({
           <input name="meet_minutes" type="number" min={0} max={120} defaultValue={initial?.meet_minutes ?? 30} className="w-20 rounded-xl border border-zinc-300 px-3 py-2 text-base" />
           <span className="text-zinc-600">min meet before KO</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="goalie_enabled" defaultChecked={initial?.goalie_enabled ?? true} className="size-4" />
-          <span className="text-zinc-600">Goalie sign-up</span>
-        </label>
       </div>
+      <RoleField enabled={initial?.goalie_enabled ?? false} name={initial?.role_name ?? null} compact />
 
       <button disabled={pending} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white">
         {pending ? "Saving…" : initial ? "Save team" : "Create team"}

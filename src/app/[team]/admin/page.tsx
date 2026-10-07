@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { roleInText, roleName, rolePlural } from "@/lib/role";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -124,6 +125,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     .filter((r) => r.summary);
   const played = ourGames.filter((g) => g.kickoff.getTime() <= now.getTime());
   const us = team.league_name;
+  const role = roleName(team); // the special role, e.g. "Goalie"
   const nameOf = (id: string) => playerName(team, id);
   // Tallies include players who have since left the squad, so history isn't lost.
   const everyone = team.allPlayers.map((p) => p.id);
@@ -221,6 +223,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
 
       <Section title="Game rotation" aside="Fair playing time">
         <RotationAdmin
+          role={team.goalie_enabled ? role : null}
           teamId={team.id}
           players={team.players}
           allSaved={seasonRotations}
@@ -279,7 +282,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             </ul>
           );
           return (
-            <Section title="Goalies" aside="Assign · tally">
+            <Section title={rolePlural(role)} aside="Assign · tally">
               {soon.length ? assign(soon) : <p className="text-sm text-zinc-500">No upcoming games.</p>}
               {rest.length > 0 && (
                 <details className="mt-4 border-t border-zinc-100 pt-3 text-sm">
@@ -288,9 +291,9 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                 </details>
               )}
               <details className="mt-3 border-t border-zinc-100 pt-3 text-sm">
-                <summary className="cursor-pointer text-zinc-600">Goalie tally (halves in goal)</summary>
+                <summary className="cursor-pointer text-zinc-600">{role} tally (halves as {roleInText(role)})</summary>
                 {goalieRows.every((r) => r.halves === 0) ? (
-                  <p className="mt-2 text-zinc-500">No goalies recorded for played games yet.</p>
+                  <p className="mt-2 text-zinc-500">No {roleInText(rolePlural(role))} recorded for played games yet.</p>
                 ) : (
                   <table className="mt-2 w-full tabular-nums">
                     <tbody>
@@ -436,6 +439,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           hasJoinCode={!!team.join_code_hash}
           meetMinutes={team.meet_minutes}
           goalieEnabled={team.goalie_enabled}
+          roleName={team.role_name ?? null}
         />
       </Section>
 

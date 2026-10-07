@@ -97,6 +97,7 @@ export async function saveTeamSettings(teamId: string, _: unknown, formData: For
     ...row,
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
+    role_name: String(formData.get("role_name") ?? "").trim().slice(0, 30) || null,
     ...join,
   });
   await savePlayers(team.id, players);

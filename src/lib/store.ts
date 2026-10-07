@@ -40,7 +40,8 @@ export type TeamRow = {
   join_code_hash: string | null;
   join_code_key: string | null; // unsalted lookup hash of the join code (see teams.ts)
   meet_minutes: number;
-  goalie_enabled: boolean;
+  goalie_enabled: boolean; // the special role (see role.ts) is on
+  role_name?: string | null; // its name; null = "Goalie". Migration 013.
 };
 export type PlayerRow = { id: string; name: string; sort: number; active: boolean };
 
@@ -230,7 +231,7 @@ const strip = <T extends { team_id: string }>({ team_id: _, ...rest }: T) => res
 // ---------- teams & players ----------
 
 const TEAM_COLS =
-  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled";
+  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled, role_name";
 
 export async function listTeams(): Promise<TeamRow[]> {
   const s = db();

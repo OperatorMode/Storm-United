@@ -1,4 +1,5 @@
 import { Card } from "@/components/Card";
+import { roleName } from "@/lib/role";
 import { OfficialLadderTable } from "@/components/OfficialLadderTable";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ChildrenPicker } from "@/components/ChildrenPicker";
@@ -43,7 +44,7 @@ import { firstName, getTeam, playerName, type Team } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
 import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
-import { canView, currentChildren } from "@/lib/session";
+import { canView, currentChildren, isPlayerSelf } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
 
 export default async function TeamHome({ params }: PageProps<"/[team]">) {
@@ -58,6 +59,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
     currentChildren(team),
     tabData(team),
   ]);
+  const self = await isPlayerSelf(team);
   const byWins = ladderStyle === "wins";
   const [calToken, host, training, duties, dutySignups] = await Promise.all([
     calendarToken([team]),
@@ -93,7 +95,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
               <div className="text-xs text-on-team/60">{competition ? competitionLabel(competition) : team.division}</div>
             </div>
           </div>
-          <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} />
+          <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} self={self} />
         </div>
 
         <NextGame
@@ -112,9 +114,9 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Welcome! Who are you?</h2>
             <p className="mb-3 mt-1 text-sm text-zinc-500">
-              Tap your child once and this phone will remember it for attendance and MVP votes.
+              Tap your name, or your child’s, and this phone will remember it for attendance and MVP votes.
             </p>
-            <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} inline />
+            <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} self={self} inline />
           </section>
         )}
 
@@ -128,13 +130,14 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
                     teamId={team.id}
                     playerId={child}
                     goalieEnabled={team.goalie_enabled}
+                    roleName={roleName(team)}
                     gameId={next.id}
                     status={statusOf(next.id, child)}
                     goalie={rowOf(next.id, child)?.goalie ?? null}
                   />
                 </div>
               ))}
-            <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={children} />
+            <AttendanceList players={PLAYERS} gameId={next.id} attendance={attendance} highlight={children} role={roleName(team)} />
           </Card>
         )}
 
@@ -461,11 +464,13 @@ function AttendanceList({
   gameId,
   attendance,
   highlight,
+  role,
 }: {
   players: { id: string; name: string }[];
   gameId: string;
   attendance: AttendanceRow[];
   highlight: string[];
+  role: string;
 }) {
   const rows = players.map((p) => {
     const row = attendance.find((a) => a.game_id === gameId && a.player_id === p.id);
@@ -487,7 +492,7 @@ function AttendanceList({
             <span className={`truncate ${status === "no" ? "text-zinc-400 line-through" : ""}`}>{player.name}</span>
             {goalie && (
               <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700">
-                Goalie: {GOALIE_LABEL[goalie]}
+                {role}: {GOALIE_LABEL[goalie]}
               </span>
             )}
           </li>
@@ -582,6 +587,7 @@ function Fixtures({
                       teamId={team.id}
                       playerId={child}
                       goalieEnabled={team.goalie_enabled}
+                    roleName={roleName(team)}
                       gameId={game.id}
                       status={rowFor(child)?.status ?? null}
                       goalie={rowFor(child)?.goalie ?? null}
