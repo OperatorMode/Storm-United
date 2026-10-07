@@ -137,14 +137,8 @@ export function TeamForm({
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="mb-1 block font-medium">Main colour</span>
-          <input type="color" name="primary_color" defaultValue={initial?.primary_color ?? "#0a0a0a"} className="h-11 w-full rounded-xl border border-zinc-300" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block font-medium">Accent colour</span>
-          <input type="color" name="accent_color" defaultValue={initial?.accent_color ?? "#e5334b"} className="h-11 w-full rounded-xl border border-zinc-300" />
-        </label>
+        <ColourField label="Main colour" name="primary_color" initial={initial?.primary_color ?? "#0a0a0a"} />
+        <ColourField label="Accent colour" name="accent_color" initial={initial?.accent_color ?? "#e5334b"} />
       </div>
 
       <label className="block">
@@ -218,5 +212,53 @@ export function TeamForm({
         </button>
       )}
     </form>
+  );
+}
+
+// "e5334b", "#E5334B" or "#e34" → "#e5334b"; anything else → null.
+function parseHex(raw: string): string | null {
+  const v = raw.trim().replace(/^#/, "").toLowerCase();
+  if (/^[0-9a-f]{6}$/.test(v)) return `#${v}`;
+  if (/^[0-9a-f]{3}$/.test(v)) return `#${[...v].map((c) => c + c).join("")}`;
+  return null;
+}
+
+// A colour picker with its hex code underneath, for anyone who knows their club's colours.
+function ColourField({ label, name, initial }: { label: string; name: string; initial: string }) {
+  const [colour, setColour] = useState(initial);
+  const [text, setText] = useState(initial);
+  const bad = !parseHex(text);
+  return (
+    <div>
+      <label className="block">
+        <span className="mb-1 block font-medium">{label}</span>
+        <input
+          type="color"
+          name={name}
+          value={colour}
+          onChange={(e) => {
+            setColour(e.target.value);
+            setText(e.target.value);
+          }}
+          className="h-11 w-full rounded-xl border border-zinc-300"
+        />
+      </label>
+      <input
+        aria-label={`${label} hex code`}
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          const hex = parseHex(e.target.value);
+          if (hex) setColour(hex);
+        }}
+        onBlur={() => setText(colour)}
+        maxLength={7}
+        spellCheck={false}
+        autoCapitalize="off"
+        autoComplete="off"
+        placeholder="#000000"
+        className={`mt-1.5 w-full rounded-xl border px-3 py-2 font-mono text-base uppercase ${bad ? "border-red-400" : "border-zinc-300"}`}
+      />
+    </div>
   );
 }
