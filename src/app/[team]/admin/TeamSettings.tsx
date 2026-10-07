@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { findTeamSquad, saveTeamSettings } from "./actions";
+import { findTeamSquad, saveTeamSettings, teamSquadFromLink } from "./actions";
 import { SquadStatus, useSquadFinder } from "@/components/SquadFinder";
 
 export function TeamSettings({
@@ -33,7 +33,11 @@ export function TeamSettings({
           history.
         </span>
         <div className="mb-2">
-          <SquadStatus finder={squad} onFind={() => squad.find(() => findTeamSquad(teamId))} />
+          <SquadStatus
+            finder={squad}
+            onFind={() => squad.find(() => findTeamSquad(teamId))}
+            fromLink={(url) => teamSquadFromLink(teamId, url)}
+          />
         </div>
         <textarea
           id="settings-players"

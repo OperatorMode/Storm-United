@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { CompetitionPicker } from "./CompetitionPicker";
 import { SquadStatus, useSquadFinder } from "./SquadFinder";
-import { drawTeams, findSquadAction } from "@/app/competition-actions";
+import { drawTeams, findSquadAction, squadFromLinkAction } from "@/app/competition-actions";
 
 export type TeamFormValues = {
   id: string;
@@ -164,6 +164,7 @@ export function TeamForm({
             <SquadStatus
               finder={squad}
               onFind={initial?.competition_id ? () => squad.find(() => findSquadAction(initial.competition_id, initial.league_name)) : undefined}
+              fromLink={(url) => squadFromLinkAction(competitionId, leagueName || name, url)}
             />
           </div>
         )}

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { fetchText, htmlToText } from "./feeds";
 import { readPage } from "./league-scan";
 import type { Competition } from "./league";
+import { squadNames } from "./player-names";
 
 // Finds a team's squad on its league's website, so a coach doesn't have to
 // type the players in. Looks at the links on the fixtures page and the site's
@@ -61,13 +62,6 @@ async function ask<T extends z.ZodType>(schema: T, prompt: string): Promise<z.in
   return response.stop_reason === "refusal" ? null : (response.parsed_output ?? null);
 }
 
-/** "LeBron James" -> "LeBron J."; the app's convention for player names. */
-export function shortName(full: string): string {
-  const parts = full.replace(/\s+/g, " ").trim().split(" ");
-  if (parts.length < 2) return parts[0] ?? "";
-  const last = parts[parts.length - 1].replace(/[^\p{L}]/gu, "");
-  return last ? `${parts[0]} ${last[0].toUpperCase()}.` : parts[0];
-}
 
 async function readSquad(url: string, team: string, league: string) {
   const page = await readPage(url).catch(() => null);
@@ -135,13 +129,22 @@ ${linkList(links.slice(0, MAX_LINKS))}
       read = await readSquad(source, team, league);
     }
     if (read?.isThisTeam && read.players.length >= 3) {
-      // Two "Sam J."s keep their full names so they can be told apart.
-      const full = [...new Set(read.players.map((p) => p.replace(/\s+/g, " ").trim()).filter(Boolean))];
-      const count = new Map<string, number>();
-      for (const p of full) count.set(shortName(p), (count.get(shortName(p)) ?? 0) + 1);
-      const players = full.map((p) => (count.get(shortName(p))! > 1 ? p : shortName(p)));
-      return { players, source, note: null };
+      return { players: squadNames(read.players), source, note: null };
     }
   }
   return { players: [], source: null, note: "Couldn’t find a squad list for this team on the league website." };
+}
+
+/** A squad from a page the coach points to (their club's roster page). */
+export async function squadFromLink(rawUrl: string, team: string, league: string): Promise<SquadResult> {
+  if (!process.env.ANTHROPIC_API_KEY) return { players: [], source: null, note: "Reading web pages isn’t switched on yet." };
+  const url = /^https?:\/\//i.test(rawUrl.trim()) ? rawUrl.trim() : `https://${rawUrl.trim()}`;
+  let read = await readSquad(url, team, league);
+  let source = url;
+  if (read && read.players.length < 3 && read.rosterUrl && read.rosterUrl !== url) {
+    source = read.rosterUrl;
+    read = await readSquad(source, team, league);
+  }
+  if (!read?.players.length) return { players: [], source: null, note: "Couldn’t find player names on that page." };
+  return { players: squadNames(read.players), source, note: null };
 }

@@ -15,7 +15,7 @@ import { saveRotation } from "@/lib/rotation";
 import type { RotationPlan } from "@/lib/rotation-plan";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { goalieSlot } from "@/lib/goalies";
-import { findSquad, type SquadResult } from "@/lib/squad";
+import { findSquad, squadFromLink, type SquadResult } from "@/lib/squad";
 import { mergePlayer } from "@/lib/merge";
 import { MANAGER_COOKIE, SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
 
@@ -301,5 +301,19 @@ export async function findTeamSquad(teamId: string): Promise<SquadResult> {
   } catch (e) {
     console.error("findSquad", e);
     return { players: [], source: null, note: "Couldn’t read the league website just now." };
+  }
+}
+
+/** The team's players from a page the coach links to (Team Settings). */
+export async function teamSquadFromLink(teamId: string, url: string): Promise<SquadResult> {
+  const team = await adminTeam(teamId);
+  if (!team) return { players: [], source: null, note: "Unlock Manager’s Corner first." };
+  if (!url.trim() || url.length > 500) return { players: [], source: null, note: "Paste the link to the squad page." };
+  const competition = team.competition_id ? await getCompetition(team.competition_id) : null;
+  try {
+    return await squadFromLink(url, team.league_name, competition?.league.name ?? "the league");
+  } catch (e) {
+    console.error("squadFromLink", e);
+    return { players: [], source: null, note: "Couldn’t open that link." };
   }
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { competitionLabel, competitionTeams, getCompetition, listCompetitions } from "@/lib/league";
-import { findSquad, type SquadResult } from "@/lib/squad";
+import { findSquad, squadFromLink, type SquadResult } from "@/lib/squad";
 import { listTeams } from "@/lib/store";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 
@@ -56,5 +56,18 @@ export async function findSquadAction(competitionId: string, team: string): Prom
   } catch (e) {
     console.error("findSquad", e);
     return { players: [], source: null, note: "Couldn’t read the league website just now." };
+  }
+}
+
+/** A team's players from a page the coach links to (team form). */
+export async function squadFromLinkAction(competitionId: string, team: string, url: string): Promise<SquadResult> {
+  if (!(await currentManagerId()) && !(await isSuperAdmin())) return { players: [], source: null, note: "Sign in first." };
+  if (!url.trim() || url.length > 500) return { players: [], source: null, note: "Paste the link to the squad page." };
+  const competition = await getCompetition(competitionId);
+  try {
+    return await squadFromLink(url, team, competition?.league.name ?? "the league");
+  } catch (e) {
+    console.error("squadFromLink", e);
+    return { players: [], source: null, note: "Couldn’t open that link." };
   }
 }
