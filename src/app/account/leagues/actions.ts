@@ -48,6 +48,13 @@ async function uniqueId(base: string, exists: (id: string) => Promise<boolean>):
   return id;
 }
 
+// A competition pulled from a link (an official league, a linked sheet) is
+// read-only here: its teams, fixtures and results only change at the source.
+async function handEditable(competitionId: string) {
+  const c = await editableCompetition(competitionId);
+  return c && !c.feed_url ? c : null;
+}
+
 // League admin of the competition's league, or the super admin.
 async function editableCompetition(competitionId: string) {
   const competition = await getCompetition(competitionId);
@@ -128,7 +135,7 @@ export async function addCompetitionAction(leagueId: string, _: unknown, formDat
 }
 
 export async function saveCompetitionSettings(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return { error: "Not authorised." };
   const comp = competitionRow(c.id, c.league_id, (k) => String(formData.get(k) ?? "").trim());
   if ("error" in comp) return { error: comp.error };
@@ -138,7 +145,7 @@ export async function saveCompetitionSettings(competitionId: string, _: unknown,
 }
 
 export async function addTeamsAction(competitionId: string, _: unknown, formData: FormData) {
-  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  if (!(await handEditable(competitionId))) return { error: "Not authorised." };
   const names = String(formData.get("teams") ?? "").split("\n");
   await addCompetitionTeams(competitionId, names);
   refreshAll();
@@ -146,7 +153,7 @@ export async function addTeamsAction(competitionId: string, _: unknown, formData
 }
 
 export async function removeTeamAction(competitionId: string, name: string) {
-  if (!(await editableCompetition(competitionId))) return;
+  if (!(await handEditable(competitionId))) return;
   const used = (await listFixtures(competitionId)).some((f) => f.home === name || f.away === name);
   if (used) return { error: `${name} still has fixtures. Delete those first.` };
   await removeCompetitionTeam(competitionId, name);
@@ -154,7 +161,7 @@ export async function removeTeamAction(competitionId: string, name: string) {
 }
 
 export async function addFixtureAction(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return { error: "Not authorised." };
   const get = (k: string) => String(formData.get(k) ?? "").trim();
   const date = parseDate(get("date"));
@@ -195,7 +202,7 @@ export async function saveResult(
   away: string,
   status: "scheduled" | "postponed" | "cancelled",
 ) {
-  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  if (!(await handEditable(competitionId))) return { error: "Not authorised." };
   const fixture = (await listFixtures(competitionId)).find((f) => f.id === fixtureId);
   if (!fixture) return { error: "Game not found." };
   const blank = home.trim() === "" && away.trim() === "";
@@ -210,13 +217,13 @@ export async function saveResult(
 }
 
 export async function deleteFixtureAction(competitionId: string, fixtureId: string) {
-  if (!(await editableCompetition(competitionId))) return;
+  if (!(await handEditable(competitionId))) return;
   await deleteFixture(competitionId, fixtureId);
   refreshAll();
 }
 
 export async function importFixturesCsv(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return { error: "Not authorised." };
   const file = formData.get("file");
   let text = String(formData.get("pasted") ?? "");
@@ -247,7 +254,7 @@ function feedFromForm(formData: FormData): FeedSettings | { error: string } {
 
 // Reads the link without saving anything, so the admin can check it first.
 export async function previewFeedAction(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return { error: "Not authorised." };
   const tz = competitionTz(c);
   const feed = feedFromForm(formData);
@@ -273,7 +280,7 @@ export async function previewFeedAction(competitionId: string, _: unknown, formD
 }
 
 export async function connectFeedAction(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return { error: "Not authorised." };
   const feed = feedFromForm(formData);
   if ("error" in feed) return { error: feed.error };
@@ -292,7 +299,7 @@ export async function syncNowAction(competitionId: string) {
 }
 
 export async function disconnectFeedAction(competitionId: string) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return;
   await saveFeedSettings(c, null); // fixtures already imported stay
   refreshAll();
@@ -396,7 +403,7 @@ export async function addEventDivisionAction(leagueId: string, _: unknown, formD
 
 // Builds every pool's round-robin and lays it out across the pitches.
 export async function generatePoolsAction(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return { error: "Not authorised." };
   const get = (k: string) => String(formData.get(k) ?? "").trim();
   const pools = parsePools(get("pools"));
@@ -433,7 +440,7 @@ export async function generatePoolsAction(competitionId: string, _: unknown, for
 
 // Fills in a finals game's teams once the pools are decided.
 export async function setFixtureTeamsAction(competitionId: string, fixtureId: string, home: string, away: string) {
-  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  if (!(await handEditable(competitionId))) return { error: "Not authorised." };
   const fixture = (await listFixtures(competitionId)).find((f) => f.id === fixtureId);
   if (!fixture) return { error: "Game not found." };
   home = home.trim();
@@ -481,7 +488,7 @@ function cleanDrawSettings(raw: DrawSettings): DrawSettings {
 
 // Games with a result (or already kicked off) stay; the rest is redrawn.
 async function drawFor(competitionId: string, raw: DrawSettings) {
-  const c = await editableCompetition(competitionId);
+  const c = await handEditable(competitionId);
   if (!c) return null;
   const settings = cleanDrawSettings(raw);
   const tz = competitionTz(c);

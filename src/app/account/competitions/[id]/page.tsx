@@ -16,6 +16,7 @@ import {
 } from "../../leagues/LeagueForms";
 import { FixtureWizard } from "../../leagues/FixtureWizard";
 import { FixtureOptions } from "../../leagues/FixtureOptions";
+import { UpdateNow } from "../../leagues/UpdateNow";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
@@ -26,6 +27,14 @@ import { now as clockNow } from "@/lib/clock";
 
 export const metadata: Metadata = { title: "Competition · Sidelnr", robots: { index: false } };
 
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "the league website";
+  }
+};
 
 export default async function CompetitionAdminPage({ params, searchParams }: PageProps<"/account/competitions/[id]">) {
   const { id } = await params;
@@ -85,6 +94,115 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   // Event finals games can have their teams filled in later.
   const teamsFor = (f: { stage: string | null }) => (event && !isPoolStage(f.stage) ? teams : undefined);
   const when = (iso: string) => `${formatDay(new Date(iso), tz)}, ${formatTime(new Date(iso), tz)}`;
+
+  // Pulled from a link (an official league, a linked sheet): everything comes
+  // from the source and updates on its own, so there's nothing to edit here.
+  if (feed) {
+    const source = hostOf(feed.url);
+    const game = (f: (typeof fixtures)[number]) => (
+      <li key={f.id} className="flex items-baseline justify-between gap-3 py-2 text-sm">
+        <span className="min-w-0">
+          <span className="block text-xs text-zinc-500">
+            {f.round ? `Rd ${f.round} · ` : ""}
+            {when(f.kickoff)}
+          </span>
+          {f.home} v {f.away}
+        </span>
+        <span className="shrink-0 font-semibold tabular-nums">
+          {f.status !== "scheduled" ? f.status : f.home_score !== null && f.away_score !== null ? `${f.home_score}–${f.away_score}` : ""}
+        </span>
+      </li>
+    );
+    return (
+      <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
+        <div className="text-sm text-zinc-500">
+          <Link href="/account/leagues">← My leagues</Link>
+        </div>
+        <div>
+          <div className="text-xs uppercase tracking-widest text-zinc-400">{competition.league.name}</div>
+          <h1 className="text-xl font-semibold">{competition.name}</h1>
+          {siblings.length > 1 && (
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              {siblings.map((c) => (
+                <Link
+                  key={c.id}
+                  href={`/account/competitions/${c.id}`}
+                  className={`rounded-full px-3 py-1 ${c.id === id ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"}`}
+                >
+                  {c.name}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <div className="font-semibold">{isNew ? `${competition.name} is live` : "Live from the league website"}</div>
+          <p className="mt-1">
+            Teams, fixtures and results come straight from {source} and update automatically, so there’s nothing to set up.
+            Teams join it via <b>My Team → Create a team</b> and pick “{competition.league.short_name ?? competition.league.name} ·{" "}
+            {competition.name}”.
+          </p>
+        </div>
+
+        <Card title="Source" aside={source}>
+          <div className="space-y-3 text-sm">
+            <p className="text-zinc-600">
+              {feed.error ? (
+                <span className="text-accent">Last check failed: {feed.error}</span>
+              ) : feed.syncedAt ? (
+                `Last updated ${when(feed.syncedAt)}.`
+              ) : (
+                "Not updated yet."
+              )}{" "}
+              Changes to games and results are made on the league’s website.
+            </p>
+            <a href={feed.url} target="_blank" rel="noreferrer" className="block truncate text-xs text-zinc-500 underline">
+              {feed.url}
+            </a>
+            <UpdateNow competitionId={id} />
+          </div>
+        </Card>
+
+        <Card title="Teams" aside={`${teams.length} in the draw · ${sidelnrTeams.length} on Sidelnr`}>
+          <ul className="flex flex-wrap gap-2 text-sm">
+            {teams.map((t) => (
+              <li key={t} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
+                {t}
+              </li>
+            ))}
+          </ul>
+        </Card>
+
+        <Card title="Upcoming fixtures" aside={`${upcoming.length}`}>
+          {upcoming.length ? (
+            <ul className="divide-y divide-zinc-100">{upcoming.map(game)}</ul>
+          ) : (
+            <p className="text-sm text-zinc-500">No upcoming games.</p>
+          )}
+        </Card>
+
+        <Card title="Results" aside={past.length ? `${past.length}` : undefined}>
+          {past.length ? <ul className="divide-y divide-zinc-100">{past.map(game)}</ul> : <p className="text-sm text-zinc-500">No games played yet.</p>}
+        </Card>
+
+        <Card title="Timezone" aside={tz.replaceAll("_", " ")}>
+          <LeagueTimezoneForm competitionId={id} initial={tz} />
+        </Card>
+
+        <Card title="Danger zone">
+          <DangerZone
+            competitionId={id}
+            competitionName={competition.name}
+            leagueName={competition.league.name}
+            noun={siblings.every((c) => c.kind === "tournament") ? "event" : "league"}
+            competitionImpact={competitionImpact}
+            leagueImpact={leagueImpact}
+          />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">

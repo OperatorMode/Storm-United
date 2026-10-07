@@ -133,7 +133,7 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
     shortName: null,
     venue: null,
     timezone: null,
-    competitions: [{ name: "Main", teams: new Set(games.flatMap((g) => [g.home, g.away])).size, games: games.length }],
+    competitions: games.length ? [{ name: "Main", teams: new Set(games.flatMap((g) => [g.home, g.away])).size, games: games.length }] : [],
     note: games.length ? null : "No games found at that link.",
   });
   if (first.includes("BEGIN:VCALENDAR")) return simple("ics", fixturesFromIcs(first, null, "UTC").fixtures);
