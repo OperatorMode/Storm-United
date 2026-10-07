@@ -53,9 +53,12 @@ export default async function Landing() {
   const signIn = (next: string) => (emailEnabled() ? `/login?next=${encodeURIComponent(next)}` : next);
   // What a signed-in manager runs, each one tap away.
   const runs: Record<(typeof DOORS)[number]["key"], Run[]> = { teams: [], leagues: [], events: [] };
+  const managing = new Set<string>(); // team ids this manager runs
   if (manager) {
     const [mine, leagues] = await Promise.all([managedTeams(manager.id), managedLeagues(manager.id)]);
-    const teams = (await Promise.all(mine.map((m) => getTeam(m.team_id)))).filter((t) => t !== null);
+    for (const m of mine) managing.add(m.team_id);
+    // Teams already listed above (as a parent) show once there, with a Manager badge.
+    const teams = (await Promise.all(mine.filter((m) => !ids.includes(m.team_id)).map((m) => getTeam(m.team_id)))).filter((t) => t !== null);
     runs.teams = await Promise.all(
       teams.map(async (t) => {
         const c = t.competition_id ? await getCompetition(t.competition_id) : null;
@@ -72,6 +75,7 @@ export default async function Landing() {
       (l.isEvent ? runs.events : runs.leagues).push(run);
     }
   }
+  const has = { teams: managing.size > 0, leagues: runs.leagues.length > 0, events: runs.events.length > 0 };
   // Each team: its competition, which of this phone's kids play in it, and what's new.
   const rows = await Promise.all(
     known.map(async (t) => {
@@ -116,7 +120,12 @@ export default async function Landing() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoSrc(t)} alt="" className="size-10 shrink-0 object-contain" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{t.name}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate font-semibold">{t.name}</span>
+                    {managing.has(t.id) && (
+                      <span className="shrink-0 rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Manager</span>
+                    )}
+                  </span>
                   <span className="block truncate text-xs text-zinc-500">{league}</span>
                   {kids.length > 0 && <span className="block truncate text-xs font-medium text-zinc-700">{kids.join(" & ")}</span>}
                 </span>
@@ -126,6 +135,13 @@ export default async function Landing() {
                 </span>
               </Link>
             ))}
+            {has.teams && !runs.teams.length && (
+              <div className="px-1 text-right">
+                <Link href="/account/new" className="text-xs font-medium underline opacity-80">
+                  + Add a team
+                </Link>
+              </div>
+            )}
           </div>
         )}
 
@@ -159,13 +175,13 @@ export default async function Landing() {
           <JoinTeamForm />
         </section>
 
-        {DOORS.some((d) => !runs[d.key].length) && (
+        {DOORS.some((d) => !has[d.key]) && (
           <section className="space-y-2">
             <div className="flex items-baseline justify-between px-1">
               <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">Managers</h2>
               {manager && <span className="text-xs opacity-60">Signed in as {manager.email}</span>}
             </div>
-            {DOORS.filter((d) => !runs[d.key].length).map((d) => (
+            {DOORS.filter((d) => !has[d.key]).map((d) => (
               <Link
                 key={d.href}
                 href={manager ? d.href : signIn(d.href)}
