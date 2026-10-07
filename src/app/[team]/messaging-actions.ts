@@ -15,7 +15,7 @@ import {
   getPushSub,
   savePushSub,
 } from "@/lib/messages";
-import { notifyTeam, preview } from "@/lib/push";
+import { notifyTeam, preview, pushEnabled, sendPush } from "@/lib/push";
 
 async function viewableTeam(teamId: string): Promise<Team | null> {
   const team = await getTeam(teamId);
@@ -35,12 +35,13 @@ export async function postAnnouncement(teamId: string, _: unknown, formData: For
   if (!body) return { error: "Write something first." };
   if (body.length > 2000) return { error: "Keep it under 2000 characters." };
   await addAnnouncement(team.id, body);
+  const fromEndpoint = String(formData.get("from_endpoint") ?? "") || null;
   after(() =>
     notifyTeam(
       team.id,
       "board",
       { title: `${team.name}`, body: preview(body), url: `/${team.id}/board`, icon: `/${team.id}/icon/192` },
-      COACH_AUTHOR,
+      { endpoint: fromEndpoint, author: COACH_AUTHOR },
     ),
   );
   revalidatePath(`/${team.id}`, "layout");
@@ -68,7 +69,7 @@ export async function acknowledge(teamId: string, id: string) {
 
 // ---------- chat ----------
 
-export async function sendChat(teamId: string, body: string) {
+export async function sendChat(teamId: string, body: string, fromEndpoint: string | null = null) {
   const team = await viewableTeam(teamId);
   if (!team) return { error: "Team not found." };
   const author = await chatAuthor(team);
@@ -87,7 +88,7 @@ export async function sendChat(teamId: string, body: string) {
         url: `/${team.id}/chat`,
         icon: `/${team.id}/icon/192`,
       },
-      author,
+      { endpoint: fromEndpoint, author },
     ),
   );
   revalidatePath(`/${team.id}`, "layout");
@@ -146,4 +147,21 @@ export async function getPushPrefs(teamId: string, endpoint: string) {
   const children = (await currentChildren(team)).join(",") || null;
   if ((sub.children ?? null) !== children) await savePushSub({ ...sub, children });
   return { board: sub.notify_board, chat: sub.notify_chat, games: sub.notify_games !== false, reminders: sub.notify_reminders !== false };
+}
+
+// "Send a test notification" to this phone only, to check notifications work.
+export async function sendTestPush(teamId: string, endpoint: string) {
+  const team = await viewableTeam(teamId);
+  if (!team) return { error: "Team not found." };
+  const sub = await getPushSub(team.id, endpoint);
+  if (!sub) return { error: "Notifications aren’t switched on for this team on this phone yet." };
+  if (!pushEnabled()) return { error: "Notifications aren’t set up on the server." };
+  await sendPush(sub, {
+    title: `${team.name}: test`,
+    body: "Notifications work on this phone.",
+    url: `/${team.id}`,
+    icon: `/${team.id}/icon/192`,
+    tag: `${team.id}-test`,
+  });
+  return { ok: true };
 }
