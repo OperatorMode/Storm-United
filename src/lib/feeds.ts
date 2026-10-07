@@ -268,7 +268,8 @@ const isPlatform = (s: string) => JS_PLATFORMS.some(([re]) => re.test(s));
 /** A fixtures window embedded from a known platform (e.g. Football West → Squadi). */
 function embeddedPlatformUrl(html: string, pageUrl: string): string | null {
   for (const m of html.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)) {
-    const src = m[1].replace(/&amp;/g, "&");
+    // Ampersands may be written &amp; or &#038; (WordPress) in the HTML.
+    const src = m[1].replace(/&(amp|#0*38|#x0*26);/gi, "&");
     if (!isPlatform(src)) continue;
     try {
       const u = new URL(src, pageUrl);
