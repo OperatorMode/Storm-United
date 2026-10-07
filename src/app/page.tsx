@@ -62,7 +62,7 @@ export default async function Landing() {
     runs.teams = await Promise.all(
       teams.map(async (t) => {
         const c = t.competition_id ? await getCompetition(t.competition_id) : null;
-        return { href: `/${t.id}/admin`, title: t.name, detail: c ? competitionLabel(c) : "Manager’s Corner", logo: logoSrc(t) };
+        return { href: `/${t.id}`, title: t.name, detail: c ? competitionLabel(c) : t.division, logo: logoSrc(t) };
       }),
     );
     for (const l of leagues) {
