@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { getPushPrefs, savePushSubscription } from "@/app/[team]/messaging-actions";
+import { getPushPrefs, savePushSubscription, sendTestPush } from "@/app/[team]/messaging-actions";
 
 type Prefs = { board: boolean; chat: boolean; games: boolean; reminders: boolean };
 type Mode = "loading" | "unsupported" | "ios-install" | "blocked" | "ready";
@@ -21,6 +21,7 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
   const [mode, setMode] = useState<Mode>("loading");
   const [prefs, setPrefs] = useState<Prefs>({ board: false, chat: false, games: false, reminders: false });
   const [error, setError] = useState<string | null>(null);
+  const [tested, setTested] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   useEffect(() => {
@@ -110,6 +111,28 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
             <Toggle label="Message board" hint="When the coach posts" checked={prefs.board} disabled={pending} onChange={(v) => update({ ...prefs, board: v })} />
             <Toggle label="Team chat" hint="When someone writes in the chat" checked={prefs.chat} disabled={pending} onChange={(v) => update({ ...prefs, chat: v })} />
             <p className="text-xs text-zinc-400">Applies to this phone only.</p>
+            {(prefs.board || prefs.chat || prefs.games || prefs.reminders) && (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    setError(null);
+                    setTested(null);
+                    const reg = await registration();
+                    const sub = await reg.pushManager.getSubscription();
+                    if (!sub) return setError("This phone isn’t subscribed. Switch one of the options off and on again.");
+                    const res = await sendTestPush(teamId, sub.endpoint);
+                    if (res.error) setError(res.error);
+                    else setTested("Sent. It should pop up in a few seconds.");
+                  })
+                }
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-xs"
+              >
+                Send a test notification
+              </button>
+            )}
+            {tested && <p className="text-xs text-emerald-700">{tested}</p>}
           </>
         )}
         {error && <p className="text-accent">{error}</p>}

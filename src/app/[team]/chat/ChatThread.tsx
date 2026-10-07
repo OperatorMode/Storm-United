@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { removeChat, sendChat } from "../messaging-actions";
 import { chatSeenKey } from "@/components/TabBar";
+import { pushEndpoint } from "@/lib/push-endpoint";
 import type { ChatMessage } from "@/lib/messages";
 import { formatTime, formatWeekday } from "@/lib/time";
 
@@ -67,7 +68,7 @@ export function ChatThread({
     if (!text) return;
     setError(null);
     start(async () => {
-      const res = await sendChat(teamId, text);
+      const res = await sendChat(teamId, text, await pushEndpoint());
       if (res.error) return setError(res.error);
       setDraft("");
       await poll();

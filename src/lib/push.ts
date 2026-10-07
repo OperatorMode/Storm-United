@@ -34,22 +34,29 @@ export async function sendPush(sub: PushSubRow, payload: Payload): Promise<void>
     // 404/410: the browser dropped this subscription, forget it.
     const code = (err as { statusCode?: number }).statusCode;
     if (code === 404 || code === 410) await deletePushSub(sub.team_id, sub.endpoint);
+    else console.error("push failed", sub.team_id, code, (err as Error).message);
   }
 }
 
 export const pushEnabled = () => ready();
 
-// Notifies everyone in the team who opted in to `kind`, except the author's own devices.
+// Notifies everyone in the team who opted in to `kind`, except the phone that
+// sent it. Phones are told apart by their push address: several phones can
+// share an author (every coach's phone is "coach", siblings' parents share a
+// family), so skipping by author would silence other people too.
 export async function notifyTeam(
   teamId: string,
   kind: "board" | "chat",
   payload: Payload,
-  exceptAuthor: string | null,
+  except: { endpoint: string | null; author: string | null },
 ): Promise<void> {
   if (!ready()) return;
-  const subs = (await getPushSubs(teamId)).filter(
-    (s) => (kind === "board" ? s.notify_board : s.notify_chat) && (!exceptAuthor || s.author_id !== exceptAuthor),
-  );
+  const subs = (await getPushSubs(teamId)).filter((s) => {
+    if (!(kind === "board" ? s.notify_board : s.notify_chat)) return false;
+    if (except.endpoint) return s.endpoint !== except.endpoint;
+    // Sender's phone unknown (notifications off there): skip only a family's own phones.
+    return !except.author || except.author === "coach" || s.author_id !== except.author;
+  });
   await Promise.allSettled(subs.map((s) => sendPush(s, { ...payload, tag: `${teamId}-${kind}` })));
 }
 

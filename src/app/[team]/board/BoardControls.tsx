@@ -1,16 +1,23 @@
 "use client";
 
-import { useActionState, useEffect, useOptimistic, useRef, useTransition } from "react";
+import { useActionState, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { acknowledge, postAnnouncement, removeAnnouncement } from "../messaging-actions";
+import { pushEndpoint } from "@/lib/push-endpoint";
 
 export function AnnouncementComposer({ teamId }: { teamId: string }) {
   const [state, action, pending] = useActionState(postAnnouncement.bind(null, teamId), null);
   const form = useRef<HTMLFormElement>(null);
+  const [endpoint, setEndpoint] = useState("");
   useEffect(() => {
     if (state?.ok) form.current?.reset();
   }, [state]);
+  // This phone's push address, so it isn't notified of its own post.
+  useEffect(() => {
+    pushEndpoint().then((e) => setEndpoint(e ?? ""));
+  }, []);
   return (
     <form ref={form} action={action} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <input type="hidden" name="from_endpoint" value={endpoint} />
       <label className="mb-2 block text-sm font-medium">New message to all families</label>
       <textarea
         name="body"
