@@ -216,37 +216,16 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         </Link>
       </div>
 
-      <Section title="Training" aside="Sessions">
-        <TrainingAdmin
-          teamId={team.id}
-          squad={team.players.length}
-          sessions={training
-            .filter((t) => new Date(t.starts_at).getTime() + t.minutes * 60_000 > now.getTime())
-            .slice(0, 12)
-            .map((t) => {
-              const count = (status: string) =>
-                team.players.filter((p) => attendance.some((a) => a.game_id === t.id && a.player_id === p.id && a.status === status)).length;
-              return {
-                id: t.id,
-                when: `${formatDay(new Date(t.starts_at), tz)}, ${formatTime(new Date(t.starts_at), tz)}`,
-                minutes: t.minutes,
-                location: t.location,
-                cancelled: t.cancelled,
-                series: !!t.series_id,
-                coming: count("yes"),
-                maybe: count("maybe"),
-                out: count("no"),
-              };
-            })}
-        />
-      </Section>
-
-      <Section title="Fair playing time" aside="Rotations">
+      <Section title="Game rotation" aside="Fair playing time">
         <RotationAdmin
           teamId={team.id}
           players={team.players}
           allSaved={seasonRotations}
-          defaults={{ shape: lastPlan?.shape ?? { parts: 2, partMinutes: 20, swapEvery: 10 }, onField: lastPlan?.onField ?? 6 }}
+          defaults={{
+            shape: lastPlan?.shape ?? { parts: 2, partMinutes: 20, swapEvery: 10 },
+            onField: lastPlan?.onField ?? 6,
+            goaliesStayOn: lastPlan?.goaliesStayOn ?? false,
+          }}
           games={ourGames
             .filter((g) => g.kickoff.getTime() + 3 * 60 * 60 * 1000 > now.getTime() && g.time !== "Postponed")
             .slice(0, 4)
@@ -263,46 +242,6 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
               };
             })}
         />
-      </Section>
-
-      <Section title="Duty roster" aside="Oranges, snacks…">
-        <DutyAdmin
-          teamId={team.id}
-          duties={duties}
-          suggestions={SUGGESTED_DUTIES}
-          families={team.players.map((p) => ({ id: p.id, label: `${firstName(p.name)}’s family` }))}
-          games={ourGames
-            .filter((g) => g.kickoff.getTime() > now.getTime() && g.time !== "Postponed")
-            .slice(0, 6)
-            .map((g) => ({
-              gameId: g.id,
-              label: `${formatDay(g.kickoff, tz)} · ${g.home === us ? "vs" : "@"} ${opponent(g, us)}`,
-              slots: duties.map((duty) => ({ duty, playerId: dutySignups.find((d) => d.game_id === g.id && d.duty === duty)?.player_id ?? null })),
-            }))}
-        />
-      </Section>
-
-      <Section title="Season MVP" aside="Tally">
-        <table className="w-full text-sm tabular-nums">
-          <thead>
-            <tr className="text-left text-xs text-zinc-500">
-              <th className="w-6 py-1.5 font-medium">#</th>
-              <th className="py-1.5 font-medium">Player</th>
-              <th className="py-1.5 text-center font-medium">Game MVPs</th>
-              <th className="py-1.5 text-right font-medium">Points</th>
-            </tr>
-          </thead>
-          <tbody>
-            {season.map((r, i) => (
-              <tr key={r.playerId} className={`border-t border-zinc-100 ${i === 0 && r.points > 0 ? "font-semibold" : ""}`}>
-                <td className="py-2">{i + 1}</td>
-                <td className="py-2">{nameOf(r.playerId)}</td>
-                <td className="py-2 text-center">{gameWins.get(r.playerId) ?? 0}</td>
-                <td className="py-2 text-right">{r.points}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </Section>
 
       {team.goalie_enabled &&
@@ -369,6 +308,71 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           );
         })()}
 
+      <Section title="Training" aside="Sessions">
+        <TrainingAdmin
+          teamId={team.id}
+          squad={team.players.length}
+          sessions={training
+            .filter((t) => new Date(t.starts_at).getTime() + t.minutes * 60_000 > now.getTime())
+            .slice(0, 12)
+            .map((t) => {
+              const count = (status: string) =>
+                team.players.filter((p) => attendance.some((a) => a.game_id === t.id && a.player_id === p.id && a.status === status)).length;
+              return {
+                id: t.id,
+                when: `${formatDay(new Date(t.starts_at), tz)}, ${formatTime(new Date(t.starts_at), tz)}`,
+                minutes: t.minutes,
+                location: t.location,
+                cancelled: t.cancelled,
+                series: !!t.series_id,
+                coming: count("yes"),
+                maybe: count("maybe"),
+                out: count("no"),
+              };
+            })}
+        />
+      </Section>
+
+      <Section title="Duty roster" aside="Oranges, snacks…">
+        <DutyAdmin
+          teamId={team.id}
+          duties={duties}
+          suggestions={SUGGESTED_DUTIES}
+          families={team.players.map((p) => ({ id: p.id, label: `${firstName(p.name)}’s family` }))}
+          games={ourGames
+            .filter((g) => g.kickoff.getTime() > now.getTime() && g.time !== "Postponed")
+            .slice(0, 6)
+            .map((g) => ({
+              gameId: g.id,
+              label: `${formatDay(g.kickoff, tz)} · ${g.home === us ? "vs" : "@"} ${opponent(g, us)}`,
+              slots: duties.map((duty) => ({ duty, playerId: dutySignups.find((d) => d.game_id === g.id && d.duty === duty)?.player_id ?? null })),
+            }))}
+        />
+      </Section>
+
+      <Section title="Season MVP" aside="Tally">
+        <table className="w-full text-sm tabular-nums">
+          <thead>
+            <tr className="text-left text-xs text-zinc-500">
+              <th className="w-6 py-1.5 font-medium">#</th>
+              <th className="py-1.5 font-medium">Player</th>
+              <th className="py-1.5 text-center font-medium">Game MVPs</th>
+              <th className="py-1.5 text-right font-medium">Points</th>
+            </tr>
+          </thead>
+          <tbody>
+            {season.map((r, i) => (
+              <tr key={r.playerId} className={`border-t border-zinc-100 ${i === 0 && r.points > 0 ? "font-semibold" : ""}`}>
+                <td className="py-2">{i + 1}</td>
+                <td className="py-2">{nameOf(r.playerId)}</td>
+                <td className="py-2 text-center">{gameWins.get(r.playerId) ?? 0}</td>
+                <td className="py-2 text-right">{r.points}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Section>
+
       <Section title="Votes by game">
         {played.length === 0 ? (
           <p className="text-sm text-zinc-500">No games played yet.</p>
@@ -422,6 +426,16 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         )}
       </Section>
 
+      <Section title="Team settings">
+        <TeamSettings
+          teamId={team.id}
+          players={team.players.map((p) => p.name).join("\n")}
+          hasJoinCode={!!team.join_code_hash}
+          meetMinutes={team.meet_minutes}
+          goalieEnabled={team.goalie_enabled}
+        />
+      </Section>
+
       {removed.length > 0 && (
         <Section title="Merge players" aside="Renamed someone?">
           <p className="mb-3 text-xs text-zinc-500">
@@ -431,6 +445,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           <MergePlayers teamId={team.id} removed={removed} current={team.players} />
         </Section>
       )}
+
+      <div className="pt-6" aria-hidden />
 
       {!seasonOver && (
         <Section title="New season" aside="Next season or age group">
@@ -451,16 +467,6 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           </ul>
         </Section>
       )}
-
-      <Section title="Team settings">
-        <TeamSettings
-          teamId={team.id}
-          players={team.players.map((p) => p.name).join("\n")}
-          hasJoinCode={!!team.join_code_hash}
-          meetMinutes={team.meet_minutes}
-          goalieEnabled={team.goalie_enabled}
-        />
-      </Section>
 
       <div className="flex items-center justify-center gap-6 pt-2 text-sm text-zinc-500">
         {superAdmin && (

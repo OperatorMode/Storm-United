@@ -13,6 +13,7 @@ export type RotationPlan = {
   labels?: string[]; // e.g. "1st 0'", "1st 10'"
   half?: ("1st" | "2nd")[]; // which half each block is in (for goalies)
   shape?: GameShape; // how the game was split (to offer the same next time)
+  goaliesStayOn?: boolean; // goalies play the whole game: never rested in their outfield half
 };
 
 export type GameShape = { parts: number; partMinutes: number; swapEvery: number };
@@ -54,8 +55,12 @@ export function buildRotation(opts: {
   onField: number;
   goalies: { first: string | null; second: string | null };
   restedSoFar: Record<string, number>; // minutes rested this season, before this game
+  goaliesStayOn?: boolean; // goalies play the full game: no rest when they're in the field
 }): RotationPlan {
   const { players, onField, goalies } = opts;
+  // Goalies who play the whole game never rest, so the others share it all.
+  const stayOn = new Set(opts.goaliesStayOn ? [goalies.first, goalies.second].filter((g): g is string => !!g && players.includes(g)) : []);
+  const sharers = players.filter((p) => !stayOn.has(p));
   const { minutes, labels, half } = blocksOf(opts.shape);
   const keeperOf = (i: number) => {
     const k = half[i] === "1st" ? goalies.first : goalies.second;
@@ -69,8 +74,8 @@ export function buildRotation(opts: {
   // This game's rest, shared so everyone's season total ends up level.
   const soFar = (p: string) => opts.restedSoFar[p] ?? 0;
   const gameRest = minutes.reduce((sum, len, i) => sum + restCountOf(i) * len, 0);
-  const level = (players.reduce((sum, p) => sum + soFar(p), 0) + gameRest) / Math.max(1, players.length);
-  const target: Record<string, number> = Object.fromEntries(players.map((p) => [p, Math.max(0, level - soFar(p))]));
+  const level = (sharers.reduce((sum, p) => sum + soFar(p), 0) + gameRest) / Math.max(1, sharers.length);
+  const target: Record<string, number> = Object.fromEntries(players.map((p) => [p, stayOn.has(p) ? 0 : Math.max(0, level - soFar(p))]));
 
   const rested: Record<string, number> = Object.fromEntries(players.map((p) => [p, 0]));
   const spots: Record<string, Spot[]> = Object.fromEntries(players.map((p) => [p, []]));
@@ -78,7 +83,7 @@ export function buildRotation(opts: {
 
   minutes.forEach((len, i) => {
     const gk = keeperOf(i);
-    const field = players.filter((p) => p !== gk);
+    const field = players.filter((p) => p !== gk && !stayOn.has(p));
     // Minutes this player could still rest from here on (not in goal).
     const chances = (p: string) => minutes.reduce((sum, l, j) => sum + (j >= i && keeperOf(j) !== p ? l : 0), 0);
     const urgency = (p: string) => (target[p] - rested[p]) / Math.max(1, chances(p)) - (lastRested.has(p) ? 0.5 : 0);
@@ -88,7 +93,7 @@ export function buildRotation(opts: {
     for (const p of resting) rested[p] += len;
     lastRested = resting;
   });
-  return { periods: minutes.length, onField, spots, minutes, labels, half, shape: opts.shape };
+  return { periods: minutes.length, onField, spots, minutes, labels, half, shape: opts.shape, goaliesStayOn: !!opts.goaliesStayOn };
 }
 
 /** Minutes each player played / rested across saved plans. */

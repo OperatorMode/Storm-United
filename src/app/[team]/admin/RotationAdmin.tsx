@@ -40,7 +40,7 @@ export function RotationAdmin({
   players: { id: string; name: string }[];
   games: GameInfo[];
   allSaved: Record<string, RotationPlan>;
-  defaults: { shape: GameShape; onField: number };
+  defaults: { shape: GameShape; onField: number; goaliesStayOn: boolean };
 }) {
   const [saved, setSaved] = useState(allSaved);
   const [gameId, setGameId] = useState(games[0]?.id ?? "");
@@ -48,6 +48,7 @@ export function RotationAdmin({
   const initial = saved[gameId] ?? null;
   const [shape, setShape] = useState<GameShape>(initial?.shape ?? defaults.shape);
   const [onField, setOnField] = useState(initial?.onField ?? defaults.onField);
+  const [goaliesStayOn, setGoaliesStayOn] = useState(initial?.goaliesStayOn ?? defaults.goaliesStayOn);
   const [available, setAvailable] = useState<string[]>(initial ? Object.keys(initial.spots) : (game?.available ?? []));
   const [plan, setPlan] = useState<RotationPlan | null>(initial);
   const [msg, setMsg] = useState<string | null>(null);
@@ -70,13 +71,14 @@ export function RotationAdmin({
     setAvailable(p ? Object.keys(p.spots) : (g?.available ?? []));
     if (p?.shape) setShape(p.shape);
     if (p) setOnField(p.onField);
+    if (p) setGoaliesStayOn(!!p.goaliesStayOn);
     setMsg(null);
   };
 
   const make = () => {
     if (!game) return;
     const ordered = players.map((p) => p.id).filter((id) => available.includes(id));
-    setPlan(buildRotation({ players: ordered, shape, onField, goalies: game.goalies, restedSoFar }));
+    setPlan(buildRotation({ players: ordered, shape, onField, goalies: game.goalies, restedSoFar, goaliesStayOn }));
     setMsg(null);
   };
 
@@ -150,6 +152,17 @@ export function RotationAdmin({
       <p className="text-xs text-zinc-500">
         {blocks.minutes.length} changes: {blocks.labels.join(" · ")}
       </p>
+      <label className="flex items-start gap-2">
+        <input type="checkbox" checked={goaliesStayOn} onChange={(e) => setGoaliesStayOn(e.target.checked)} className="mt-1" />
+        <span>
+          <span className="block font-medium">Goalies play the full game</span>
+          <span className="block text-xs text-zinc-500">
+            {game?.goalies.first || game?.goalies.second
+              ? "Whoever’s in goal for a half isn’t rested in the other half either."
+              : "No goalies assigned for this game yet (see Goalies)."}
+          </span>
+        </span>
+      </label>
 
       <div>
         <span className="mb-1 block font-medium">Who’s there ({available.length})</span>
