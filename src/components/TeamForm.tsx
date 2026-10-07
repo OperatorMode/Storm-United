@@ -33,6 +33,7 @@ export function TeamForm({
   remove,
   lockCompetition = false,
   allowTaken = false,
+  startCompetitionId,
 }: {
   competitionLabel: string | null; // the current competition's label (editing)
   initial: TeamFormValues | null; // null = new team
@@ -40,9 +41,10 @@ export function TeamForm({
   remove?: () => Promise<unknown>;
   lockCompetition?: boolean; // editing as a manager: competition/draw name are fixed
   allowTaken?: boolean; // super admin: may follow a draw team that's already on Sidelnr (demo teams)
+  startCompetitionId?: string; // new team: start in this competition (with competitionLabel)
 }) {
   const [state, action, pending] = useActionState(save, null);
-  const [competitionId, setCompetitionId] = useState(initial?.competition_id ?? "");
+  const [competitionId, setCompetitionId] = useState(initial?.competition_id ?? startCompetitionId ?? "");
   const [label, setLabel] = useState(competitionLabel);
   const [leagueName, setLeagueName] = useState(initial?.league_name ?? "");
   const [name, setName] = useState(initial?.name ?? "");

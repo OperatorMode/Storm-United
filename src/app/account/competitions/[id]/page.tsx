@@ -136,14 +136,35 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           )}
         </div>
 
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-          <div className="font-semibold">{isNew ? `${competition.name} is live` : "Live from the league website"}</div>
-          <p className="mt-1">
-            Teams, fixtures and results come straight from {source} and update automatically, so there’s nothing to set up.
-            Teams join it via <b>My Team → Create a team</b> and pick “{competition.league.short_name ?? competition.league.name} ·{" "}
-            {competition.name}”.
-          </p>
-        </div>
+        {isNew ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center text-sm text-emerald-900">
+            <div className="text-2xl font-bold">All done</div>
+            <p className="mt-1">
+              {fixtures.length} games and {teams.length} teams loaded from {source}. They update automatically, so there’s
+              nothing else to set up.
+            </p>
+            <div className="mt-4 space-y-2">
+              <Link
+                href={`/account/new?competition=${encodeURIComponent(id)}`}
+                className="block rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white"
+              >
+                Create My Team
+              </Link>
+              <Link href="/" className="block rounded-xl border border-emerald-300 bg-white px-4 py-3 font-semibold text-emerald-900">
+                Back Home
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <div className="font-semibold">Live from the league website</div>
+            <p className="mt-1">
+              Teams, fixtures and results come straight from {source} and update automatically, so there’s nothing to set up.
+              Teams join it via <b>My Team → Create a team</b> and pick “{competition.league.short_name ?? competition.league.name} ·{" "}
+              {competition.name}”.
+            </p>
+          </div>
+        )}
 
         <Card title="Source" aside={source}>
           <div className="space-y-3 text-sm">
