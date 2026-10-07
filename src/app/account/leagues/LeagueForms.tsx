@@ -167,8 +167,12 @@ export function NewLeagueForm({ event = false }: { event?: boolean }) {
         </label>
       </div>
       <label className="block">
-        <span className={label}>Website</span>
-        <input name="website" type="url" placeholder="Optional, https://…" className={field} />
+        <span className={label}>{event ? "Event website" : "League website"} (optional)</span>
+        <input name="website" type="url" placeholder="https://…" className={field} />
+        <span className="mt-1 block text-xs text-zinc-500">
+          Shown as a link on team pages. To pull fixtures from a web page, sheet or calendar, use Fixtures → From a link after
+          creating it.
+        </span>
       </label>
       <label className="block">
         <span className={label}>Timezone</span>
