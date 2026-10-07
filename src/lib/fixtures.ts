@@ -115,6 +115,19 @@ export async function saveFixtures(rows: FixtureRow[]): Promise<void> {
   check(await s.from("fixtures").upsert(rows.map((r) => ({ ...r, updated_at: new Date().toISOString() })), { onConflict: "id" }));
 }
 
+/** Removes several games at once (a linked league's games that left its source). */
+export async function deleteFixtures(competitionId: string, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    const gone = new Set(ids);
+    d.fixtures = (d.fixtures ?? []).filter((f) => !(f.competition_id === competitionId && gone.has(f.id)));
+    return writeLocal(d);
+  }
+  check(await s.from("fixtures").delete().eq("competition_id", competitionId).in("id", ids));
+}
+
 export async function deleteFixture(competitionId: string, id: string): Promise<void> {
   const s = db();
   if (!s) {
@@ -262,11 +275,14 @@ export function fixturesFromCsv(text: string, timeZone: string): { fixtures: Imp
 // attendance/votes) of fixtures that match on home + away + round/date.
 export function mergeImported(competitionId: string, existing: FixtureRow[], imported: ImportedFixture[]): FixtureRow[] {
   const day = (iso: string) => iso.slice(0, 10);
-  const key = (f: { home: string; away: string; round: number | null; kickoff: string }) =>
-    `${f.home}|${f.away}|${f.round ?? day(f.kickoff)}`;
-  const byKey = new Map(existing.map((f) => [key(f), f]));
+  // The same game: same teams on the same day, or (moved to another day) in the same round.
+  const byDay = new Map(existing.map((f) => [`${f.home}|${f.away}|${day(f.kickoff)}`, f]));
+  const byRound = new Map(existing.filter((f) => f.round !== null).map((f) => [`${f.home}|${f.away}|${f.round}`, f]));
+  const used = new Set<string>();
   return imported.map((f) => {
-    const match = byKey.get(key(f));
+    const candidates = [byDay.get(`${f.home}|${f.away}|${day(f.kickoff)}`), f.round !== null ? byRound.get(`${f.home}|${f.away}|${f.round}`) : undefined];
+    const match = candidates.find((m) => m && !used.has(m.id));
+    if (match) used.add(match.id);
     return {
       id: match?.id ?? newFixtureId(),
       competition_id: competitionId,

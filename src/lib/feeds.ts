@@ -9,6 +9,7 @@ import {
   addCompetitionTeams,
   fixturesFromCsv,
   listFixtures,
+  deleteFixtures,
   mergeImported,
   parseDate,
   parseTime,
@@ -422,8 +423,15 @@ export async function syncCompetitionFeed(competitionId: string, force = false):
       return { count: 0, errors: [] };
     }
     if (!res.fixtures.length) throw new Error(res.errors[0] ?? "No fixtures found at that link.");
-    const merged = mergeImported(competitionId, await listFixtures(competitionId), res.fixtures);
+    const existing = await listFixtures(competitionId);
+    const merged = mergeImported(competitionId, existing, res.fixtures);
     await saveFixtures(merged);
+    // The source is the truth: games no longer on it go (e.g. a reshuffled
+    // draw). Unless far fewer came back than we had: more likely a bad read.
+    const kept = new Set(merged.map((f) => f.id));
+    if (merged.length >= existing.length / 2) {
+      await deleteFixtures(competitionId, existing.filter((f) => !kept.has(f.id)).map((f) => f.id));
+    }
     await addCompetitionTeams(competitionId, res.fixtures.flatMap((f) => [f.home, f.away]));
     await markSynced(competitionId, { feed_type: res.type, feed_synced_at: now, feed_error: null, feed_hash: res.hash });
     return { count: merged.length, errors: res.errors };
