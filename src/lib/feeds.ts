@@ -344,6 +344,15 @@ export function guessFeedType(url: string): FeedType {
 // Fetches a link and works out what it is from the content: a calendar, a
 // CSV / Google Sheet, or any other web page (read by Claude). For web pages,
 // `previousHash` lets an unchanged page skip the (paid) AI read.
+/** A page as a browser shows it, following a schedule window that its
+ *  JavaScript adds (invisible to a plain read, e.g. wnbl.com.au/games). */
+export async function renderFollowingFrames(url: string): Promise<{ url: string; html: string }> {
+  const html = await renderPage(url);
+  const inner = embeddedPlatformUrl(html, url);
+  if (!inner || inner === url) return { url, html };
+  return { url: inner, html: await renderPage(inner).catch(() => html) };
+}
+
 export async function readFeed(
   feed: FeedSettings,
   tz: string,
@@ -380,8 +389,9 @@ export async function readFeed(
   let read = await fixturesFromWebPage(pageText, target, feed.filter, tz);
   // Nothing on the plain page: try once more as a browser sees it.
   if (!read.fixtures.length && !rendered && canRenderPages()) {
-    pageText = focusOn(htmlToText(await renderPage(url)), feed.filter);
-    read = await fixturesFromWebPage(pageText, url, feed.filter, tz);
+    const page = await renderFollowingFrames(url);
+    pageText = focusOn(htmlToText(page.html), feed.filter);
+    read = await fixturesFromWebPage(pageText, page.url, feed.filter, tz);
   }
   // Nothing found: a clear explanation instead of the AI's own wording.
   if (!read.fixtures.length) {

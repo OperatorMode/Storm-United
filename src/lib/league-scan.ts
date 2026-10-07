@@ -9,6 +9,7 @@ import {
   fixturesFromIcs,
   htmlToText,
   isPlatform,
+  renderFollowingFrames,
   renderPage,
   sheetCsvUrl,
   type FeedType,
@@ -60,7 +61,11 @@ const Scanned = z.object({
 export type PageRead = { url: string; html: string; text: string };
 
 /** A page's text as a browser shows it (embedded fixtures followed, JavaScript run). */
-export async function readPage(url: string): Promise<PageRead> {
+export async function readPage(url: string, forceRender = false): Promise<PageRead> {
+  if (forceRender && canRenderPages()) {
+    const page = await renderFollowingFrames(url);
+    return { url: page.url, html: page.html, text: htmlToText(page.html) };
+  }
   const html = await fetchText(url);
   const embedded = embeddedPlatformUrl(html, url);
   let text = htmlToText(html);
@@ -188,8 +193,18 @@ export async function scanLeague(rawUrl: string): Promise<LeagueScan> {
   // only the next few games, while the schedule has the whole season and its
   // results. Whichever lists the most games wins.
   let page = await readPage(url);
+  const home = page; // the pasted page: where the ladder and team links are
   let scan = await aiScan(page.text, page.url);
-  const home = page;
+  // Nothing found: the games may be added by JavaScript (often in a window
+  // from a schedule site), so look again as a browser sees the page.
+  if (!scan.competitions.some((c) => c.games > 0) && canRenderPages()) {
+    const shown = await readPage(url, true).catch(() => null);
+    const again = shown ? await aiScan(shown.text, shown.url).catch(() => null) : null;
+    if (shown && again?.competitions.some((c) => c.games > 0)) {
+      page = shown;
+      scan = { ...again, leagueName: scan.leagueName || again.leagueName };
+    }
+  }
   const total = (s: typeof scan) => s.competitions.reduce((n, c) => n + c.games, 0);
   for (const link of fixtureLinks(page.html, page.url).slice(0, total(scan) ? 1 : 3)) {
     const next = await readPage(link).catch(() => null);
