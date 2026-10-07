@@ -6,6 +6,7 @@ import Link from "next/link";
 import { importLeagueAction, scanLeagueAction } from "./actions";
 import { TimezoneSelect } from "./LeagueForms";
 import type { LeagueScan } from "@/lib/league-scan";
+import { loadingSlides } from "./loading-trivia";
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-base";
 const SCANNING = [
@@ -177,11 +178,13 @@ export function MagicImport() {
 
 // Dims the whole screen and shows a spinner with messages that change as it works.
 function Working({ messages }: { messages: string[] }) {
+  const [slides] = useState(() => loadingSlides(messages));
   const [i, setI] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setI((n) => (n + 1) % messages.length), 5000);
-    return () => clearInterval(t);
-  }, [messages]);
+    const t = setTimeout(() => setI((n) => (n + 1) % slides.length), slides[i].ms);
+    return () => clearTimeout(t);
+  }, [i, slides]);
+  const slide = slides[i];
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm" role="status" aria-live="polite">
       <div className="flex w-full max-w-xs flex-col items-center gap-5 text-center text-white">
@@ -189,9 +192,10 @@ function Working({ messages }: { messages: string[] }) {
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2.5" />
           <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
         </svg>
-        <p key={i} className="animate-[fadein_0.6s_ease] text-lg font-semibold">
-          {messages[i]}
-        </p>
+        <div key={i} className="flex min-h-28 animate-[fadein_0.6s_ease] flex-col items-center justify-center gap-1">
+          {slide.label && <div className="text-xs font-semibold uppercase tracking-widest text-accent">{slide.label}</div>}
+          <p className={slide.label ? "text-base font-medium" : "text-lg font-semibold"}>{slide.text}</p>
+        </div>
         <p className="text-sm text-white/70">This can take a few minutes, so please be patient and keep this page open.</p>
       </div>
     </div>

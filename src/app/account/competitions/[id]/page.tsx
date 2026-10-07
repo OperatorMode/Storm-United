@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/Card";
+import { Section } from "@/components/Section";
 import {
   AddCompetitionForm,
   AddFixtureForm,
@@ -185,7 +186,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           </div>
         </Card>
 
-        <Card title="Teams" aside={`${teams.length} in the draw · ${sidelnrTeams.length} on Sidelnr`}>
+        <Section title="Teams" aside={`${teams.length} in the draw · ${sidelnrTeams.length} on Sidelnr`}>
           <ul className="flex flex-wrap gap-2 text-sm">
             {teams.map((t) => (
               <li key={t} className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700">
@@ -193,23 +194,23 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
               </li>
             ))}
           </ul>
-        </Card>
+        </Section>
 
-        <Card title="Upcoming fixtures" aside={`${upcoming.length}`}>
+        <Section title="Upcoming fixtures" aside={`${upcoming.length} games`}>
           {upcoming.length ? (
             <ul className="divide-y divide-zinc-100">{upcoming.map(game)}</ul>
           ) : (
             <p className="text-sm text-zinc-500">No upcoming games.</p>
           )}
-        </Card>
+        </Section>
 
-        <Card title="Results" aside={past.length ? `${past.length}` : undefined}>
+        <Section title="Results" aside={`${past.length} played`}>
           {past.length ? <ul className="divide-y divide-zinc-100">{past.map(game)}</ul> : <p className="text-sm text-zinc-500">No games played yet.</p>}
-        </Card>
+        </Section>
 
-        <Card title="Timezone" aside={tz.replaceAll("_", " ")}>
+        <Section title="Timezone" aside={tz.replaceAll("_", " ")}>
           <LeagueTimezoneForm competitionId={id} initial={tz} />
-        </Card>
+        </Section>
 
         <Card title="Danger zone">
           <DangerZone
