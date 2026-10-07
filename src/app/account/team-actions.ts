@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { applyTeamForm, deleteTeam } from "@/lib/team-form";
 import { linkManager, managedTeams } from "@/lib/accounts";
@@ -37,5 +37,5 @@ export async function deleteMyTeam(teamId: string) {
   if ((await myRole(teamId)) !== "owner") return { error: "Only the team’s owner can delete it." };
   await deleteTeam(teamId);
   revalidatePath("/account");
-  redirect("/account");
+  redirect("/account", RedirectType.replace); // the deleted team's page leaves the back history
 }

@@ -1,5 +1,5 @@
 "use server";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { deletePushSub } from "@/lib/messages";
 import { listTraining } from "@/lib/training";
 import { listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
@@ -183,5 +183,5 @@ export async function leaveTeam(teamId: string, pushEndpoint: string | null) {
   if (team.id === "storm-united") store.delete("su_voter"); // from before teams had their own links
   if (pushEndpoint) await deletePushSub(team.id, pushEndpoint);
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/", RedirectType.replace);
 }

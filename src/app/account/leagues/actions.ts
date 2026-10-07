@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
 import { competitionTz, getCompetition, listCompetitions, pitchLabel } from "@/lib/league";
@@ -322,7 +322,7 @@ export async function deleteCompetitionAction(competitionId: string, typedName: 
   await deleteCompetitionRow(c.id);
   refreshAll();
   const rest = (await listCompetitions()).filter((x) => x.league_id === c.league_id);
-  redirect(rest.length ? `/account/competitions/${rest[0].id}?deleted=1` : `/account/leagues?deleted=1`);
+  redirect(rest.length ? `/account/competitions/${rest[0].id}?deleted=1` : `/account/leagues?deleted=1`, RedirectType.replace);
 }
 
 export async function deleteLeagueAction(competitionId: string, typedName: string) {
@@ -335,7 +335,7 @@ export async function deleteLeagueAction(competitionId: string, typedName: strin
   const isEvent = (await listCompetitions()).filter((x) => x.league_id === c.league_id).every((x) => x.kind === "tournament");
   await deleteLeagueRow(c.league_id);
   refreshAll();
-  redirect(isEvent ? "/account/events?deleted=1" : "/account/leagues?deleted=1");
+  redirect(isEvent ? "/account/events?deleted=1" : "/account/leagues?deleted=1", RedirectType.replace);
 }
 
 // The league's timezone: kick-off times are entered and shown in it.
