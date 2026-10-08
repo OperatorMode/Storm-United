@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export const CONTACT_EMAIL = "hello@sidelnr.app";
 
-// Shared layout for the privacy policy and terms pages.
+// Shared layout for the privacy policy, terms and features pages.
 export function LegalPage({ title, updated, children }: { title: string; updated: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-2xl px-4 pb-16 pt-[calc(env(safe-area-inset-top)+1.5rem)]">
@@ -22,6 +22,10 @@ export function LegalPage({ title, updated, children }: { title: string; updated
 export function LegalLinks({ className = "" }: { className?: string }) {
   return (
     <p className={`text-center text-xs ${className}`}>
+      <Link href="/features" className="underline">
+        Features &amp; Functions
+      </Link>{" "}
+      ·{" "}
       <Link href="/privacy" className="underline">
         Privacy
       </Link>{" "}
