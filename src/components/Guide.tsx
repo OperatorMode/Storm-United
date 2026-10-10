@@ -29,24 +29,29 @@ const PATHS: Path[] = [
         text: "Tap I belong to… and tick your child (siblings too), then pick who you are to them: Mum, Dad, Grandparent or anything else. Players tap I am… and their own name.",
       },
       {
-        image: "/guide/join-3-attendance.webp",
-        title: "Can your child play?",
-        text: "Tap Can play, Maybe or Can’t make it for the next game, and put a hand up for goalie. You can see who else is coming. After each game, vote for MVP.",
+        image: "/guide/join-3-team.webp",
+        title: "Your team’s page",
+        text: "The next game with time, place and directions. Tap Can play, Maybe or Can’t make it, and see who else is coming. Further down: the ladder and the season’s fixtures. Tap the picture to see the whole page.",
       },
       {
         image: "/guide/join-5-board.webp",
-        title: "Messages from the coach",
-        text: "The Board has the coach’s updates. Tap Got it so the coach knows you’ve seen it.",
+        title: "Board: news from the coach",
+        text: "Only the coach posts on the Board: times, places, what to bring. Tap Got it so the coach knows you’ve seen it.",
       },
       {
         image: "/guide/join-4-chat.webp",
-        title: "Team chat",
-        text: "Talk to the whole team in Chat. For one person or a small group, use Messages. Everyone shows as who they are, like “Ava’s Mum”.",
+        title: "Chat: the whole team",
+        text: "Everyone in the team can read and write in Chat, like a group chat. Everyone shows as who they are, like “Ava’s Mum”.",
+      },
+      {
+        image: "/guide/join-7-private.webp",
+        title: "Private: just a few people",
+        text: "Message one person, the coach, or a small group like a carpool. Only the people in the conversation can read it.",
       },
       {
         image: "/guide/join-6-notify.webp",
         title: "Turn on notifications",
-        text: "Choose what your phone tells you: game changes, reminders, the coach’s posts and chat. On iPhone, add Sidelnr to your home screen first (Share, then Add to Home Screen).",
+        text: "Choose what your phone tells you: game changes, reminders, the Board, Chat and Private. On iPhone, add Sidelnr to your home screen first (Share, then Add to Home Screen).",
       },
     ],
   },
@@ -62,9 +67,11 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
   const [open, setOpen] = useState(false);
   const [path, setPath] = useState<Path | null>(null);
   const [step, setStep] = useState(0);
+  const [zoom, setZoom] = useState(false); // the picture, full size
   const touch = useRef<number | null>(null);
 
   const show = useCallback(() => {
+    setZoom(false);
     setPath(null);
     setStep(0);
     setOpen(true);
@@ -101,7 +108,8 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
   useEffect(() => {
     if (!open) return;
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") return zoom ? setZoom(false) : close();
+      if (zoom) return;
       if (path && e.key === "ArrowRight") go(1);
       if (path && e.key === "ArrowLeft") go(-1);
     };
@@ -111,7 +119,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
       window.removeEventListener("keydown", key);
       document.body.style.overflow = "";
     };
-  }, [open, path, go, close]);
+  }, [open, path, zoom, go, close]);
 
   if (!open) return null;
   const current = steps[step];
@@ -119,7 +127,9 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="How Sidelnr works">
-      <div className="flex max-h-[100dvh] w-full max-w-md flex-col rounded-t-3xl bg-white text-zinc-950 shadow-2xl sm:rounded-3xl">
+      <div
+        className={`flex w-full max-w-md flex-col rounded-t-3xl bg-white text-zinc-950 shadow-2xl sm:rounded-3xl ${path ? "h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:h-[min(92dvh,900px)]" : ""}`}
+      >
         <div className="flex items-center justify-between px-5 pb-2 pt-4">
           <div className="text-sm font-semibold">How Sidelnr works</div>
           <button type="button" onClick={close} className="grid size-9 place-items-center rounded-full bg-zinc-100 text-zinc-600" aria-label="Close">
@@ -165,7 +175,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
         ) : (
           <>
             <div
-              className="min-h-0 flex-1 px-5"
+              className="min-h-0 flex-1 px-5 pt-1"
               onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
               onTouchEnd={(e) => {
                 if (touch.current === null) return;
@@ -174,14 +184,24 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
                 if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
               }}
             >
-              <div className="mx-auto w-fit overflow-hidden rounded-[1.75rem] border-[6px] border-zinc-900 bg-zinc-100 shadow-lg">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img key={current.image} src={current.image} alt={current.title} className="block h-[min(46dvh,420px)] w-auto" draggable={false} />
+              <div className="flex h-full min-h-0 justify-center">
+                <button
+                  type="button"
+                  onClick={() => setZoom(true)}
+                  className="relative aspect-[390/844] h-full max-w-full overflow-hidden rounded-[1.75rem] border-[6px] border-zinc-900 bg-zinc-100 shadow-lg"
+                  aria-label="Zoom in"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img key={current.image} src={current.image} alt={current.title} className="h-full w-full object-cover object-top" draggable={false} />
+                  <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">Tap to zoom</span>
+                </button>
               </div>
-              <div className="mt-4 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            </div>
+            <div className="px-5 pt-3">
+              <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                 {path.label} · {step + 1} of {steps.length}
               </div>
-              <h2 className="mt-1 text-xl font-semibold">{current.title}</h2>
+              <h2 className="mt-0.5 text-xl font-semibold">{current.title}</h2>
               <p className="mt-1 min-h-[4.5rem] text-sm leading-relaxed text-zinc-600">{current.text}</p>
             </div>
             <div className="space-y-3 px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3">
@@ -216,6 +236,23 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
           </>
         )}
       </div>
+
+      {zoom && current && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-black/90" onClick={() => setZoom(false)}>
+          <button
+            type="button"
+            onClick={() => setZoom(false)}
+            className="sticky left-full top-3 z-10 mr-3 mt-3 grid size-10 place-items-center rounded-full bg-white text-zinc-900 shadow"
+            aria-label="Close picture"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={current.image} alt={current.title} className="mx-auto -mt-10 block w-full max-w-md pb-[env(safe-area-inset-bottom)]" />
+        </div>
+      )}
     </div>
   );
 }

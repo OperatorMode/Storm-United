@@ -15,6 +15,10 @@ d["leagues"] = [l for l in d["leagues"] if l["id"] != LEAGUE]
 d["competitions"] = [c for c in d["competitions"] if c["id"] != COMP]
 d["competition_teams"] = [c for c in d["competition_teams"] if c.get("competition_id") != COMP]
 d["fixtures"] = [f for f in d["fixtures"] if f.get("competition_id") != COMP]
+old = [c["id"] for c in d.get("conversations", []) if c["team_id"] == TEAM]
+d["conversations"] = [c for c in d.get("conversations", []) if c["team_id"] != TEAM]
+d["conversation_members"] = [m for m in d.get("conversation_members", []) if m["conversation_id"] not in old]
+d["direct_messages"] = [m for m in d.get("direct_messages", []) if m["conversation_id"] not in old]
 for k in ("attendance", "announcements", "chat", "team_phones", "ballots"):
     d[k] = [x for x in d.get(k, []) if x.get("team_id") != TEAM and not str(x.get("game_id", "")).startswith("demo-")]
 
@@ -72,8 +76,9 @@ for kid, rel, nm in [("ava", "Mum", None), ("noah", "Dad", None), ("zoe", "Mum",
                                             "device": "iPhone", "last_seen": ago(2), "removed_children": "", "member_id": mid,
                                             "relation": rel, "name": nm, "created_at": ago(300)})
 # The phone in the screenshots: Leo's Dad.
+ME = "33333333-3333-4333-8333-333333333333"
 d["team_phones"].append({"team_id": TEAM, "device_id": "11111111-1111-4111-8111-111111111111", "children": "leo", "is_self": False,
-                         "device": "iPhone", "last_seen": ago(1), "removed_children": "", "member_id": str(uuid.uuid4()),
+                         "device": "iPhone", "last_seen": ago(1), "removed_children": "", "member_id": ME,
                          "relation": "Dad", "name": None, "created_at": ago(200)})
 chat = [
     (people["ava"], "Morning all! Does anyone have a spare pair of shin pads? Ava has grown out of hers.", 26),
@@ -90,6 +95,32 @@ d["announcements"].append({"id": str(uuid.uuid4()), "team_id": TEAM, "created_at
                            "body": "Welcome to the Rockets team app! Please mark attendance for each game by Thursday night, so we know numbers. Shin pads every game."})
 d["announcements"].append({"id": str(uuid.uuid4()), "team_id": TEAM, "created_at": ago(6), "source": None,
                            "body": "Saturday: we meet 20 minutes before kick-off at Riverside Park, pitch 2. Bring a water bottle."})
+
+# Private messages for Leo's Dad: one-to-one with Noah's Dad, and a carpool group.
+me = f"p:{ME}"
+def conversation(name, members, msgs, read_all=False):
+    cid = str(uuid.uuid4())
+    d.setdefault("conversations", []).append({"id": cid, "team_id": TEAM, "name": name, "is_group": name is not None, "created_by": members[0],
+                                              "created_at": ago(80), "last_message_at": ago(msgs[-1][2])})
+    for m in members:
+        d.setdefault("conversation_members", []).append({"conversation_id": cid, "member": m, "joined_at": ago(80), "left_at": None,
+                                                         "last_read_at": ago(0 if read_all else msgs[-1][2] + 0.5) if m == me else None})
+    for author, body, h in msgs:
+        d.setdefault("direct_messages", []).append({"id": str(uuid.uuid4()), "conversation_id": cid, "author": author, "body": body,
+                                                    "kind": "text", "removed": False, "created_at": ago(h)})
+conversation("Saturday carpool", [people["ava"], me, people["zoe"]], [
+    (people["ava"], "Who can drive to Riverside Park on Saturday?", 9),
+    (me, "I can take two kids", 8.5),
+    (people["zoe"], "Zoe can come with you then, thanks!", 1.5),
+])
+conversation(None, [me, people["noah"]], [
+    (me, "Thanks for the shin pads!", 25),
+    (people["noah"], "No worries, see you Saturday", 24.5),
+], read_all=True)
+conversation(None, ["coach", me], [
+    ("coach", "Could Leo try in defence this week?", 30),
+    (me, "Sounds good, he'll be keen", 29),
+], read_all=True)
 
 json.dump(d, open(p, "w", encoding="utf8"), indent=2)
 print("demo ready")

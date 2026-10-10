@@ -36,7 +36,7 @@ export default async function ConversationPage({ params }: PageProps<"/[team]/me
         <div className="flex items-center justify-between gap-3">
           <SidelnrLink className="" />
           <Link href={`/${team.id}/messages`} className="text-sm font-medium text-on-team/70">
-            ← Messages
+            ← Private
           </Link>
         </div>
         <h1 className="mt-1 truncate text-lg font-semibold">{title}</h1>

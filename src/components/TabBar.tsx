@@ -37,7 +37,7 @@ export function TabBar({
     { key: "home", href: `/${teamId}`, label: "Home", icon: HomeIcon, badge: 0 },
     { key: "board", href: `/${teamId}/board`, label: "Board", icon: BoardIcon, badge: boardUnread },
     { key: "chat", href: `/${teamId}/chat`, label: "Chat", icon: ChatIcon, badge: chatUnread ? -1 : 0 },
-    { key: "messages", href: `/${teamId}/messages`, label: "Messages", icon: MessagesIcon, badge: messagesUnread },
+    { key: "messages", href: `/${teamId}/messages`, label: "Private", icon: MessagesIcon, badge: messagesUnread },
     { key: "manager", href: `/${teamId}/admin`, label: "Manager", icon: WhistleIcon, badge: 0 },
   ] as const;
 

@@ -1,6 +1,6 @@
 // Phone-sized screenshots of the local app for the in-app guide.
 // Usage: node capture.mjs shots.json outDir
-// Each shot: { name, url, cookies?: {name: value}, js?: "code run after load", wait?: ms }
+// Each shot: { name, url, cookies?: {name: value}, js?: "code run after load", wait?: ms, full?: true }
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -68,9 +68,17 @@ for (const shot of shots) {
     if (r.exceptionDetails) console.error(shot.name, "js error", JSON.stringify(r.exceptionDetails).slice(0, 300));
     await sleep(shot.after ?? 800);
   }
+  // full: the whole page, top to bottom (for pictures you can scroll through when zoomed).
+  if (shot.full) {
+    const { cssContentSize } = await s("Page.getLayoutMetrics");
+    await s("Emulation.setDeviceMetricsOverride", { width: 390, height: Math.ceil(cssContentSize.height), deviceScaleFactor: 2, mobile: true });
+    await sleep(800);
+  }
   const { data } = await s("Page.captureScreenshot", { format: "webp", quality: 82 });
+  if (shot.full) await s("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   writeFileSync(join(outDir, `${shot.name}.webp`), Buffer.from(data, "base64"));
   console.log("saved", shot.name);
 }
+await send("Browser.close").catch(() => {}); // or the next run would reuse this browser
 browser.kill();
 process.exit(0);

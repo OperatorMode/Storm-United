@@ -48,7 +48,7 @@ export default function FeaturesPage() {
           and a team chat.
         </li>
         <li>
-          <b>Private messages:</b> message another family or the coach, or start a small group (“Carpool Saturday”). Leave
+          <b>Private messages:</b> message someone in the team or the coach, or start a small group (“Carpool Saturday”). Leave
           a group any time, block a family, or report a message to the team’s managers. For parents and coaches only, not
           players.
         </li>

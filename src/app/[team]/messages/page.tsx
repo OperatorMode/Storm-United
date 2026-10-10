@@ -49,8 +49,8 @@ export default async function MessagesPage({ params }: PageProps<"/[team]/messag
       <header className="jersey px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
         <SidelnrLink />
         <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
-        <h1 className="mt-0.5 text-xl font-semibold">Messages</h1>
-        <p className="mt-0.5 text-xs text-on-team/60">Private messages between parents, family and the coach.</p>
+        <h1 className="mt-0.5 text-xl font-semibold">Private messages</h1>
+        <p className="mt-0.5 text-xs text-on-team/60">One person or a small group. Only the people in a conversation can read it.</p>
       </header>
 
       <main className="space-y-4 px-4 pt-4">
