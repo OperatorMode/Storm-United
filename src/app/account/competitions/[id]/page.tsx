@@ -53,8 +53,13 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   if (!managerId && !(await isSuperAdmin())) redirect(`/login?next=/account/competitions/${id}`);
   const competition = await getCompetition(id);
   if (!competition) notFound();
-  const allowed = (await isSuperAdmin()) || (managerId ? (await adminLeagueIds(managerId)).includes(competition.league_id) : false);
-  if (!allowed) notFound();
+  const isSuper = await isSuperAdmin();
+  const isAdmin = isSuper || (managerId ? (await adminLeagueIds(managerId)).includes(competition.league_id) : false);
+  // An imported league (read from its own website) is official: anyone signed in
+  // can see it and claim it; it's only managed once a claim is approved.
+  const imported = competition.feed_type === "web";
+  if (!isAdmin && !(imported && managerId)) notFound();
+  const canManage = isSuper || (isAdmin && (!imported || !!competition.league.verified_at));
 
   if (competition.league.source !== "manual") {
     return (
@@ -111,14 +116,21 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const [sent, claims] = await Promise.all([listLeagueMessages(competition.league_id, 5), verified ? [] : leagueClaims(competition.league_id)]);
   const waitingReview = claims.find((c) => c.kind === "review" && c.status === "pending");
   const messageCard = !verified ? (
-    <Card title="League announcement" aside="Verify to unlock">
+    <Card title={imported ? "Claim this league" : "League announcement"} aside={imported ? "Not claimed yet" : "Verify to unlock"}>
+      {imported && (
+        <p className="mb-3 text-sm text-zinc-600">
+          This league was imported from its own website, so it belongs to the league, not to whoever imported it. If you run
+          it, claim it: once approved, you can send announcements, set the timezone and delete it.
+        </p>
+      )}
       <VerifyLeague
         competitionId={id}
         domains={officialDomains(competition.league, siblings.map((c) => c.feed_url))}
         reviewRequested={waitingReview ? formatDay(new Date(waitingReview.created_at), tz) : null}
+        claim={imported}
       />
     </Card>
-  ) : (
+  ) : !canManage ? null : (
     <Card title="League announcement" aside={`${leagueImpact.sidelnrTeams.length} team${leagueImpact.sidelnrTeams.length === 1 ? "" : "s"} on Sidelnr`}>
       <LeagueMessageForm
         competitionId={id}
@@ -283,20 +295,24 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           {past.length ? <ul className="divide-y divide-zinc-100">{past.map(game)}</ul> : <p className="text-sm text-zinc-500">No games played yet.</p>}
         </Section>
 
-        <Section title="Timezone" aside={tz.replaceAll("_", " ")}>
-          <LeagueTimezoneForm competitionId={id} initial={tz} />
-        </Section>
+        {canManage && (
+          <>
+            <Section title="Timezone" aside={tz.replaceAll("_", " ")}>
+              <LeagueTimezoneForm competitionId={id} initial={tz} />
+            </Section>
 
-        <Card title="Danger zone">
-          <DangerZone
-            competitionId={id}
-            competitionName={competition.name}
-            leagueName={competition.league.name}
-            noun={siblings.every((c) => c.kind === "tournament") ? "event" : "league"}
-            competitionImpact={competitionImpact}
-            leagueImpact={leagueImpact}
-          />
-        </Card>
+            <Card title="Danger zone">
+              <DangerZone
+                competitionId={id}
+                competitionName={competition.name}
+                leagueName={competition.league.name}
+                noun={siblings.every((c) => c.kind === "tournament") ? "event" : "league"}
+                competitionImpact={competitionImpact}
+                leagueImpact={leagueImpact}
+              />
+            </Card>
+          </>
+        )}
       </div>
     );
   }

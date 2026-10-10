@@ -19,6 +19,18 @@ export async function createLeague(league: LeagueRow, adminId: string): Promise<
   check(await s.from("league_admins").insert({ league_id: league.id, manager_id: adminId }));
 }
 
+/** Makes this manager the league's only admin (an imported league, once claimed). */
+export async function setSoleLeagueAdmin(leagueId: string, managerId: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.league_admins = [...(d.league_admins ?? []).filter((a) => a.league_id !== leagueId), { league_id: leagueId, manager_id: managerId, created_at: new Date().toISOString() }];
+    return writeLocal(d);
+  }
+  check(await s.from("league_admins").delete().eq("league_id", leagueId).neq("manager_id", managerId));
+  check(await s.from("league_admins").upsert({ league_id: leagueId, manager_id: managerId }, { onConflict: "league_id,manager_id" }));
+}
+
 export async function leagueIdExists(id: string): Promise<boolean> {
   const s = db();
   if (!s) return ((await readLocal()).leagues ?? []).some((l) => l.id === id);

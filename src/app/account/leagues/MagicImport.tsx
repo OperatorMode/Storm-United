@@ -32,6 +32,7 @@ export function MagicImport() {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [scan, setScan] = useState<LeagueScan | null>(null);
+  const [existing, setExisting] = useState<Record<string, { id: string; label: string }>>({});
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<"link" | "scanning" | "found" | "importing">("link");
   const [competition, setCompetition] = useState("");
@@ -48,6 +49,7 @@ export function MagicImport() {
       return;
     }
     setScan(res.scan);
+    setExisting(res.existing ?? {});
     setLeagueName(res.scan.leagueName);
     setCompetition(res.scan.competitions.length === 1 ? res.scan.competitions[0].name : "");
     setStage("found");
@@ -89,6 +91,7 @@ export function MagicImport() {
   function found(scan: LeagueScan) {
     const many = scan.competitions.length > 1;
     const chosen = scan.competitions.find((c) => c.name === competition);
+    const already = chosen ? existing[chosen.name] : undefined; // on Sidelnr already: no second copy
     return (
       <form
         onSubmit={(e) => {
@@ -135,9 +138,22 @@ export function MagicImport() {
               <span className="mt-1 block text-xs text-zinc-500">Game times are shown in this timezone.</span>
             </label>
             <p className="truncate text-xs text-zinc-500">From {scan.feedUrl}</p>
-            <button disabled={busy || (many && !competition)} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white disabled:opacity-30">
-              Import {chosen ? chosen.name : "it"}
-            </button>
+            {already ? (
+              <div className="space-y-2 rounded-xl bg-emerald-50 p-3 text-emerald-900">
+                <p className="font-semibold">This league is already on Sidelnr</p>
+                <p className="text-sm">{already.label} was imported before, so there’s no need to add it again. Create your team in it instead.</p>
+                <a href={`/account/new?competition=${encodeURIComponent(already.id)}`} className="block rounded-xl bg-zinc-900 px-4 py-2.5 text-center font-semibold text-white">
+                  Create My Team
+                </a>
+                <a href={`/account/competitions/${already.id}`} className="block text-center text-sm underline">
+                  View the league
+                </a>
+              </div>
+            ) : (
+              <button disabled={busy || (many && !competition)} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white disabled:opacity-30">
+                Import {chosen ? chosen.name : "it"}
+              </button>
+            )}
             <button type="button" onClick={() => setStage("link")} className="w-full text-center text-zinc-500 underline">
               Start again
             </button>

@@ -63,6 +63,26 @@ async function handEditable(competitionId: string) {
   return c && !c.feed_url ? c : null;
 }
 
+// An imported league (read from its own website) is official: until someone's
+// claim is approved, nobody can change or delete it, and anyone signed in can
+// claim it. Leagues set up by hand (or from a spreadsheet) belong to whoever
+// created them.
+const imported = (c: { feed_type?: string | null }) => c.feed_type === "web";
+
+/** Full league admin: an imported league only once it's claimed. */
+async function managedCompetition(competitionId: string) {
+  const c = await editableCompetition(competitionId);
+  return c && (!imported(c) || c.league.verified_at || (await isSuperAdmin())) ? c : null;
+}
+
+/** Who may ask to verify (claim) a league: its admin, or anyone signed in for an imported one. */
+async function claimableCompetition(competitionId: string) {
+  const own = await editableCompetition(competitionId);
+  if (own) return own;
+  const c = await getCompetition(competitionId);
+  return c && imported(c) && !c.league.verified_at && (await currentManagerId()) ? c : null;
+}
+
 // League admin of the competition's league, or the super admin.
 async function editableCompetition(competitionId: string) {
   const competition = await getCompetition(competitionId);
@@ -300,7 +320,7 @@ export async function connectFeedAction(competitionId: string, _: unknown, formD
 }
 
 export async function syncNowAction(competitionId: string) {
-  if (!(await editableCompetition(competitionId))) return { error: "Not authorised." };
+  if (!(await claimableCompetition(competitionId))) return { error: "Not authorised." };
   const res = await syncCompetitionFeed(competitionId, true);
   refreshAll();
   return res.count ? { ok: true, count: res.count } : { error: res.errors[0] ?? "Nothing synced." };
@@ -322,7 +342,7 @@ async function sidelnrTeamsIn(competitionIds: string[]) {
 }
 
 export async function deleteCompetitionAction(competitionId: string, typedName: string) {
-  const c = await editableCompetition(competitionId);
+  const c = await managedCompetition(competitionId);
   if (!c) return { error: "Not authorised." };
   if (!sameName(typedName, c.name)) return { error: `Type “${c.name}” exactly to confirm.` };
   const teams = await sidelnrTeamsIn([c.id]);
@@ -334,7 +354,7 @@ export async function deleteCompetitionAction(competitionId: string, typedName: 
 }
 
 export async function deleteLeagueAction(competitionId: string, typedName: string) {
-  const c = await editableCompetition(competitionId);
+  const c = await managedCompetition(competitionId);
   if (!c) return { error: "Not authorised." };
   if (!sameName(typedName, c.league.name)) return { error: `Type “${c.league.name}” exactly to confirm.` };
   const comps = (await listCompetitions()).filter((x) => x.league_id === c.league_id).map((x) => x.id);
@@ -348,7 +368,7 @@ export async function deleteLeagueAction(competitionId: string, typedName: strin
 
 // The league's timezone: kick-off times are entered and shown in it.
 export async function saveLeagueTimezone(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await managedCompetition(competitionId);
   if (!c) return { error: "Not authorised." };
   const tz = String(formData.get("timezone") ?? "");
   if (!isTimezone(tz)) return { error: "Pick a timezone from the list." };
@@ -573,11 +593,35 @@ export async function generateDrawAction(competitionId: string, raw: DrawSetting
 
 // ---------- "Got a league website? Let's see what we can pull." ----------
 
-export async function scanLeagueAction(url: string): Promise<{ scan?: LeagueScan; error?: string }> {
+/** "https://www.Site.com/Path/" and "site.com/path" are the same page. */
+const samePage = (url: string) => url.trim().toLowerCase().replace(/^[a-z]+:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+
+/** A competition already on Sidelnr from this page (and this competition on it, when a page has several). */
+async function alreadyImported(feedUrl: string, competition: string | null): Promise<{ id: string; label: string } | null> {
+  const c = (await listCompetitions()).find(
+    (x) =>
+      x.feed_type === "web" &&
+      x.feed_url &&
+      samePage(x.feed_url) === samePage(feedUrl) &&
+      (!competition || (x.feed_filter ?? x.name).toLowerCase() === competition.toLowerCase() || x.name.toLowerCase() === competition.toLowerCase()),
+  );
+  return c ? { id: c.id, label: `${c.league.name} · ${c.name}` } : null;
+}
+
+export async function scanLeagueAction(
+  url: string,
+): Promise<{ scan?: LeagueScan; existing?: Record<string, { id: string; label: string }>; error?: string }> {
   if (!(await currentManagerId())) return { error: "Sign in first." };
   if (!url.trim()) return { error: "Paste the league’s link." };
   try {
-    return { scan: await scanLeague(url) };
+    const scan = await scanLeague(url);
+    // Competitions from this page that are already on Sidelnr: no second copy.
+    const existing: Record<string, { id: string; label: string }> = {};
+    for (const c of scan.competitions) {
+      const found = await alreadyImported(scan.feedUrl, scan.competitions.length > 1 ? c.name : null);
+      if (found) existing[c.name] = found;
+    }
+    return { scan, existing };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Couldn’t read that link." };
   }
@@ -600,6 +644,9 @@ export async function importLeagueAction(input: {
 }): Promise<{ competitionId?: string; count?: number; error?: string }> {
   const managerId = await currentManagerId();
   if (!managerId) return { error: "Sign in first." };
+  if (input.feedType === "web" && (await alreadyImported(input.feedUrl, input.filter ? input.competition : null))) {
+    return { error: "This league is already on Sidelnr." };
+  }
   const name = input.leagueName.trim().slice(0, 80);
   if (!name) return { error: "Give the league a name." };
   if (!/^https?:\/\//i.test(input.feedUrl)) return { error: "That link doesn’t look right." };
@@ -649,7 +696,7 @@ export async function importLeagueAction(input: {
 // and pushed to everyone; "managers": pushed to managers' phones and emailed
 // to each team's managers.
 export async function sendLeagueMessage(competitionId: string, _: unknown, formData: FormData) {
-  const c = await editableCompetition(competitionId);
+  const c = await managedCompetition(competitionId);
   if (!c) return { error: "Not authorised." };
   const body = String(formData.get("body") ?? "").trim();
   const audience = formData.get("audience") === "managers" ? "managers" : "all";
@@ -699,7 +746,7 @@ export async function sendLeagueMessage(competitionId: string, _: unknown, formD
 
 // Step 1: a code to an email on the league's own domain.
 export async function sendLeagueCode(competitionId: string, email: string) {
-  const c = await editableCompetition(competitionId);
+  const c = await claimableCompetition(competitionId);
   const managerId = await currentManagerId();
   if (!c || !managerId) return { error: "Not authorised." };
   if (c.league.verified_at) return { error: "This league is already verified." };
@@ -715,7 +762,7 @@ export async function sendLeagueCode(competitionId: string, email: string) {
 
 // Step 2: the code back; the league is then official.
 export async function confirmLeagueCode(competitionId: string, code: string) {
-  const c = await editableCompetition(competitionId);
+  const c = await claimableCompetition(competitionId);
   const managerId = await currentManagerId();
   if (!c || !managerId) return { error: "Not authorised." };
   const res = await confirmEmailClaim(c.league_id, managerId, code);
@@ -725,7 +772,7 @@ export async function confirmLeagueCode(competitionId: string, code: string) {
 
 // No league domain: ask Sidelnr to check by hand.
 export async function requestLeagueReview(competitionId: string, note: string) {
-  const c = await editableCompetition(competitionId);
+  const c = await claimableCompetition(competitionId);
   const managerId = await currentManagerId();
   if (!c || !managerId) return { error: "Not authorised." };
   if (c.league.verified_at) return { error: "This league is already verified." };

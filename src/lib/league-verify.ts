@@ -1,6 +1,7 @@
 import { createHash, randomInt, randomUUID } from "crypto";
 import { check, db, readLocal, writeLocal, type LeagueRow } from "./store";
-import { updateLeague } from "./fixtures";
+import { setSoleLeagueAdmin, updateLeague } from "./fixtures";
+import { listCompetitionRows } from "./store";
 import { siteOf } from "./league-scan";
 
 // Official (verified) leagues: only these can send league announcements.
@@ -135,6 +136,12 @@ export async function startEmailClaim(
   return { code };
 }
 
+/** An imported league (from a web page) belongs to whoever's claim is approved, alone. */
+async function handOver(leagueId: string, managerId: string) {
+  const imported = (await listCompetitionRows()).some((c) => c.league_id === leagueId && c.feed_type === "web");
+  if (imported) await setSoleLeagueAdmin(leagueId, managerId);
+}
+
 /** Checks the code; on success the league is verified. */
 export async function confirmEmailClaim(leagueId: string, managerId: string, code: string): Promise<{ ok: true } | { error: string }> {
   const claim = (await leagueClaims(leagueId)).find((c) => c.kind === "email" && c.status === "pending" && c.manager_id === managerId);
@@ -154,6 +161,7 @@ export async function confirmEmailClaim(leagueId: string, managerId: string, cod
   }
   await saveClaim({ ...claim, status: "used" });
   await updateLeague(leagueId, { verified_at: new Date().toISOString(), verified_by: claim.email });
+  await handOver(leagueId, managerId);
   return { ok: true };
 }
 
@@ -184,7 +192,10 @@ export async function decideReview(claimId: string, approve: boolean): Promise<v
   const claim = (await listClaims((c) => c.id === claimId)).find((c) => c.id === claimId);
   if (!claim || claim.status !== "pending") return;
   await saveClaim({ ...claim, status: approve ? "approved" : "declined" });
-  if (approve) await updateLeague(claim.league_id, { verified_at: new Date().toISOString(), verified_by: "review" });
+  if (approve) {
+    await updateLeague(claim.league_id, { verified_at: new Date().toISOString(), verified_by: "review" });
+    await handOver(claim.league_id, claim.manager_id);
+  }
 }
 
 export async function unverifyLeague(leagueId: string): Promise<void> {

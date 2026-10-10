@@ -12,10 +12,12 @@ export function VerifyLeague({
   competitionId,
   domains,
   reviewRequested,
+  claim = false,
 }: {
   competitionId: string;
   domains: string[]; // e.g. ["wnbl.com.au"]
   reviewRequested: string | null; // when a review was asked for, if one is waiting
+  claim?: boolean; // an imported league: this is how someone claims it
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -36,7 +38,7 @@ export function VerifyLeague({
     start(async () => {
       const res = await confirmLeagueCode(competitionId, code);
       if ("error" in res) return setMsg({ error: res.error });
-      setMsg({ ok: "Verified. This league is now official." });
+      setMsg({ ok: claim ? "Claimed. This league is now yours to manage." : "Verified. This league is now official." });
       router.refresh();
     });
   const review = () =>
@@ -49,10 +51,12 @@ export function VerifyLeague({
 
   return (
     <div className="space-y-4 text-sm">
-      <p className="text-zinc-600">
-        Anyone can set up or import a league, so announcements only unlock once the league is verified as official. Verified
-        leagues get a tick next to their name.
-      </p>
+      {!claim && (
+        <p className="text-zinc-600">
+          Anyone can set up or import a league, so announcements only unlock once the league is verified as official. Verified
+          leagues get a tick next to their name.
+        </p>
+      )}
 
       {domains.length > 0 && (
         <div className="space-y-2">
