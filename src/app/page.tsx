@@ -227,8 +227,8 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
         )}
 
         <p className="px-2 text-center text-sm opacity-70">
-          <span className="font-semibold">Know where everyone needs to be.</span> For parents, players, coaches and leagues:
-          fixtures straight from the league, who’s playing, team chat, and your whole family’s week in one calendar.
+          Built by parents and coaches for the real sideline hassle: fixtures that update themselves, who’s playing, team
+          chat, and your whole family’s schedule in one spot.
         </p>
         <LegalLinks className="opacity-60" />
         {/* A new phone (no teams, not signed in) gets the guide on its first visit. */}
