@@ -1,4 +1,6 @@
 "use server";
+
+import { after } from "next/server";
 import { redirect, RedirectType } from "next/navigation";
 import { gameParts, isSlot, slotFrom, slotParts } from "@/lib/role";
 import { deletePushSub } from "@/lib/messages";
@@ -11,6 +13,8 @@ import { getLeagueData, votingState } from "@/lib/league";
 import { getTeam, isActivePlayer, verifySecret, type Team } from "@/lib/teams";
 import { now } from "@/lib/clock";
 import { getAttendance, setAttendance, upsertBallot, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
+import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
+import { notifyManagers } from "@/lib/push";
 import {
   COOKIE_OPTS,
   adminCookie,
@@ -119,10 +123,28 @@ export async function enterJoinCode(_: unknown, formData: FormData) {
   if (!team) return { error: "Team not found." };
   const token = joinToken(team);
   if (!token) return { ok: true };
-  if (!verifySecret(String(formData.get("code") ?? ""), team.join_code_hash)) return { error: "That code isn't right." };
+  const locked = await lockedMessage("join", team.id);
+  if (locked) return { error: locked };
+  if (!verifySecret(String(formData.get("code") ?? ""), team.join_code_hash)) {
+    await recordFailure("join", team.id);
+    return { error: "That code isn't right." };
+  }
+  await recordSuccess("join", team.id);
   (await cookies()).set(joinCookie(team.id), token, COOKIE_OPTS);
   revalidatePath(`/${team.id}`);
   return { ok: true };
+}
+
+/** Tells a team's managers someone kept getting its PIN wrong (that device is now locked out). */
+async function warnManagers(teamId: string, teamName: string) {
+  after(() =>
+    notifyManagers(teamId, {
+      title: `${teamName}: manager PIN`,
+      body: "Someone entered a wrong PIN 5 times. They’re locked out for 15 minutes. If it wasn’t a manager, consider changing the PIN.",
+      url: `/${teamId}/admin`,
+      icon: `/${teamId}/icon/192`,
+    }),
+  );
 }
 
 // Accepts this team's own manager PIN only. (The Sidelnr owner PIN works only
@@ -133,11 +155,15 @@ export async function adminLogin(_: unknown, formData: FormData) {
   const pin = String(formData.get("pin") ?? "").trim();
   const store = await cookies();
   const superPin = process.env.ADMIN_PIN?.trim();
+  const locked = await lockedMessage("pin", team.id);
+  if (locked) return { error: locked };
   if (verifySecret(pin, team.admin_pin_hash)) {
+    await recordSuccess("pin", team.id);
     store.set(adminCookie(team.id), adminToken(team)!, COOKIE_OPTS);
   } else if (superPin && pin === superPin) {
     return { error: "That’s the Sidelnr owner PIN, which isn’t used here. Enter this team’s own manager PIN (its owner sets it under My Team, by editing the team), or use sidelnr.app/super." };
   } else {
+    if (await recordFailure("pin", team.id)) await warnManagers(team.id, team.name);
     return { error: "Wrong PIN." };
   }
   revalidatePath(`/${team.id}/admin`);

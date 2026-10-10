@@ -10,13 +10,20 @@ import { ackAnnouncement, addAnnouncement, addChat, listAnnouncements, listChat 
 import { getTeam } from "@/lib/teams";
 import { COOKIE_OPTS, SUPER_COOKIE, isSuperAdmin, superToken } from "@/lib/session";
 import { decideReview, unverifyLeague } from "@/lib/league-verify";
+import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
 
 export async function superLogin(_: unknown, formData: FormData) {
   const pin = String(formData.get("pin") ?? "").trim();
   const token = superToken();
   if (!token) return { error: "ADMIN_PIN isn't configured." };
-  if (pin !== process.env.ADMIN_PIN?.trim()) return { error: "Wrong PIN." };
+  const locked = await lockedMessage("super", "owner");
+  if (locked) return { error: locked };
+  if (pin !== process.env.ADMIN_PIN?.trim()) {
+    await recordFailure("super", "owner");
+    return { error: "Wrong PIN." };
+  }
+  await recordSuccess("super", "owner");
   (await cookies()).set(SUPER_COOKIE, token, COOKIE_OPTS);
   revalidatePath("/super");
   return { ok: true };

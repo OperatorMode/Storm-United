@@ -29,6 +29,7 @@ import { after } from "next/server";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
 import { COOKIE_OPTS, DEVICE_COOKIE, HOUSEHOLD_COOKIE, currentDeviceId, currentHouseholdId } from "@/lib/session";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
+import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
 // My Activities: a family's own activities, stored for this phone's household.
 
@@ -218,8 +219,14 @@ export async function shareActivities(activityIds: string[] | null) {
 /** Joins the household of another phone; this phone's own activities move across. */
 export async function joinActivities(code: string) {
   // The code is used up here: nobody else can use it after this.
+  const locked = await lockedMessage("share", "activities");
+  if (locked) return { error: locked };
   const shared = await redeemCode(code);
-  if (!shared) return { error: "That code isn’t right, has expired or has already been used. Ask for a new one." };
+  if (!shared) {
+    await recordFailure("share", "activities");
+    return { error: "That code isn’t right, has expired or has already been used. Ask for a new one." };
+  }
+  await recordSuccess("share", "activities");
   if ("activityIds" in shared) {
     // Chosen activities: link just those to this phone.
     await linkActivities(await household(), shared.activityIds);
