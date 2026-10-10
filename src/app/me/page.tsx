@@ -21,7 +21,7 @@ import { kidKey } from "@/lib/kid-key";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 import { after } from "next/server";
-import { currentHouseholdId } from "@/lib/session";
+import { currentDeviceId, currentHouseholdId } from "@/lib/session";
 import { listActivities, sessionsOf, weeklySummary, type Activity } from "@/lib/activities";
 import type { ActivityInitial } from "./ActivityForm";
 import { needsRefresh, refreshActivity } from "@/lib/activity-import";
@@ -168,8 +168,8 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
     }),
   );
   // The family's own activities, from a couple of hours ago to four months ahead.
-  const householdId = await currentHouseholdId();
-  const activities = householdId ? await listActivities(householdId) : [];
+  const [householdId, deviceId] = await Promise.all([currentHouseholdId(), currentDeviceId()]);
+  const activities = householdId ? await listActivities(householdId, deviceId) : [];
   const stale = activities.filter(needsRefresh);
   if (stale.length) after(() => Promise.allSettled(stale.map(refreshActivity)).then(() => undefined));
   const activityEntries = activities.flatMap((a) =>
@@ -205,7 +205,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
 
   const { child: childClashes, family: familyClashes } = findClashes(upcoming);
 
-  const [calToken, host] = await Promise.all([calendarToken(teams, activities.length ? householdId : null), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
+  const [calToken, host] = await Promise.all([calendarToken(teams, activities.length ? householdId : null, deviceId), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
   // Who activities can be for: the children on this phone's teams, and anyone already in an activity.
   const teamKids = (
     await Promise.all(teams.map(async (t) => ((await canView(t)) ? (await currentChildren(t)).map((c) => firstName(playerName(t, c))) : [])))
@@ -352,6 +352,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
                 imported: !!a.source_url,
                 error: a.source_error,
                 linked: !!a.linked,
+                mine: !!a.mine,
                 edit: editValues(a),
               }))}
             />

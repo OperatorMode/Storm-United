@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import {
@@ -17,6 +18,7 @@ import {
   linkActivities,
   newActivityShareCode,
   unlinkActivity,
+  hideActivity,
   weeklySummary,
   type Activity,
   type WeeklySlot,
@@ -25,7 +27,7 @@ import { readActivitySource, refreshActivity } from "@/lib/activity-import";
 import { deleteHouseholdPush, getHouseholdPush, notifyNewActivity, saveHouseholdPush } from "@/lib/activity-reminders";
 import { after } from "next/server";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
-import { COOKIE_OPTS, HOUSEHOLD_COOKIE, currentHouseholdId } from "@/lib/session";
+import { COOKIE_OPTS, DEVICE_COOKIE, HOUSEHOLD_COOKIE, currentDeviceId, currentHouseholdId } from "@/lib/session";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
 
 // My Activities: a family's own activities, stored for this phone's household.
@@ -38,6 +40,15 @@ async function household(): Promise<string> {
   if (existing && (await householdExists(existing))) return existing;
   const id = await createHousehold();
   (await cookies()).set(HOUSEHOLD_COOKIE, id, COOKIE_OPTS);
+  return id;
+}
+
+/** This phone's private id, created on first use. */
+async function device(): Promise<string> {
+  const existing = await currentDeviceId();
+  if (existing) return existing;
+  const id = randomUUID();
+  (await cookies()).set(DEVICE_COOKIE, id, COOKIE_OPTS);
   return id;
 }
 
@@ -96,6 +107,7 @@ export async function addActivity(_: unknown, formData: FormData) {
         kind: (ACTIVITY_KINDS as readonly string[]).includes(get("kind")) ? get("kind") : null,
         location: get("location").slice(0, 120) || null,
         tz,
+        created_by_device: await device(),
       });
 
   if (mode === "import") {
@@ -148,15 +160,20 @@ export async function addActivity(_: unknown, formData: FormData) {
 async function mine(activityId: string) {
   const id = await currentHouseholdId();
   if (!id) return null;
-  return (await listActivities(id)).find((a) => a.id === activityId) ?? null;
+  return (await listActivities(id, await currentDeviceId())).find((a) => a.id === activityId) ?? null;
 }
 
-export async function removeActivity(activityId: string) {
+/**
+ * Removes an activity from this phone. Only the phone that created it can
+ * delete it for everyone it's shared with (`everywhere`); anyone else's
+ * Remove just takes it off their own phone.
+ */
+export async function removeActivity(activityId: string, everywhere = false) {
   const a = await mine(activityId);
   if (!a) return;
-  // A shared one only leaves this phone; the other phone keeps it.
-  if (a.linked) await unlinkActivity((await currentHouseholdId())!, a.id);
-  else await deleteActivity(a.household_id, a.id);
+  if (a.linked) await unlinkActivity((await currentHouseholdId())!, a.id); // shared with this phone by code
+  else if (everywhere && a.mine) await deleteActivity(a.household_id, a.id);
+  else await hideActivity(await device(), a.id);
   refresh();
 }
 
@@ -239,6 +256,7 @@ export async function saveActivityReminders(sub: BrowserSubscription, prefs: { d
     remind_day: prefs.day,
     remind_hour: prefs.hour,
     notify_new: prefs.news,
+    device_id: await device(),
     created_at: existing?.created_at ?? new Date().toISOString(),
   });
   return { ok: true };

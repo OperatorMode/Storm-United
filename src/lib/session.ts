@@ -21,6 +21,18 @@ export const selfCookie = (teamId: string) => `su_self_${teamId}`;
 // The household this phone belongs to (My Activities); see activities.ts.
 export const HOUSEHOLD_COOKIE = "su_household";
 
+// This phone's own private id (My Activities): who created an activity, and
+// which activities this phone has hidden. Households can span several phones.
+export const DEVICE_COOKIE = "su_device";
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** This phone's private id, if it has one yet. */
+export async function currentDeviceId(): Promise<string | null> {
+  const v = (await cookies()).get(DEVICE_COOKIE)?.value ?? "";
+  return UUID.test(v) ? v : null;
+}
+
 /** This phone's household id, if it has one. */
 export async function currentHouseholdId(): Promise<string | null> {
   const v = (await cookies()).get(HOUSEHOLD_COOKIE)?.value ?? "";

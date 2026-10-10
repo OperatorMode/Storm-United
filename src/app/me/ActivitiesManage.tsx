@@ -13,6 +13,7 @@ export type ActivityRow = {
   imported: boolean;
   error: string | null;
   linked: boolean;
+  mine: boolean; // created on this phone: only then can it be deleted for everyone
   edit: ActivityInitial; // the form, filled in, for Edit
 };
 
@@ -21,6 +22,7 @@ export function ActivityList({ rows, people }: { rows: ActivityRow[]; people: st
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null); // asking "this phone or everyone?"
   if (!rows.length) return null;
   return (
     <ul className="divide-y divide-zinc-100 text-sm">
@@ -63,16 +65,43 @@ export function ActivityList({ rows, people }: { rows: ActivityRow[]; people: st
               <button
                 type="button"
                 disabled={pending}
-                onClick={() =>
-                  confirm(r.linked ? `Remove ${r.name} from this phone? The phone that shared it keeps it.` : `Remove ${r.person}’s ${r.name}?`) &&
-                  start(() => removeActivity(r.id))
-                }
+                onClick={() => {
+                  // Created here: ask whether it goes for everyone it's shared with, or just this phone.
+                  if (r.mine && !r.linked) return setRemoving(removing === r.id ? null : r.id);
+                  if (confirm(`Remove ${r.name} from this phone? Anyone it’s shared with keeps it.`)) start(() => removeActivity(r.id));
+                }}
                 className="text-red-700 underline"
               >
                 Remove
               </button>
             </span>
           </div>
+          {removing === r.id && (
+            <div className="mt-2 space-y-2 rounded-xl bg-red-50 p-3 text-xs text-red-900">
+              <p>Remove {r.name}?</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => start(() => removeActivity(r.id, false))}
+                  className="rounded-lg border border-red-300 bg-white px-3 py-1.5 font-medium"
+                >
+                  Just this phone
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => start(() => removeActivity(r.id, true))}
+                  className="rounded-lg bg-red-700 px-3 py-1.5 font-semibold text-white"
+                >
+                  Everyone
+                </button>
+                <button type="button" onClick={() => setRemoving(null)} className="px-2 py-1.5 underline">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           {editing === r.id && (
             <div className="mt-3 rounded-xl bg-zinc-50 p-3">
               <ActivityForm people={people} initial={r.edit} onDone={() => setEditing(null)} />

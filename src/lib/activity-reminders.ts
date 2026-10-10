@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { check, db, readLocal, writeLocal } from "./store";
 import { listActivities, sessionsOf, type ActivitySession } from "./activities";
 import { sendPushTo } from "./push";
@@ -16,6 +17,7 @@ export type HouseholdPush = {
   remind_day: boolean;
   remind_hour: boolean;
   notify_new: boolean; // someone else added an activity this phone shares
+  device_id?: string | null; // the phone (activities it hid get no reminders)
   created_at: string;
 };
 
@@ -85,32 +87,36 @@ export async function sendActivityReminders(now = Date.now()): Promise<number> {
   for (const p of subs) byHousehold.set(p.household_id, [...(byHousehold.get(p.household_id) ?? []), p]);
   let sent = 0;
 
+  // Each phone on its own: it may have hidden some of the household's activities.
   for (const [householdId, phones] of byHousehold) {
-    const sessions = (await listActivities(householdId))
-      .flatMap((a) => sessionsOf(a, new Date(now), new Date(now + 25 * HOUR)))
-      .filter((s) => !s.cancelled);
-    for (const s of sessions) {
-      const until = s.start.getTime() - now;
-      const allDay = s.minutes >= 24 * 60;
-      const kinds: { kind: "day" | "hour"; window: [number, number] }[] = [
-        { kind: "day", window: DAY_WINDOW },
-        ...(allDay ? [] : [{ kind: "hour" as const, window: HOUR_WINDOW }]),
-      ];
-      for (const { kind, window } of kinds) {
-        if (until > window[0] || until <= window[1]) continue;
-        const targets = phones.filter((p) => (kind === "day" ? p.remind_day : p.remind_hour));
-        if (!targets.length) continue;
-        if (!(await markSent(householdId, `${kind}:${s.activity.id}:${s.start.toISOString()}`))) continue;
-        const time = allDay ? "" : ` at ${formatTime(s.start, s.activity.tz)}`;
-        const payload = {
-          title: kind === "day" ? `Tomorrow: ${who(s)}${s.title}` : `In 1 hour: ${who(s)}${s.title}`,
-          body: [`${s.title}${time}`, s.place].filter(Boolean).join(" · "),
-          url: "/me",
-          icon: "/app-icon/192",
-          tag: `activity-${s.activity.id}-${kind}`,
-        };
-        await Promise.allSettled(targets.map((p) => sendPushTo(p, payload, () => deleteHouseholdPush(p.endpoint))));
-        sent++;
+    for (const phone of phones) {
+      const sessions = (await listActivities(householdId, phone.device_id ?? null))
+        .flatMap((a) => sessionsOf(a, new Date(now), new Date(now + 25 * HOUR)))
+        .filter((s) => !s.cancelled);
+      for (const s of sessions) {
+        const until = s.start.getTime() - now;
+        const allDay = s.minutes >= 24 * 60;
+        const kinds: { kind: "day" | "hour"; window: [number, number] }[] = [
+          { kind: "day", window: DAY_WINDOW },
+          ...(allDay ? [] : [{ kind: "hour" as const, window: HOUR_WINDOW }]),
+        ];
+        for (const { kind, window } of kinds) {
+          if (until > window[0] || until <= window[1]) continue;
+          const targets = [phone].filter((p) => (kind === "day" ? p.remind_day : p.remind_hour));
+          if (!targets.length) continue;
+          const phoneKey = createHash("sha256").update(phone.endpoint).digest("hex").slice(0, 12);
+          if (!(await markSent(householdId, `${kind}:${s.activity.id}:${s.start.toISOString()}:${phoneKey}`))) continue;
+          const time = allDay ? "" : ` at ${formatTime(s.start, s.activity.tz)}`;
+          const payload = {
+            title: kind === "day" ? `Tomorrow: ${who(s)}${s.title}` : `In 1 hour: ${who(s)}${s.title}`,
+            body: [`${s.title}${time}`, s.place].filter(Boolean).join(" · "),
+            url: "/me",
+            icon: "/app-icon/192",
+            tag: `activity-${s.activity.id}-${kind}`,
+          };
+          await Promise.allSettled(targets.map((p) => sendPushTo(p, payload, () => deleteHouseholdPush(p.endpoint))));
+          sent++;
+        }
       }
     }
   }

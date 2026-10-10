@@ -12,7 +12,7 @@ import { householdExists, listActivities, sessionsOf } from "./activities";
 // a join code the link also carries a fingerprint of that code: changing the
 // code switches old calendar links off.
 
-type Entry = { t: string; c: string[]; j?: string; h?: string }; // team, children, join-code fingerprint; or a household (family activities)
+type Entry = { t: string; c: string[]; j?: string; h?: string; d?: string }; // team, children, join-code fingerprint; or a household (family activities)
 
 const secret = () =>
   process.env.SESSION_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.ADMIN_PIN ?? "local-dev";
@@ -20,8 +20,8 @@ const sign = (payload: string) => createHmac("sha256", `calendar:${secret()}`).u
 const fingerprint = (team: Team) => joinToken(team)?.slice(0, 12);
 
 /** A calendar token for these teams (and the family's activities), for the phone making the request. */
-export async function calendarToken(teams: Team[], householdId: string | null = null): Promise<string | null> {
-  const entries: Entry[] = householdId ? [{ t: "", c: [], h: householdId }] : [];
+export async function calendarToken(teams: Team[], householdId: string | null = null, deviceId: string | null = null): Promise<string | null> {
+  const entries: Entry[] = householdId ? [{ t: "", c: [], h: householdId, ...(deviceId ? { d: deviceId } : {}) }] : [];
   for (const team of teams) {
     if (!(await canView(team))) continue;
     const j = fingerprint(team);
@@ -78,7 +78,7 @@ export async function calendarFor(token: string, origin: string): Promise<string
     // The family's own activities.
     if (entry.h) {
       if (!(await householdExists(entry.h))) continue;
-      const activities = await listActivities(entry.h);
+      const activities = await listActivities(entry.h, entry.d ?? null); // without the ones this phone hid
       if (activities.length) teamNames.push("My Activities");
       for (const a of activities) {
         for (const ses of sessionsOf(a, new Date(now - PAST_DAYS), new Date(now + 365 * 86_400_000))) {

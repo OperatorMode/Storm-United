@@ -31,7 +31,9 @@ export type Activity = {
   synced_at: string | null;
   source_error: string | null;
   created_at: string;
+  created_by_device?: string | null; // the phone that created it (only it can delete it for everyone)
   linked?: boolean; // shared from another phone's household (not stored)
+  mine?: boolean; // created on the phone that's looking (not stored)
 };
 
 /** One session of an activity, ready to show. */
@@ -70,8 +72,12 @@ export async function householdExists(id: string): Promise<boolean> {
   return !!check(await s.from("households").select("id").eq("id", id).maybeSingle());
 }
 
-/** A household's activities: its own, plus ones another phone shared with it (marked `linked`). */
-export async function listActivities(householdId: string): Promise<Activity[]> {
+/**
+ * A household's activities: its own, plus ones another phone shared with it
+ * (marked `linked`). With a phone's id, leaves out the ones that phone hid and
+ * marks the ones it created (`mine`).
+ */
+export async function listActivities(householdId: string, deviceId: string | null = null): Promise<Activity[]> {
   try {
     const s = db();
     let own: Activity[];
@@ -89,7 +95,10 @@ export async function listActivities(householdId: string): Promise<Activity[]> {
       linked = (d.activities ?? []).filter((a) => ids.has(a.id));
     }
     const ownIds = new Set(own.map((a) => a.id));
-    const rows = [...own, ...linked.filter((a) => !ownIds.has(a.id)).map((a) => ({ ...a, linked: true }))];
+    const hidden = deviceId ? new Set(await hiddenOn(deviceId)) : new Set<string>();
+    const rows = [...own, ...linked.filter((a) => !ownIds.has(a.id)).map((a) => ({ ...a, linked: true }))]
+      .filter((a) => !hidden.has(a.id))
+      .map((a) => ({ ...a, mine: !a.created_by_device || a.created_by_device === deviceId }));
     return rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
   } catch (e) {
     console.error("activities", e); // never break My Activities
@@ -98,7 +107,7 @@ export async function listActivities(householdId: string): Promise<Activity[]> {
 }
 
 export async function saveActivity(activity: Activity): Promise<void> {
-  const { linked: _linked, ...a } = activity; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { linked: _linked, mine: _mine, ...a } = activity; // eslint-disable-line @typescript-eslint/no-unused-vars
   const s = db();
   if (!s) {
     const d = await readLocal();
@@ -116,6 +125,26 @@ export async function deleteActivity(householdId: string, id: string): Promise<v
     return writeLocal(d);
   }
   check(await s.from("activities").delete().eq("household_id", householdId).eq("id", id));
+}
+
+// ---------- hiding an activity on one phone ----------
+
+async function hiddenOn(deviceId: string): Promise<string[]> {
+  const s = db();
+  if (!s) return ((await readLocal()).activity_hidden ?? []).filter((h) => h.device_id === deviceId).map((h) => h.activity_id);
+  return (check(await s.from("activity_hidden").select("activity_id").eq("device_id", deviceId)) as { activity_id: string }[]).map((h) => h.activity_id);
+}
+
+/** Takes an activity off one phone only (the others keep it). */
+export async function hideActivity(deviceId: string, activityId: string): Promise<void> {
+  const row = { device_id: deviceId, activity_id: activityId, created_at: new Date().toISOString() };
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.activity_hidden = [...(d.activity_hidden ?? []).filter((h) => !(h.device_id === deviceId && h.activity_id === activityId)), row];
+    return writeLocal(d);
+  }
+  check(await s.from("activity_hidden").upsert(row, { onConflict: "device_id,activity_id" }));
 }
 
 export function newActivity(householdId: string, fields: Partial<Activity> & Pick<Activity, "person" | "name">): Activity {

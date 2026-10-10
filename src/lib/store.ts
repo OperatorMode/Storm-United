@@ -73,6 +73,7 @@ export type LocalDb = {
   activities?: import("./activities").Activity[];
   activity_shares?: { code_hash: string; household_id: string; activity_ids: string[]; expires_at: string; created_at: string }[];
   activity_links?: { household_id: string; activity_id: string; created_at: string }[];
+  activity_hidden?: { device_id: string; activity_id: string; created_at: string }[];
   household_push?: import("./activity-reminders").HouseholdPush[];
   activity_reminder_log?: { household_id: string; key: string; sent_at: string }[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];
