@@ -3,7 +3,8 @@ import { gameParts, roleName, slotLabel, type GameParts } from "@/lib/role";
 import { OfficialLadderTable } from "@/components/OfficialLadderTable";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ChildrenPicker, PersonForm } from "@/components/ChildrenPicker";
-import { phoneFor } from "@/lib/phones";
+import { approvedChildren, ids as idList, listPhones, phoneFor } from "@/lib/phones";
+import { FamilyFollowers, FamilyRequests, type OtherPhone } from "@/components/FamilyPhones";
 import { personId, teamLabels } from "@/lib/people";
 import { LeaveTeam } from "@/components/LeaveTeam";
 import { GuideLink } from "@/components/Guide";
@@ -47,7 +48,7 @@ import { firstName, getTeam, playerName, type Team } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
 import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
-import { adminAccess, canView, currentChildren, currentDeviceId, isPlayerSelf } from "@/lib/session";
+import { adminAccess, canView, currentChildren, currentDeviceId, isPlayerSelf, pickedChildren, waitingChildren } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
 import { PhoneCheckIn } from "@/components/PhoneCheckIn";
 
@@ -66,9 +67,36 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
   const self = await isPlayerSelf(team);
   // How the team sees this phone ("Leo's Dad"), and what it said it is to its children.
   const deviceId = await currentDeviceId();
-  const phone = deviceId && children.length ? await phoneFor(team.id, deviceId) : null;
+  const phone = deviceId ? await phoneFor(team.id, deviceId) : null;
   const personLabel = phone?.member_id ? ((await teamLabels(team.id))[personId(phone.member_id)] ?? null) : null;
-  const personProps = { label: personLabel, relation: phone?.relation ?? null, name: phone?.name ?? null };
+  // Picked but still waiting for the family's OK (this phone), and other phones on this family's children.
+  const [picked, waiting] = await Promise.all([pickedChildren(team), waitingChildren(team)]);
+  const personProps = {
+    label: !children.length && waiting.length ? "Waiting for OK" : personLabel,
+    relation: phone?.relation ?? null,
+    name: phone?.name ?? null,
+  };
+  const requests: OtherPhone[] = [];
+  const followers: OtherPhone[] = [];
+  if (children.length && !self) {
+    for (const ph of await listPhones(team.id)) {
+      if (ph.device_id === deviceId || !ph.member_id) continue;
+      for (const c of children) {
+        if (!idList(ph.children).includes(c)) continue;
+        const childName = firstName(playerName(team, c));
+        const rel = ph.is_self ? null : ph.relation;
+        const label = ph.is_self
+          ? `${childName} (the player’s own phone)`
+          : ph.name
+            ? `${ph.name} (${childName}’s ${rel ?? "family"})`
+            : rel
+              ? `${childName}’s ${rel}`
+              : "Someone who hasn’t said who they are yet";
+        const row = { memberId: ph.member_id, childId: c, childName, label, device: ph.device ?? "Phone", when: formatDay(new Date(ph.last_seen), tz) };
+        (approvedChildren(ph).includes(c) ? followers : requests).push(row);
+      }
+    }
+  }
   const byWins = ladderStyle === "wins";
   const [calToken, host, training, duties, dutySignups] = await Promise.all([
     calendarToken([team]),
@@ -104,7 +132,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
               <div className="text-xs text-on-team/60">{competition ? competitionLabel(competition) : team.division}</div>
             </div>
           </div>
-          <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} self={self} {...personProps} />
+          <ChildrenPicker teamId={team.id} players={PLAYERS} current={picked} self={self} {...personProps} />
         </div>
 
         <NextGame
@@ -120,19 +148,29 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
         <PhoneCheckIn teamId={team.id} />
         {children.length > 0 && <NotificationSettings teamId={team.id} vapidKey={pushPublicKey()} />}
         {calToken && children.length > 0 && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} />}
-        {voter && !self && !phone?.relation && (
-          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-2 font-semibold">One more thing</h2>
-            <PersonForm teamId={team.id} kids={children.map((c) => firstName(nameOf(c)))} relation={null} name={null} />
+        <FamilyRequests teamId={team.id} requests={requests} />
+        {waiting.length > 0 && (
+          <section className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-sm shadow-sm">
+            <h2 className="font-semibold">Waiting for {waiting.map((c) => firstName(nameOf(c))).join(" & ")}’s family</h2>
+            <p className="mt-1 text-amber-900/80">
+              Someone already follows {waiting.map((c) => firstName(nameOf(c))).join(" & ")} here. They’ve been asked to let this phone
+              in: once they do, you’ll see attendance, the chat and messages as their family. Can’t reach them? Ask your coach.
+            </p>
           </section>
         )}
-        {!voter && (
+        {picked.length > 0 && !self && !phone?.relation && (
+          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-2 font-semibold">One more thing</h2>
+            <PersonForm teamId={team.id} kids={picked.map((c) => firstName(nameOf(c)))} relation={null} name={null} />
+          </section>
+        )}
+        {!picked.length && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Welcome! Who are you?</h2>
             <p className="mb-3 mt-1 text-sm text-zinc-500">
               Tap your name, or your child’s, and this phone will remember it for attendance and MVP votes.
             </p>
-            <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} self={self} inline />
+            <ChildrenPicker teamId={team.id} players={PLAYERS} current={picked} self={self} inline />
           </section>
         )}
 
@@ -371,6 +409,10 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
               competition.league.name
             )}
           </p>
+        )}
+
+        {children.length > 0 && !self && (
+          <FamilyFollowers teamId={team.id} kidsLabel={children.map((c) => firstName(nameOf(c))).join(" & ")} followers={followers} />
         )}
 
         <div className="pt-4 text-center">

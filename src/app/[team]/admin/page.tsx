@@ -494,8 +494,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         aside={`${new Set(phones.filter((p) => p.children).map((p) => p.device_id)).size} phone${new Set(phones.filter((p) => p.children).map((p) => p.device_id)).size === 1 ? "" : "s"}`}
       >
         <p className="mb-2 text-xs text-zinc-500">
-          Which phones follow each child. If a phone picked a child it shouldn’t have, remove it. Phones show here once they’ve
-          opened the team since this was added.
+          Which phones follow each child. Families let new phones in and say “Not us” themselves: this is for when they can’t,
+          like a lost phone.
         </p>
         <TeamPhones
           teamId={team.id}
@@ -504,8 +504,10 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             name: firstName(p.name),
             phones: phones
               .filter((ph) => ph.children.split(",").includes(p.id))
+              .filter((ph) => ph.member_id)
               .map((ph) => ({
-                deviceId: ph.device_id,
+                memberId: ph.member_id!,
+                waiting: (ph.pending ?? "").split(",").includes(p.id),
                 device: ph.device ?? "Phone",
                 who: ph.member_id ? (labels[personId(ph.member_id)] ?? null) : null,
                 seen: formatDay(new Date(ph.last_seen), tz),

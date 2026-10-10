@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { isActivePlayer, type Team } from "./teams";
 import { getManager, managedTeams, type Manager } from "./accounts";
-import { phoneFor, removedChildren } from "./phones";
+import { approvedChildren, ids, listPhones, phoneFor, removedChildren } from "./phones";
 import { personId } from "./people";
 import { ownerStillValid } from "./owner-auth";
 
@@ -151,8 +151,8 @@ export async function canView(team: Team): Promise<boolean> {
 const LEGACY_VOTER_COOKIE = "su_voter";
 const LEGACY_TEAM = "storm-united";
 
-/** The child, or children (siblings in the same team), this phone belongs to. */
-export async function currentChildren(team: Team): Promise<string[]> {
+/** The children this phone picked (minus any taken off it), approved or not. */
+export async function pickedChildren(team: Team): Promise<string[]> {
   const store = await cookies();
   const raw =
     store.get(voterCookie(team.id))?.value ??
@@ -162,6 +162,30 @@ export async function currentChildren(team: Team): Promise<string[]> {
   if (!device || !picked.length) return picked;
   const removed = await removedChildren(team.id, device);
   return picked.filter((id) => !removed.includes(id));
+}
+
+/**
+ * The child, or children (siblings in the same team), this phone belongs to:
+ * picked, and let in by their family (phones.ts). A phone the team hasn't
+ * recorded yet only gets children nobody else follows.
+ */
+export async function currentChildren(team: Team): Promise<string[]> {
+  const picked = await pickedChildren(team);
+  if (!picked.length) return picked;
+  const device = await currentDeviceId();
+  const phone = device ? await phoneFor(team.id, device) : null;
+  if (phone) return picked.filter((c) => !ids(phone.pending).includes(c));
+  const followed = (await listPhones(team.id)).flatMap((p) => approvedChildren(p));
+  return picked.filter((c) => !followed.includes(c));
+}
+
+/** Children this phone picked that are still waiting for their family's OK. */
+export async function waitingChildren(team: Team): Promise<string[]> {
+  const device = await currentDeviceId();
+  const phone = device ? await phoneFor(team.id, device) : null;
+  if (!phone) return [];
+  const picked = await pickedChildren(team);
+  return ids(phone.pending).filter((c) => picked.includes(c));
 }
 
 /**

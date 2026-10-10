@@ -27,7 +27,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/join-2-who.webp",
         title: "Tell the team who you are",
-        text: "Tap I belong to… and tick your child (siblings too), then pick who you are to them: Mum, Dad, Grandparent or anything else. Players tap I am… and their own name.",
+        text: "Tap I belong to… and tick your child (siblings too), then pick who you are to them: Mum, Dad, Grandparent or anything else. If someone in your family is already in, they get a message to let your phone in.",
       },
       {
         image: "/guide/join-3-team.webp",
@@ -101,9 +101,9 @@ const PATHS: Path[] = [
         text: "Add weekly training once and it repeats. Cancel a session for rain and families are told. Set up duties like oranges or first aid, and families sign up for match days.",
       },
       {
-        image: "/guide/manage-9-phones.webp",
-        title: "Connected phones",
-        text: "See who follows each player, like “Ava’s Mum”. If a phone picked the wrong child, remove it, and it can’t pick them again.",
+        image: "/guide/manage-9-family.webp",
+        title: "Families look after their own",
+        text: "Each family decides who follows their child: new phones need their OK, and they can say Not us. Connected phones shows you everyone, so you can step in when a family can’t, like after a lost phone.",
       },
     ],
   },

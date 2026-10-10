@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import { redirect, RedirectType } from "next/navigation";
 import { gameParts, isSlot, slotFrom, slotParts } from "@/lib/role";
-import { deletePushSub } from "@/lib/messages";
+import { deletePushSub, getPushSubs } from "@/lib/messages";
 import { listTraining } from "@/lib/training";
 import { listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
 
@@ -14,9 +14,9 @@ import { getTeam, isActivePlayer, verifySecret, type Team } from "@/lib/teams";
 import { now } from "@/lib/clock";
 import { getAttendance, setAttendance, upsertBallot, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
-import { notifyManagers } from "@/lib/push";
+import { notifyManagers, sendPush } from "@/lib/push";
 import { ensureDeviceId } from "@/lib/device";
-import { recordPhone, removeChildFromPhone, removedChildren, selfTakenBy, setPhonePerson } from "@/lib/phones";
+import { approvePhoneChild, getPhone, ids as idList, phoneByMember, recordPhone, removeChildFromPhone, removedChildren, selfTakenBy, setPhonePerson } from "@/lib/phones";
 import { NAME_MAX, RELATION_MAX } from "@/lib/people";
 import {
   COOKIE_OPTS,
@@ -24,6 +24,7 @@ import {
   adminToken,
   canView,
   currentChildren,
+  pickedChildren,
   joinCookie,
   joinToken,
   voterCookie,
@@ -43,6 +44,27 @@ async function findGame(team: Team, gameId: string) {
   return ourGames.find((g) => g.id === gameId) ?? null;
 }
 
+// Tells the families of these children (their phones with notifications on)
+// that a new phone is waiting for their OK.
+function askFamilies(team: Team, childIds: string[]) {
+  if (!childIds.length) return;
+  after(async () => {
+    const subs = (await getPushSubs(team.id)).filter((s) => idList(s.children).some((c) => childIds.includes(c)));
+    const names = childIds.map((c) => team.players.find((p) => p.id === c)?.name.split(" ")[0]).filter(Boolean).join(" & ");
+    await Promise.allSettled(
+      subs.map((s) =>
+        sendPush(s, {
+          title: `${team.name}: a new phone for ${names}`,
+          body: "Someone wants to follow your child. Open the team page to let them in, or say Not us.",
+          url: `/${team.id}`,
+          icon: `/${team.id}/icon/192`,
+          tag: `${team.id}-family`,
+        }),
+      ),
+    );
+  });
+}
+
 // The child (or children) this phone belongs to; an empty list forgets it.
 export async function setChildren(teamId: string, ids: string[], self = false) {
   const team = await teamFor(teamId);
@@ -52,6 +74,12 @@ export async function setChildren(teamId: string, ids: string[], self = false) {
   const deviceId = await ensureDeviceId();
   const removed = await removedChildren(team.id, deviceId);
   const valid = [...new Set(ids)].filter((id) => isActivePlayer(team, id) && !removed.includes(id)).slice(0, self ? 1 : 10);
+  // A child whose family (or the coach) took them off this phone can't be picked again here.
+  const refused = ids.filter((id) => removed.includes(id));
+  if (refused.length && !valid.length) {
+    const name = team.players.find((p) => p.id === refused[0])?.name.split(" ")[0] ?? "This player";
+    return { error: `${name}’s family said this phone isn’t one of theirs. If that’s a mistake, ask them or the coach.` };
+  }
   // A player is one person: only one phone can be them ("I am…").
   if (self && valid[0] && (await selfTakenBy(team.id, valid[0], deviceId))) {
     const name = team.players.find((p) => p.id === valid[0])?.name.split(" ")[0] ?? "This player";
@@ -61,7 +89,8 @@ export async function setChildren(teamId: string, ids: string[], self = false) {
   else store.delete(selfCookie(team.id));
   if (!valid.length) store.delete(voterCookie(team.id));
   else store.set(voterCookie(team.id), valid.join(","), COOKIE_OPTS);
-  await recordPhone(team.id, deviceId, valid, self, (await headers()).get("user-agent"));
+  // A child someone else already follows waits for their family's OK.
+  askFamilies(team, await recordPhone(team.id, deviceId, valid, self, (await headers()).get("user-agent")));
   revalidatePath("/", "layout");
   return { ok: true };
 }
@@ -75,9 +104,10 @@ export async function setPerson(teamId: string, relation: string, name: string) 
   const rel = clean(relation, RELATION_MAX);
   if (!rel) return { error: "Say who you are to them, e.g. Dad, Mum or Friend." };
   const deviceId = await ensureDeviceId();
-  if (!(await currentChildren(team)).length) return { error: "Tick your child first." };
+  const picked = await pickedChildren(team);
+  if (!picked.length) return { error: "Tick your child first." };
   // Make sure this phone is recorded (older phones may not be yet).
-  await recordPhone(team.id, deviceId, await currentChildren(team), false, (await headers()).get("user-agent"));
+  if (!(await getPhone(team.id, deviceId))) askFamilies(team, await recordPhone(team.id, deviceId, picked, false, (await headers()).get("user-agent")));
   await setPhonePerson(team.id, deviceId, rel.charAt(0).toUpperCase() + rel.slice(1), clean(name, NAME_MAX) || null);
   revalidatePath("/", "layout");
   return { ok: true };
@@ -206,15 +236,27 @@ export async function checkInPhone(teamId: string) {
   const team = await teamFor(teamId);
   if (!team) return;
   const deviceId = await ensureDeviceId();
-  await recordPhone(team.id, deviceId, await currentChildren(team), await isPlayerSelf(team), (await headers()).get("user-agent"));
+  askFamilies(team, await recordPhone(team.id, deviceId, await pickedChildren(team), await isPlayerSelf(team), (await headers()).get("user-agent")));
 }
 
-/** Manager's Corner: take a child off one phone (it can't pick them again). */
-export async function removePhoneChild(teamId: string, deviceId: string, childId: string) {
+/**
+ * A family decides about another phone on their child: let a waiting phone in,
+ * or "Not us" (taken off, and it can't pick that child again). The coach can
+ * do the same from Manager's Corner, for when the family can't (a lost phone).
+ * Phones are named by their person (member id), never their private id.
+ */
+export async function decidePhone(teamId: string, memberId: string, childId: string, letIn: boolean) {
   const team = await getTeam(teamId);
-  if (!team || !(await isTeamAdmin(team))) return;
-  await removeChildFromPhone(team.id, deviceId, childId);
-  revalidatePath(`/${team.id}/admin`);
+  if (!team) return { error: "Team not found." };
+  const family = (await canView(team)) && (await currentChildren(team)).includes(childId);
+  const coach = await isTeamAdmin(team);
+  if (!family && !coach) return { error: "Only " + (team.players.find((p) => p.id === childId)?.name.split(" ")[0] ?? "the child") + "’s family can do that." };
+  const phone = await phoneByMember(team.id, memberId);
+  if (!phone || !idList(phone.children).includes(childId)) return { error: "That phone doesn’t follow this child any more." };
+  if (letIn) await approvePhoneChild(team.id, phone.device_id, childId);
+  else await removeChildFromPhone(team.id, phone.device_id, childId);
+  revalidatePath(`/${team.id}`, "layout");
+  return { ok: true };
 }
 
 // A parent's answer for a training session ("can come" / maybe / can't).

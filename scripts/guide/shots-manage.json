@@ -4,7 +4,11 @@
     "url": "http://localhost:3100/login?next=/account",
     "js": "localStorage.setItem('su_guide_seen','1'); const i=document.querySelector('input[name=email]'); const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; set.call(i,'coach@example.test'); i.dispatchEvent(new Event('input',{bubbles:true})); i.focus();"
   },
-  { "name": "manage-2-myteams", "url": "http://localhost:3100/account", "manager": "demo-coach" },
+  {
+    "name": "manage-2-myteams",
+    "url": "http://localhost:3100/account",
+    "manager": "demo-coach"
+  },
   {
     "name": "manage-3-create",
     "url": "http://localhost:3100/account/new",
@@ -18,8 +22,16 @@
     "manager": "demo-coach",
     "js": "document.querySelector('#team-players').closest('div').scrollIntoView({block:'start'}); window.scrollBy(0,-90);"
   },
-  { "name": "manage-5-share", "url": "http://localhost:3100/riverside-rockets/admin?created", "manager": "demo-coach" },
-  { "name": "manage-6-board", "url": "http://localhost:3100/riverside-rockets/board", "manager": "demo-coach" },
+  {
+    "name": "manage-5-share",
+    "url": "http://localhost:3100/riverside-rockets/admin?created",
+    "manager": "demo-coach"
+  },
+  {
+    "name": "manage-6-board",
+    "url": "http://localhost:3100/riverside-rockets/board",
+    "manager": "demo-coach"
+  },
   {
     "name": "manage-7-corner",
     "url": "http://localhost:3100/riverside-rockets/admin",
@@ -33,9 +45,12 @@
     "js": "const d=[...document.querySelectorAll('details')].find(x=>x.querySelector('summary')?.textContent.trim().startsWith('Training')); d.open=true; await new Promise(r=>setTimeout(r,300)); d.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
   },
   {
-    "name": "manage-9-phones",
-    "url": "http://localhost:3100/riverside-rockets/admin",
-    "manager": "demo-coach",
-    "js": "const d=[...document.querySelectorAll('details')].find(x=>x.querySelector('summary')?.textContent.trim().startsWith('Connected phones')); d.open=true; await new Promise(r=>setTimeout(r,300)); d.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
+    "name": "manage-9-family",
+    "url": "http://localhost:3100/riverside-rockets",
+    "cookies": {
+      "su_voter_riverside-rockets": "ava",
+      "su_device": "44444444-4444-4444-8444-444444444444"
+    },
+    "js": "localStorage.setItem('su_guide_seen','1'); const h=[...document.querySelectorAll('section')].find(e=>e.innerText.startsWith('A new phone')); h.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
   }
 ]

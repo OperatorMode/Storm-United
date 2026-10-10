@@ -1,16 +1,17 @@
 "use client";
 
 import { useTransition } from "react";
-import { removePhoneChild } from "../actions";
+import { decidePhone } from "../actions";
 
 export type ChildPhones = {
   id: string;
   name: string;
-  phones: { deviceId: string; device: string; who: string | null; seen: string; self: boolean }[];
+  phones: { memberId: string; waiting: boolean; device: string; who: string | null; seen: string; self: boolean }[];
 };
 
-// Manager's Corner: which phones follow each child. If a phone picked a child
-// it shouldn't have, take the child off it (that phone can't pick them again).
+// Manager's Corner: which phones follow each child. Families let new phones in
+// and say "Not us" themselves; this is the fallback for when they can't (a
+// lost phone, or nobody in the family has the app yet).
 export function TeamPhones({ teamId, kids }: { teamId: string; kids: ChildPhones[] }) {
   const [pending, start] = useTransition();
   return (
@@ -24,23 +25,31 @@ export function TeamPhones({ teamId, kids }: { teamId: string; kids: ChildPhones
           {c.phones.length > 0 && (
             <ul className="mt-1 space-y-1">
               {c.phones.map((p) => (
-                <li key={p.deviceId} className="flex items-center justify-between gap-2 text-xs text-zinc-600">
+                <li key={p.memberId} className="flex items-center justify-between gap-2 text-xs text-zinc-600">
                   <span>
                     {p.who ? `${p.who} · ` : ""}
                     {p.device}
                     {p.self ? " · the player’s own" : ""} · seen {p.seen}
+                    {p.waiting && <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-amber-900">Waiting for the family</span>}
                   </span>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() =>
-                      confirm(`Take ${c.name} off this ${p.device}? That phone won’t be able to pick ${c.name} again.`) &&
-                      start(() => removePhoneChild(teamId, p.deviceId, c.id))
-                    }
-                    className="text-red-700 underline"
-                  >
-                    Remove
-                  </button>
+                  <span className="flex shrink-0 gap-3">
+                    {p.waiting && (
+                      <button type="button" disabled={pending} onClick={() => start(() => decidePhone(teamId, p.memberId, c.id, true).then(() => {}))} className="underline">
+                        Let in
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() =>
+                        confirm(`Take ${c.name} off this ${p.device}? That phone won’t be able to pick ${c.name} again.`) &&
+                        start(() => decidePhone(teamId, p.memberId, c.id, false).then(() => {}))
+                      }
+                      className="text-red-700 underline"
+                    >
+                      Remove
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>

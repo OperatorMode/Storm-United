@@ -9,6 +9,9 @@ import { check, db, readLocal, writeLocal } from "./store";
 // Each phone is also one person in the team (people.ts): member_id is who it
 // is in chat and private messages, with its relation to the children ("Dad",
 // "Friend"…) and an optional name.
+// Families own their child's access: the first phone to pick a child is in.
+// A later phone picking the same child waits (pending) until a phone that
+// already follows that child approves it; the coach can approve as a fallback.
 
 export type TeamPhone = {
   team_id: string;
@@ -22,9 +25,13 @@ export type TeamPhone = {
   relation?: string | null;
   name?: string | null;
   created_at?: string;
+  pending?: string; // children this phone picked that their family hasn't approved yet (migration 029)
 };
 
 export const ids = (s: string | null | undefined) => (s ?? "").split(",").filter(Boolean);
+
+/** The children a phone follows for real: picked, and approved by their family. */
+export const approvedChildren = (p: TeamPhone) => ids(p.children).filter((c) => !ids(p.pending).includes(c));
 
 /** "iPhone", "Android" or "Computer", from the browser's description of itself. */
 export function deviceKind(userAgent: string | null): string {
@@ -79,10 +86,25 @@ export const removedChildren = cache(async (teamId: string, deviceId: string): P
   }
 });
 
-/** Records what a phone follows now (when it picks children, or checks in). */
-export async function recordPhone(teamId: string, deviceId: string, children: string[], isSelf: boolean, userAgent: string | null): Promise<void> {
+/**
+ * Records what a phone follows now (when it picks children, or checks in).
+ * A child this phone didn't follow before waits for approval when another
+ * phone already follows it. Returns the children that just started waiting.
+ */
+export async function recordPhone(teamId: string, deviceId: string, children: string[], isSelf: boolean, userAgent: string | null): Promise<string[]> {
   const prev = await getPhone(teamId, deviceId);
   const now = new Date().toISOString();
+  const had = prev ? approvedChildren(prev) : [];
+  const waiting = ids(prev?.pending);
+  const others = (await listPhones(teamId)).filter((p) => p.device_id !== deviceId);
+  const fresh: string[] = [];
+  const pending = children.filter((c) => {
+    if (had.includes(c)) return false;
+    if (waiting.includes(c)) return true;
+    const followed = others.some((p) => approvedChildren(p).includes(c));
+    if (followed) fresh.push(c);
+    return followed;
+  });
   await savePhone({
     team_id: teamId,
     device_id: deviceId,
@@ -95,7 +117,21 @@ export async function recordPhone(teamId: string, deviceId: string, children: st
     relation: prev?.relation ?? null,
     name: prev?.name ?? null,
     created_at: prev?.created_at ?? now,
+    pending: pending.join(","),
   });
+  return fresh;
+}
+
+/** The phone behind a person (member id), if it's in this team. */
+export async function phoneByMember(teamId: string, memberId: string): Promise<TeamPhone | null> {
+  return (await listPhones(teamId)).find((p) => p.member_id === memberId) ?? null;
+}
+
+/** The family (or the coach) lets a waiting phone follow a child. */
+export async function approvePhoneChild(teamId: string, deviceId: string, childId: string): Promise<void> {
+  const prev = await getPhone(teamId, deviceId);
+  if (!prev) return;
+  await savePhone({ ...prev, pending: ids(prev.pending).filter((c) => c !== childId).join(",") });
 }
 
 /** "I belong to…": who this phone's person is to the children ("Dad") and, optionally, their name. */
@@ -106,10 +142,10 @@ export async function setPhonePerson(teamId: string, deviceId: string, relation:
   return true;
 }
 
-/** Another phone that already is this player ("I am…"), if any. */
+/** Another phone that already is this player ("I am…", approved), if any. */
 export async function selfTakenBy(teamId: string, childId: string, exceptDevice: string): Promise<TeamPhone | null> {
   return (
-    (await listPhones(teamId)).find((p) => p.device_id !== exceptDevice && p.is_self && ids(p.children).includes(childId)) ?? null
+    (await listPhones(teamId)).find((p) => p.device_id !== exceptDevice && p.is_self && approvedChildren(p).includes(childId)) ?? null
   );
 }
 
@@ -120,6 +156,7 @@ export async function removeChildFromPhone(teamId: string, deviceId: string, chi
   await savePhone({
     ...prev,
     children: ids(prev.children).filter((c) => c !== childId).join(","),
+    pending: ids(prev.pending).filter((c) => c !== childId).join(","),
     removed_children: [...new Set([...ids(prev.removed_children), childId])].join(","),
   });
 }

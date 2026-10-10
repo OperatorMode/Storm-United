@@ -75,9 +75,15 @@ people = {}
 for kid, rel, nm in [("ava", "Mum", None), ("noah", "Dad", None), ("zoe", "Mum", "Kate"), ("max", "Grandparent", None), ("isla", "Dad", None)]:
     mid = str(uuid.uuid4())
     people[kid] = f"p:{mid}"
-    d.setdefault("team_phones", []).append({"team_id": TEAM, "device_id": str(uuid.uuid4()), "children": kid, "is_self": False,
+    device = "44444444-4444-4444-8444-444444444444" if kid == "ava" else str(uuid.uuid4())  # Ava's Mum: fixed, for screenshots
+    d.setdefault("team_phones", []).append({"team_id": TEAM, "device_id": device, "children": kid, "is_self": False,
                                             "device": "iPhone", "last_seen": ago(2), "removed_children": "", "member_id": mid,
                                             "relation": rel, "name": nm, "created_at": ago(300)})
+# A new phone waiting for Ava's family to let it in.
+d["team_phones"].append({"team_id": TEAM, "device_id": str(uuid.uuid4()), "children": "ava", "is_self": False, "device": "Android",
+                         "last_seen": ago(0.2), "removed_children": "", "member_id": str(uuid.uuid4()), "relation": "Dad", "name": "Sam",
+                         "created_at": ago(0.2), "pending": "ava"})
+
 # The phone in the screenshots: Leo's Dad.
 ME = "33333333-3333-4333-8333-333333333333"
 d["team_phones"].append({"team_id": TEAM, "device_id": "11111111-1111-4111-8111-111111111111", "children": "leo", "is_self": False,

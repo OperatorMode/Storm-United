@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { ids, listPhones, type TeamPhone } from "./phones";
+import { approvedChildren, listPhones, type TeamPhone } from "./phones";
 import { firstName, getTeam, type Team } from "./teams";
 
 // The people in a team, as chat and private messages show them. Every phone
@@ -26,7 +26,7 @@ export function joinNames(names: string[]): string {
 }
 
 function baseLabel(team: Team, phone: TeamPhone): string {
-  const kids = ids(phone.children).map((c) => firstName(team.allPlayers.find((p) => p.id === c)?.name ?? "")).filter(Boolean);
+  const kids = approvedChildren(phone).map((c) => firstName(team.allPlayers.find((p) => p.id === c)?.name ?? "")).filter(Boolean);
   if (phone.is_self) return kids[0] ?? phone.name ?? "A player";
   const rel = phone.relation?.trim() || "family";
   if (!kids.length) return phone.name ? phone.name : `A former ${rel.toLowerCase()}`;
@@ -59,7 +59,7 @@ export const teamLabels = cache(async (teamId: string): Promise<Record<string, s
 export async function messageablePeople(team: Team): Promise<{ id: string; label: string }[]> {
   const labels = await teamLabels(team.id);
   return (await listPhones(team.id))
-    .filter((p) => p.member_id && !p.is_self && ids(p.children).some((c) => team.players.some((x) => x.id === c)))
+    .filter((p) => p.member_id && !p.is_self && approvedChildren(p).some((c) => team.players.some((x) => x.id === c)))
     .map((p) => ({ id: personId(p.member_id!), label: labels[personId(p.member_id!)] }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }

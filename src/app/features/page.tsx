@@ -24,7 +24,7 @@ export default function FeaturesPage() {
         <li>
           <b>I belong to… or I am…:</b> pick the player you belong to (or several, if siblings play in the same team) and say
           who you are to them: Mum, Dad, Grandparent, Friend or anything else, with your name if you like. Everyone shows up as
-          themselves in the chat, like “Leo’s Dad”. Players pick their own name, and only one phone can be each player.
+          themselves in the chat, like “Leo’s Dad”. Players pick their own name, and only one phone can be each player. Each family decides who follows their child: a new phone needs their OK, and they can say “Not us”.
         </li>
         <li>
           <b>Attendance:</b> tap Can play, Maybe or Can’t make it for each game, and see who else is in.
