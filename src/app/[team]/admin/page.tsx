@@ -32,6 +32,8 @@ import { roleByPart, roleTally } from "@/lib/goalies";
 import { leagueMessagesFor } from "@/lib/league-messages";
 import { memberLabel, openReports } from "@/lib/dms";
 import { ReportedMessages } from "./ReportedMessages";
+import { TeamPhones } from "./TeamPhones";
+import { listPhones } from "@/lib/phones";
 import { tally, winners } from "@/lib/mvp";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { now as clockNow } from "@/lib/clock";
@@ -101,8 +103,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
   const leagueNews = comp
     ? (await leagueMessagesFor(comp.league_id, comp.id)).filter((m) => clockNow().getTime() - new Date(m.created_at).getTime() < 60 * 24 * 60 * 60 * 1000)
     : [];
-  // Private messages families reported to the managers.
-  const reports = await openReports(team.id).catch(() => []);
+  // Private messages families reported to the managers, and the phones following each child.
+  const [reports, phones] = await Promise.all([openReports(team.id).catch(() => []), listPhones(team.id)]);
   const [training, duties, dutySignups, rotations] = await Promise.all([
     listTraining(team.id),
     listDuties(team.id),
@@ -472,6 +474,26 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             ))}
           </ul>
         )}
+      </Section>
+
+      <Section
+        title="Connected phones"
+        aside={`${new Set(phones.filter((p) => p.children).map((p) => p.device_id)).size} phone${new Set(phones.filter((p) => p.children).map((p) => p.device_id)).size === 1 ? "" : "s"}`}
+      >
+        <p className="mb-2 text-xs text-zinc-500">
+          Which phones follow each child. If a phone picked a child it shouldn’t have, remove it. Phones show here once they’ve
+          opened the team since this was added.
+        </p>
+        <TeamPhones
+          teamId={team.id}
+          kids={team.players.map((p) => ({
+            id: p.id,
+            name: firstName(p.name),
+            phones: phones
+              .filter((ph) => ph.children.split(",").includes(p.id))
+              .map((ph) => ({ deviceId: ph.device_id, device: ph.device ?? "Phone", seen: formatDay(new Date(ph.last_seen), tz), self: ph.is_self })),
+          }))}
+        />
       </Section>
 
       <Section title="Team settings">

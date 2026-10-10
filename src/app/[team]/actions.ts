@@ -7,7 +7,7 @@ import { deletePushSub } from "@/lib/messages";
 import { listTraining } from "@/lib/training";
 import { listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getLeagueData, votingState } from "@/lib/league";
 import { getTeam, isActivePlayer, verifySecret, type Team } from "@/lib/teams";
@@ -15,6 +15,8 @@ import { now } from "@/lib/clock";
 import { getAttendance, setAttendance, upsertBallot, type AttendanceStatus, type GoalieHalf } from "@/lib/store";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 import { notifyManagers } from "@/lib/push";
+import { ensureDeviceId } from "@/lib/device";
+import { recordPhone, removeChildFromPhone, removedChildren } from "@/lib/phones";
 import {
   COOKIE_OPTS,
   adminCookie,
@@ -25,6 +27,8 @@ import {
   joinToken,
   voterCookie,
   selfCookie,
+  isPlayerSelf,
+  isTeamAdmin,
 } from "@/lib/session";
 
 // Loads the team and checks this browser is allowed in (join code).
@@ -44,11 +48,14 @@ export async function setChildren(teamId: string, ids: string[], self = false) {
   if (!team) return;
   const store = await cookies();
   // A player picks just themselves; a parent can pick siblings too.
-  const valid = [...new Set(ids)].filter((id) => isActivePlayer(team, id)).slice(0, self ? 1 : 10);
+  const deviceId = await ensureDeviceId();
+  const removed = await removedChildren(team.id, deviceId);
+  const valid = [...new Set(ids)].filter((id) => isActivePlayer(team, id) && !removed.includes(id)).slice(0, self ? 1 : 10);
   if (self) store.set(selfCookie(team.id), "1", COOKIE_OPTS);
   else store.delete(selfCookie(team.id));
   if (!valid.length) store.delete(voterCookie(team.id));
   else store.set(voterCookie(team.id), valid.join(","), COOKIE_OPTS);
+  await recordPhone(team.id, deviceId, valid, self, (await headers()).get("user-agent"));
   revalidatePath("/", "layout");
 }
 
@@ -168,6 +175,22 @@ export async function adminLogin(_: unknown, formData: FormData) {
   }
   revalidatePath(`/${team.id}/admin`);
   return { ok: true };
+}
+
+/** The team page checks in (at most once a day): records which children this phone follows. */
+export async function checkInPhone(teamId: string) {
+  const team = await teamFor(teamId);
+  if (!team) return;
+  const deviceId = await ensureDeviceId();
+  await recordPhone(team.id, deviceId, await currentChildren(team), await isPlayerSelf(team), (await headers()).get("user-agent"));
+}
+
+/** Manager's Corner: take a child off one phone (it can't pick them again). */
+export async function removePhoneChild(teamId: string, deviceId: string, childId: string) {
+  const team = await getTeam(teamId);
+  if (!team || !(await isTeamAdmin(team))) return;
+  await removeChildFromPhone(team.id, deviceId, childId);
+  revalidatePath(`/${team.id}/admin`);
 }
 
 // A parent's answer for a training session ("can come" / maybe / can't).

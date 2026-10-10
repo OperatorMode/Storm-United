@@ -46,6 +46,7 @@ import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus } 
 import { tally, winners } from "@/lib/mvp";
 import { canView, currentChildren, isPlayerSelf } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
+import { PhoneCheckIn } from "@/components/PhoneCheckIn";
 
 export default async function TeamHome({ params }: PageProps<"/[team]">) {
   const team = await getTeam((await params).team);
@@ -108,6 +109,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
 
       <main className="-mt-2 space-y-4 px-4">
         <InstallPrompt name={team.name} icon={`/${team.id}/icon/192`} />
+        <PhoneCheckIn teamId={team.id} />
         {children.length > 0 && <NotificationSettings teamId={team.id} vapidKey={pushPublicKey()} />}
         {calToken && children.length > 0 && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} />}
         {!voter && (

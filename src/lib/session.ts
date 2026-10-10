@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { isActivePlayer, type Team } from "./teams";
 import { getManager, managedTeams, type Manager } from "./accounts";
+import { removedChildren } from "./phones";
 
 // No logins. Per team, a cookie remembers:
 //  - which child this phone belongs to (voter),
@@ -130,7 +131,11 @@ export async function currentChildren(team: Team): Promise<string[]> {
   const raw =
     store.get(voterCookie(team.id))?.value ??
     (team.id === LEGACY_TEAM ? store.get(LEGACY_VOTER_COOKIE)?.value : undefined);
-  return [...new Set((raw ?? "").split(","))].filter((id) => id && isActivePlayer(team, id));
+  const picked = [...new Set((raw ?? "").split(","))].filter((id) => id && isActivePlayer(team, id));
+  const device = await currentDeviceId();
+  if (!device || !picked.length) return picked;
+  const removed = await removedChildren(team.id, device);
+  return picked.filter((id) => !removed.includes(id));
 }
 
 /**

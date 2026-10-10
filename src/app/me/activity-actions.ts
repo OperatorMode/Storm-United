@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import {
@@ -27,7 +26,8 @@ import { readActivitySource, refreshActivity } from "@/lib/activity-import";
 import { deleteHouseholdPush, getHouseholdPush, notifyNewActivity, saveHouseholdPush } from "@/lib/activity-reminders";
 import { after } from "next/server";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
-import { COOKIE_OPTS, DEVICE_COOKIE, HOUSEHOLD_COOKIE, currentDeviceId, currentHouseholdId } from "@/lib/session";
+import { COOKIE_OPTS, HOUSEHOLD_COOKIE, currentDeviceId, currentHouseholdId } from "@/lib/session";
+import { ensureDeviceId } from "@/lib/device";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
@@ -45,13 +45,7 @@ async function household(): Promise<string> {
 }
 
 /** This phone's private id, created on first use. */
-async function device(): Promise<string> {
-  const existing = await currentDeviceId();
-  if (existing) return existing;
-  const id = randomUUID();
-  (await cookies()).set(DEVICE_COOKIE, id, COOKIE_OPTS);
-  return id;
-}
+const device = ensureDeviceId;
 
 const refresh = () => revalidatePath("/me");
 
