@@ -14,6 +14,7 @@ import { COOKIE_OPTS, OWNER_COOKIE, OWNER_SESSION_HOURS, SUPER_COOKIE, isSuperAd
 import { isOwnerUser, ownerAuthClient } from "@/lib/owner-auth";
 import { decideReview, unverifyLeague } from "@/lib/league-verify";
 import { setFeedbackDone } from "@/lib/feedback";
+import { cleanUp } from "@/lib/housekeeping";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
 
@@ -240,4 +241,12 @@ export async function markFeedback(id: string, done: boolean) {
   if (!(await isSuperAdmin())) return;
   await setFeedbackDone(id, done);
   revalidatePath("/super");
+}
+
+/** Owner page: remove leftover records (old sign-in links, counters, logs). */
+export async function runCleanUp() {
+  if (!(await isSuperAdmin())) return { error: "Not authorised." };
+  const removed = await cleanUp();
+  revalidatePath("/super");
+  return { removed };
 }

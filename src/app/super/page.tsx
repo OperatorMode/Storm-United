@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card } from "@/components/Card";
 import { SuperLogin } from "./SuperLogin";
+import { Housekeeping } from "./Housekeeping";
+import { cleanupCounts, databaseUsage } from "@/lib/housekeeping";
 import { OwnerLogin } from "./OwnerLogin";
 import { ownerLoginAvailable } from "@/lib/owner-auth";
 import { TeamForm } from "@/components/TeamForm";
@@ -58,6 +60,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
     pendingReviews(),
     listFeedback(),
   ]);
+  const [usage, counts] = await Promise.all([databaseUsage(), cleanupCounts()]);
   // Who asked for each review (their sign-in email).
   const reviewers = Object.fromEntries(
     await Promise.all(reviews.map(async (r) => [r.manager_id, (await getManager(r.manager_id))?.email ?? null] as const)),
@@ -187,6 +190,10 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
           </Card>
         );
       })()}
+
+      <Card title="Housekeeping" aside={usage.databaseBytes !== null ? `${Math.round(usage.databaseBytes / 1024 / 1024)} MB used` : undefined}>
+        <Housekeeping databaseBytes={usage.databaseBytes} tables={usage.tables} counts={counts} />
+      </Card>
 
       <Link href="/super?new" className="block rounded-xl bg-zinc-900 px-4 py-3 text-center text-sm font-semibold text-white">
         + Add a team
