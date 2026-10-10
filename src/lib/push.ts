@@ -25,16 +25,24 @@ type Payload = { title: string; body: string; url: string; icon: string; tag?: s
 
 /** Sends one notification to one phone; forgets phones the browser dropped. */
 export async function sendPush(sub: PushSubRow, payload: Payload): Promise<void> {
+  await sendPushTo(sub, payload, () => deletePushSub(sub.team_id, sub.endpoint));
+}
+
+/** Sends to any push address; `gone` runs when the browser has dropped it (404/410). */
+export async function sendPushTo(
+  sub: { endpoint: string; p256dh: string; auth: string },
+  payload: Payload,
+  gone: () => Promise<unknown>,
+): Promise<void> {
   if (!ready()) return;
   try {
     await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify(payload), {
       TTL: 60 * 60 * 24,
     });
   } catch (err) {
-    // 404/410: the browser dropped this subscription, forget it.
     const code = (err as { statusCode?: number }).statusCode;
-    if (code === 404 || code === 410) await deletePushSub(sub.team_id, sub.endpoint);
-    else console.error("push failed", sub.team_id, code, (err as Error).message);
+    if (code === 404 || code === 410) await gone();
+    else console.error("push failed", code, (err as Error).message);
   }
 }
 

@@ -16,6 +16,7 @@ import {
   type WeeklySlot,
 } from "@/lib/activities";
 import { readActivitySource, refreshActivity } from "@/lib/activity-import";
+import { deleteHouseholdPush, getHouseholdPush, saveHouseholdPush } from "@/lib/activity-reminders";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
 import { COOKIE_OPTS, HOUSEHOLD_COOKIE, currentHouseholdId } from "@/lib/session";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
@@ -144,4 +145,35 @@ export async function joinActivities(code: string) {
   (await cookies()).set(HOUSEHOLD_COOKIE, target, COOKIE_OPTS);
   refresh();
   return { ok: true };
+}
+
+// ---------- reminders ----------
+
+type BrowserSubscription = { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+
+/** This phone's reminder switches (a day before, an hour before). */
+export async function saveActivityReminders(sub: BrowserSubscription, prefs: { day: boolean; hour: boolean }) {
+  if (!sub?.endpoint?.startsWith("https://") || !sub.keys?.p256dh || !sub.keys?.auth) return { error: "Invalid subscription." };
+  if (!prefs.day && !prefs.hour) {
+    await deleteHouseholdPush(sub.endpoint);
+    return { ok: true };
+  }
+  const id = await household();
+  const existing = await getHouseholdPush(sub.endpoint);
+  await saveHouseholdPush({
+    endpoint: sub.endpoint,
+    household_id: id,
+    p256dh: sub.keys.p256dh,
+    auth: sub.keys.auth,
+    remind_day: prefs.day,
+    remind_hour: prefs.hour,
+    created_at: existing?.created_at ?? new Date().toISOString(),
+  });
+  return { ok: true };
+}
+
+export async function getActivityReminders(endpoint: string): Promise<{ day: boolean; hour: boolean } | null> {
+  const id = await currentHouseholdId();
+  const row = id ? await getHouseholdPush(endpoint) : null;
+  return row && row.household_id === id ? { day: row.remind_day, hour: row.remind_hour } : null;
 }

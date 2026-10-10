@@ -2,6 +2,7 @@ import { checkTeam } from "@/lib/game-alerts";
 import { listTeams } from "@/lib/store";
 import { getTeam } from "@/lib/teams";
 import { pushEnabled } from "@/lib/push";
+import { sendActivityReminders } from "@/lib/activity-reminders";
 
 // Runs every 15 minutes (vercel.json "crons"). Vercel calls it with
 // "Authorization: Bearer $CRON_SECRET"; anyone else is turned away.
@@ -24,5 +25,13 @@ export async function GET(request: Request) {
       results[row.id] = err instanceof Error ? err.message : "failed";
     }
   }
-  return Response.json({ ok: true, results });
+  // Family activities (My Activities): a day and an hour before.
+  let activityReminders: number | string = 0;
+  try {
+    activityReminders = await sendActivityReminders();
+  } catch (err) {
+    console.error("activity reminders failed", err);
+    activityReminders = err instanceof Error ? err.message : "failed";
+  }
+  return Response.json({ ok: true, results, activityReminders });
 }

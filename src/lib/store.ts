@@ -71,6 +71,8 @@ export type LocalDb = {
   league_claims?: import("./league-verify").LeagueClaim[];
   households?: { id: string; share_code_hash: string | null; share_expires_at: string | null; created_at: string }[];
   activities?: import("./activities").Activity[];
+  household_push?: import("./activity-reminders").HouseholdPush[];
+  activity_reminder_log?: { household_id: string; key: string; sent_at: string }[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];
   acks?: { announcement_id: string; player_id: string; created_at: string }[];
   chat?: { id: string; team_id: string; author_id: string; body: string; created_at: string }[];

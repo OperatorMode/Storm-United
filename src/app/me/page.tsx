@@ -26,6 +26,8 @@ import { listActivities, sessionsOf, weeklySummary } from "@/lib/activities";
 import { needsRefresh, refreshActivity } from "@/lib/activity-import";
 import { ActivityForm } from "./ActivityForm";
 import { ActivityList, SessionToggle, ShareActivities } from "./ActivitiesManage";
+import { ActivityReminders } from "./ActivityReminders";
+import { pushPublicKey } from "@/lib/push";
 
 // My Activities: every game, training and duty for every team this phone
 // follows, plus the family's own activities (music, dance, school...), in one
@@ -345,6 +347,11 @@ export default async function MyPlayerPage() {
               }))}
             />
           </div>
+          {activities.length > 0 && (
+            <div className="mt-3 border-t border-zinc-100 pt-3">
+              <ActivityReminders vapidKey={pushPublicKey()} />
+            </div>
+          )}
           <details className="mt-3 border-t border-zinc-100 pt-3" open={activities.length === 0 && teams.length === 0}>
             <summary className="cursor-pointer font-semibold">+ Add an activity</summary>
             <div className="mt-3">
