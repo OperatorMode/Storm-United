@@ -1,15 +1,16 @@
-import { cache } from "react";
+﻿import { cache } from "react";
 import { cookies } from "next/headers";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { isActivePlayer, type Team } from "./teams";
 import { getManager, managedTeams, type Manager } from "./accounts";
 import { removedChildren } from "./phones";
+import { ownerStillValid } from "./owner-auth";
 
 // No logins. Per team, a cookie remembers:
 //  - which child this phone belongs to (voter),
 //  - that the join code was entered (if the team has one),
 //  - that the team admin PIN was entered.
-// The super admin (ADMIN_PIN env var, the app owner) can see and manage every team.
+// The owner (super admin, signed in with Supabase; see owner-auth.ts) can see and manage every team.
 // Cookie values are hashes derived from the stored secret, so changing a PIN
 // or join code logs everyone out of that team.
 
@@ -41,7 +42,10 @@ export async function currentHouseholdId(): Promise<string | null> {
 }
 export const joinCookie = (teamId: string) => `su_join_${teamId}`;
 export const adminCookie = (teamId: string) => `su_admin_${teamId}`;
-export const SUPER_COOKIE = "su_super";
+export const SUPER_COOKIE = "su_super"; // the old owner PIN (only while ADMIN_PIN is set)
+// The owner's session after signing in with Supabase (password + authenticator app).
+export const OWNER_COOKIE = "su_owner";
+export const OWNER_SESSION_HOURS = 12;
 export const MANAGER_COOKIE = "su_mgr";
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -57,10 +61,15 @@ export function superToken(): string | null {
   return pin ? sha(`super:${pin}`) : null;
 }
 
-export async function isSuperAdmin(): Promise<boolean> {
+// The Sidelnr owner: a valid owner session for a Supabase account that is
+// still marked as the owner, or (while ADMIN_PIN is set) the old PIN cookie.
+export const isSuperAdmin = cache(async (): Promise<boolean> => {
+  const store = await cookies();
+  const userId = readSigned(store.get(OWNER_COOKIE)?.value);
+  if (userId && (await ownerStillValid(userId))) return true;
   const token = superToken();
-  return !!token && (await cookies()).get(SUPER_COOKIE)?.value === token;
-}
+  return !!token && store.get(SUPER_COOKIE)?.value === token;
+});
 
 // ---------- manager accounts (signed session cookie) ----------
 
@@ -76,6 +85,22 @@ const sign = (payload: string) => createHmac("sha256", sessionSecret()).update(p
 export function managerSessionValue(managerId: string): string {
   const payload = `${managerId}.${Date.now() + YEAR * 1000}`;
   return `${payload}.${sign(payload)}`;
+}
+
+// Cookie value for the owner after both sign-in steps, valid for OWNER_SESSION_HOURS.
+export function ownerSessionValue(userId: string): string {
+  const payload = `owner:${userId}.${Date.now() + OWNER_SESSION_HOURS * 3600_000}`;
+  return `${payload}.${sign(payload)}`;
+}
+
+// The id inside a signed, unexpired owner cookie, or null.
+function readSigned(raw: string | undefined): string | null {
+  if (!raw?.startsWith("owner:")) return null;
+  const [id, exp, sig] = raw.slice("owner:".length).split(".");
+  if (!id || !exp || !sig || Number(exp) < Date.now()) return null;
+  const expected = Buffer.from(sign(`owner:${id}.${exp}`));
+  const given = Buffer.from(sig);
+  return expected.length === given.length && timingSafeEqual(expected, given) ? id : null;
 }
 
 // The signed-in manager: a valid, unexpired signed cookie for an account that still exists.

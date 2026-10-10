@@ -10,11 +10,88 @@ import { applyTeamForm } from "@/lib/team-form";
 import { getLeagueData, nextGame } from "@/lib/league";
 import { ackAnnouncement, addAnnouncement, addChat, listAnnouncements, listChat } from "@/lib/messages";
 import { getTeam } from "@/lib/teams";
-import { COOKIE_OPTS, SUPER_COOKIE, isSuperAdmin, superToken } from "@/lib/session";
+import { COOKIE_OPTS, OWNER_COOKIE, OWNER_SESSION_HOURS, SUPER_COOKIE, isSuperAdmin, ownerSessionValue, superToken } from "@/lib/session";
+import { isOwnerUser, ownerAuthClient } from "@/lib/owner-auth";
 import { decideReview, unverifyLeague } from "@/lib/league-verify";
 import { setFeedbackDone } from "@/lib/feedback";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
+
+// ---------- owner sign-in with Supabase: password, then authenticator app ----------
+
+// Between the two steps, the half-finished Supabase session waits here (httpOnly, 10 minutes).
+const OWNER_PENDING = "su_owner_pending";
+type Pending = { a: string; r: string; f: string };
+type OwnerState = { error?: string; step?: "code" | "enroll"; qr?: string; secret?: string; ok?: boolean };
+
+const WRONG_LOGIN = "Wrong email or password.";
+
+export async function ownerSignIn(input: { email?: string; password?: string; code?: string }): Promise<OwnerState> {
+  const client = ownerAuthClient();
+  if (!client) return { error: "Owner sign-in isn't set up here." };
+  const locked = await lockedMessage("super", "owner");
+  if (locked) return { error: locked };
+  const store = await cookies();
+
+  // Step 2: the 6-digit code from the authenticator app.
+  if (input.code !== undefined) {
+    const code = input.code.replace(/\D/g, "");
+    let pending: Pending | null = null;
+    try {
+      pending = JSON.parse(Buffer.from(store.get(OWNER_PENDING)?.value ?? "", "base64url").toString());
+    } catch {}
+    if (!pending?.a || !pending.r || !pending.f) return { error: "That took too long. Sign in again." };
+    const { error: sessionError } = await client.auth.setSession({ access_token: pending.a, refresh_token: pending.r });
+    if (sessionError) return { error: "That took too long. Sign in again." };
+    const { data, error } = await client.auth.mfa.challengeAndVerify({ factorId: pending.f, code });
+    if (error || !data) {
+      await recordFailure("super", "owner");
+      return { error: "That code isn’t right. Use the newest code in your authenticator app." };
+    }
+    if (!isOwnerUser(data.user)) return { error: "This account isn’t the Sidelnr owner." };
+    await recordSuccess("super", "owner");
+    store.delete(OWNER_PENDING);
+    store.set(OWNER_COOKIE, ownerSessionValue(data.user.id), { ...COOKIE_OPTS, maxAge: OWNER_SESSION_HOURS * 3600 });
+    await client.auth.signOut({ scope: "local" }).catch(() => {}); // the app's own owner session takes over
+    revalidatePath("/super");
+    return { ok: true };
+  }
+
+  // Step 1: email and password.
+  const email = String(input.email ?? "").trim();
+  const password = String(input.password ?? "");
+  if (!email || !password) return { error: "Enter your email and password." };
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error || !data.session) {
+    await recordFailure("super", "owner");
+    return { error: WRONG_LOGIN };
+  }
+  if (!isOwnerUser(data.user)) {
+    await client.auth.signOut({ scope: "local" }).catch(() => {});
+    await recordFailure("super", "owner");
+    return { error: "This account isn’t the Sidelnr owner." };
+  }
+
+  // Already set up: ask for the code. First time: show a QR code to add Sidelnr to the app.
+  const factors = await client.auth.mfa.listFactors();
+  const verified = factors.data?.totp?.[0];
+  let factorId = verified?.id;
+  let enroll: { qr: string; secret: string } | null = null;
+  if (!factorId) {
+    for (const f of factors.data?.all ?? []) {
+      if (f.factor_type === "totp" && f.status !== "verified") await client.auth.mfa.unenroll({ factorId: f.id });
+    }
+    const res = await client.auth.mfa.enroll({ factorType: "totp", friendlyName: "Sidelnr owner", issuer: "Sidelnr" });
+    if (res.error || !res.data) return { error: "Couldn’t start the authenticator set-up. Try again." };
+    factorId = res.data.id;
+    enroll = { qr: res.data.totp.qr_code, secret: res.data.totp.secret };
+  }
+  const pending: Pending = { a: data.session.access_token, r: data.session.refresh_token, f: factorId };
+  store.set(OWNER_PENDING, Buffer.from(JSON.stringify(pending)).toString("base64url"), { ...COOKIE_OPTS, maxAge: 600 });
+  return enroll ? { step: "enroll", ...enroll } : { step: "code" };
+}
+
+// ---------- the old owner PIN (only while ADMIN_PIN is set in Vercel) ----------
 
 // The owner page takes two steps: the owner PIN, then a 6-digit code emailed
 // to OWNER_EMAIL (while that isn't set, the PIN alone, and the page says so).
@@ -69,7 +146,9 @@ export async function superLogin(_: unknown, formData: FormData): Promise<{ erro
 }
 
 export async function superLogout() {
-  (await cookies()).delete(SUPER_COOKIE);
+  const store = await cookies();
+  store.delete(SUPER_COOKIE);
+  store.delete(OWNER_COOKIE);
   revalidatePath("/super");
 }
 

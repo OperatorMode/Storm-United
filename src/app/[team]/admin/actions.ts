@@ -18,7 +18,7 @@ import { slotForPlayer } from "@/lib/goalies";
 import { gameParts, PART_PRESETS } from "@/lib/role";
 import { findSquad, squadFromLink, type SquadResult } from "@/lib/squad";
 import { mergePlayer } from "@/lib/merge";
-import { MANAGER_COOKIE, SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
+import { MANAGER_COOKIE, OWNER_COOKIE, SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
 
 async function adminTeam(teamId: string): Promise<Team | null> {
   const team = await getTeam(teamId);
@@ -116,6 +116,7 @@ export async function adminLogout(teamId: string) {
   const store = await cookies();
   store.delete(adminCookie(teamId));
   store.delete(SUPER_COOKIE);
+  store.delete(OWNER_COOKIE);
   store.delete(MANAGER_COOKIE);
   revalidatePath(`/${teamId}/admin`);
 }

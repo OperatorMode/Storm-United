@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card } from "@/components/Card";
 import { SuperLogin } from "./SuperLogin";
+import { OwnerLogin } from "./OwnerLogin";
+import { ownerLoginAvailable } from "@/lib/owner-auth";
 import { TeamForm } from "@/components/TeamForm";
 import { removeTeam, saveTeam } from "./actions";
 import { SampleDataButton } from "./SampleDataButton";
@@ -26,8 +28,19 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   if (!(await isSuperAdmin())) {
     return (
       <div className="mx-auto max-w-md p-4 pt-10">
-        <Card title="Super admin">
-          <SuperLogin twoStep={!!process.env.OWNER_EMAIL?.trim()} />
+        <Card title="Owner sign-in">
+          {ownerLoginAvailable() && <OwnerLogin />}
+          {process.env.ADMIN_PIN?.trim() &&
+            (ownerLoginAvailable() ? (
+              <details className="mt-5 border-t border-zinc-100 pt-3">
+                <summary className="cursor-pointer text-xs text-zinc-500">Use the owner PIN instead</summary>
+                <div className="mt-3">
+                  <SuperLogin twoStep={!!process.env.OWNER_EMAIL?.trim()} />
+                </div>
+              </details>
+            ) : (
+              <SuperLogin twoStep={!!process.env.OWNER_EMAIL?.trim()} />
+            ))}
         </Card>
       </div>
     );
