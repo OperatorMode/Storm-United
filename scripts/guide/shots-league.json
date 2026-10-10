@@ -1,0 +1,37 @@
+[
+  {
+    "name": "league-1-add",
+    "url": "http://localhost:3100/account/leagues/new",
+    "manager": "demo-coach",
+    "js": "const i=document.querySelector('input[placeholder^=\"e.g.\"]'); const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; set.call(i,'riversidejl.example/fixtures'); i.dispatchEvent(new Event('input',{bubbles:true})); i.focus();"
+  },
+  {
+    "name": "league-2-done",
+    "url": "http://localhost:3100/account/competitions/riverside-u10?new",
+    "manager": "demo-coach"
+  },
+  {
+    "name": "league-3-page",
+    "url": "http://localhost:3100/account/competitions/riverside-u10",
+    "manager": "demo-coach",
+    "full": true,
+    "js": "for (const d of document.querySelectorAll('details')) { const t=d.querySelector('summary')?.textContent.trim()||''; if (t.startsWith('Ladder')||t.startsWith('Upcoming fixtures')) d.open=true; } [...document.querySelectorAll('h2,div')].find(e=>e.textContent.trim()==='Danger zone')?.closest('section')?.remove();"
+  },
+  {
+    "name": "league-4-claim",
+    "url": "http://localhost:3100/account/competitions/eastside-u11",
+    "manager": "demo-coach",
+    "js": "const h=[...document.querySelectorAll('h2,div')].find(e=>e.textContent.trim()==='Claim this league'); (h.closest('section')||h.parentElement).scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
+  },
+  {
+    "name": "league-5-announce",
+    "url": "http://localhost:3100/account/competitions/riverside-u10",
+    "manager": "demo-coach",
+    "js": "const h=[...document.querySelectorAll('h2,div')].find(e=>e.textContent.trim()==='League announcement'); (h.closest('section')||h.parentElement).scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
+  },
+  {
+    "name": "league-6-manual",
+    "url": "http://localhost:3100/account/leagues/new?manual",
+    "manager": "demo-coach"
+  }
+]

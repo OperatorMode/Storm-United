@@ -107,10 +107,51 @@ const PATHS: Path[] = [
       },
     ],
   },
+  {
+    id: "league",
+    label: "Add your league",
+    steps: [
+      {
+        image: "/guide/league-1-add.webp",
+        title: "Add your league with a link",
+        text: "On the home page, tap My League and sign in with your email, then Add a league. Paste the link to the league’s website (a Google Sheet or a calendar link works too) and tap Find my league.",
+      },
+      {
+        image: "/guide/league-2-done.webp",
+        title: "All done in a minute",
+        text: "Sidelnr reads the website and loads the competitions, teams and every game. If there are several age groups, pick yours. Then tap Create My Team, or tell your coaches it’s there.",
+      },
+      {
+        image: "/guide/league-3-page.webp",
+        title: "It keeps itself up to date",
+        text: "Fixtures, results and the ladder come straight from the league’s website and are checked again around every game, so changes reach every team on their own. Tap the picture to see the whole page.",
+      },
+      {
+        image: "/guide/league-4-claim.webp",
+        title: "Run the league? Claim it",
+        text: "A league added with a link belongs to the league, not to whoever added it. If you run it, claim it with a code sent to an email on the league’s own website domain, or ask us to check by hand.",
+      },
+      {
+        image: "/guide/league-5-announce.webp",
+        title: "Send league announcements",
+        text: "Official leagues (with the tick) can post to every team’s Board at once, or to team managers only, and everyone gets a notification. Handy for washed-out rounds and pitch changes.",
+      },
+      {
+        image: "/guide/manage-3-create.webp",
+        title: "Teams join in",
+        text: "Coaches create their team by picking it in your league’s draw, and families join their team with its code. Every team then gets your fixtures, results and announcements.",
+      },
+      {
+        image: "/guide/league-6-manual.webp",
+        title: "No website?",
+        text: "Set it up by hand: add the teams, create the fixtures (typed in, uploaded or made for you) and enter the results. Every team in it gets them straight away.",
+      },
+    ],
+  },
 ];
 
 // Coming next: shown in the list, not ready yet.
-const LATER = ["Add your league"];
+const LATER: string[] = [];
 
 const SEEN_KEY = "su_guide_seen";
 export const GUIDE_EVENT = "sidelnr:guide";

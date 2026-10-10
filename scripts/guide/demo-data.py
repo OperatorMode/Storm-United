@@ -25,10 +25,20 @@ d["managers"] = [m for m in d.get("managers", []) if m["id"] != "demo-coach"]
 for k in ("attendance", "announcements", "chat", "team_phones", "ballots"):
     d[k] = [x for x in d.get(k, []) if x.get("team_id") != TEAM and not str(x.get("game_id", "")).startswith("demo-")]
 
-d["leagues"].append({"id": LEAGUE, "name": "Riverside Junior League", "short_name": "Riverside JL", "website": None,
-                     "venue": "Riverside Park", "source": "manual", "timezone": "Australia/Perth", "created_by": "test-mgr"})
+# Imported from the league's own (made-up) website, and verified as official.
+d["leagues"].append({"id": LEAGUE, "name": "Riverside Junior League", "short_name": "Riverside JL", "website": "https://riversidejl.example",
+                     "venue": "Riverside Park", "source": "manual", "timezone": "Australia/Perth", "created_by": "demo-coach",
+                     "verified_at": "2026-10-01T02:00:00.000Z", "verified_by": "secretary@riversidejl.example"})
 d["competitions"].append({"id": COMP, "league_id": LEAGUE, "name": "Under 10s", "season": "2026", "kind": "season", "source_key": None,
-                          "points_win": 3, "points_draw": 1, "ladder_last_round": None, "finals_date": None, "finals_note": None})
+                          "points_win": 3, "points_draw": 1, "ladder_last_round": None, "finals_date": None, "finals_note": None,
+                          "feed_type": "web", "feed_url": "https://riversidejl.example/fixtures/under-10s",
+                          "feed_synced_at": (datetime.now(timezone.utc) - timedelta(minutes=40)).isoformat(), "feed_error": None,
+                          "ladder_table": {"columns": ["P", "W", "D", "L", "GD", "Pts"], "source": "riversidejl.example",
+                                           "syncedAt": (datetime.now(timezone.utc) - timedelta(minutes=40)).isoformat(),
+                                           "rows": [{"team": t, "values": v} for t, v in [
+                                               ("Rockets", ["2", "2", "0", "0", "+3", "6"]), ("Falcons", ["2", "1", "1", "0", "+2", "4"]),
+                                               ("Comets", ["2", "1", "0", "1", "0", "3"]), ("Tigers", ["2", "1", "0", "1", "-1", "3"]),
+                                               ("Hawks", ["2", "0", "1", "1", "-1", "1"]), ("Lions", ["2", "0", "0", "2", "-3", "0"])]]}})
 clubs = ["Rockets", "Comets", "Falcons", "Hawks", "Lions", "Tigers"]
 now = datetime.now(timezone.utc).isoformat()
 for c in clubs:
@@ -131,6 +141,33 @@ conversation(None, ["coach", me], [
     ("coach", "Could Leo try in defence this week?", 30),
     (me, "Sounds good, he'll be keen", 29),
 ], read_all=True)
+
+# Leagues: the coach runs Riverside (official); Eastside was imported by someone else and isn't claimed yet.
+d["league_admins"] = [x for x in d.get("league_admins", []) if x["league_id"] not in (LEAGUE, "eastside-league")]
+d["league_admins"].append({"league_id": LEAGUE, "manager_id": "demo-coach", "created_at": ago(500)})
+d["league_admins"].append({"league_id": "eastside-league", "manager_id": "demo-importer", "created_at": ago(50)})
+d["managers"] = [m for m in d["managers"] if m["id"] != "demo-importer"]
+d["managers"].append({"id": "demo-importer", "email": "importer@example.test", "name": None, "created_at": ago(60)})
+d["league_messages"] = [m for m in d.get("league_messages", []) if m["league_id"] != LEAGUE]
+d["league_messages"].append({"id": str(uuid.uuid4()), "league_id": LEAGUE, "competition_id": None, "audience": "all", "teams": 1,
+                             "body": "Round 3 is on as planned. Lions Oval pitches are closed for resurfacing, so the Lions v Hawks game moves to Riverside Park, pitch 3.",
+                             "created_at": ago(28)})
+EAST, EASTC = "eastside-league", "eastside-u11"
+d["leagues"] = [l for l in d["leagues"] if l["id"] != EAST]
+d["competitions"] = [c for c in d["competitions"] if c["id"] != EASTC]
+d["competition_teams"] = [c for c in d["competition_teams"] if c.get("competition_id") != EASTC]
+d["fixtures"] = [f for f in d["fixtures"] if f.get("competition_id") != EASTC]
+d["leagues"].append({"id": EAST, "name": "Eastside Junior League", "short_name": "Eastside JL", "website": "https://eastsidejl.example",
+                     "venue": "Eastside Reserve", "source": "manual", "timezone": "Australia/Perth", "created_by": "demo-importer"})
+d["competitions"].append({"id": EASTC, "league_id": EAST, "name": "Under 11s", "season": "2026", "kind": "season", "source_key": None,
+                          "points_win": 3, "points_draw": 1, "ladder_last_round": None, "finals_date": None, "finals_note": None,
+                          "feed_type": "web", "feed_url": "https://eastsidejl.example/draw/under-11s",
+                          "feed_synced_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(), "feed_error": None})
+for c in ["Sharks", "Dolphins", "Stingrays", "Marlins"]:
+    d["competition_teams"].append({"competition_id": EASTC, "name": c, "created_at": now})
+for rnd, day, h, a in [(1, 17, "Sharks", "Dolphins"), (1, 17, "Stingrays", "Marlins"), (2, 24, "Dolphins", "Stingrays"), (2, 24, "Marlins", "Sharks")]:
+    d["fixtures"].append({"id": f"demo-east-{rnd}-{h.lower()}", "competition_id": EASTC, "status": "scheduled", "round": rnd, "stage": None,
+                          "kickoff": sat(day), "pitch": "Eastside Reserve", "home": h, "away": a, "home_score": None, "away_score": None})
 
 # The coach: signed in as coach@example.test, owner of the team.
 d["managers"].append({"id": "demo-coach", "email": "coach@example.test", "name": None, "created_at": ago(500)})
