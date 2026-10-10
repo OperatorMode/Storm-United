@@ -4,6 +4,7 @@ import { getTeam } from "@/lib/teams";
 import { pushEnabled } from "@/lib/push";
 import { sendActivityReminders } from "@/lib/activity-reminders";
 import { sendSeasonEndReminder } from "@/lib/season-end";
+import { cleanUp } from "@/lib/housekeeping";
 
 // Runs every 15 minutes (vercel.json "crons"). Vercel calls it with
 // "Authorization: Bearer $CRON_SECRET"; anyone else is turned away.
@@ -25,7 +26,13 @@ export async function GET(request: Request) {
       console.error("season reminder failed for", row.id, err);
     }
   }
-  if (!pushEnabled()) return Response.json({ ok: true, seasonReminders, skipped: "push not configured" });
+  // Once a day (around 3 am in Perth): clear leftovers like old sign-in links (housekeeping.ts).
+  const at = new Date();
+  let cleaned: number | string = 0;
+  if (at.getUTCHours() === 19 && at.getUTCMinutes() < 15) {
+    cleaned = await cleanUp().catch((err) => (err instanceof Error ? err.message : "failed"));
+  }
+  if (!pushEnabled()) return Response.json({ ok: true, seasonReminders, cleaned, skipped: "push not configured" });
 
   const results: Record<string, { changes: number; reminders: number } | string> = {};
   for (const row of await listTeams()) {
@@ -45,5 +52,5 @@ export async function GET(request: Request) {
     console.error("activity reminders failed", err);
     activityReminders = err instanceof Error ? err.message : "failed";
   }
-  return Response.json({ ok: true, seasonReminders, results, activityReminders });
+  return Response.json({ ok: true, seasonReminders, cleaned, results, activityReminders });
 }
