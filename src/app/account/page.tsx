@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EVENTS_ENABLED } from "@/lib/features";
 import { redirect } from "next/navigation";
 import { ClaimTeamForm } from "./ClaimTeamForm";
 import { signOut } from "./actions";
@@ -94,10 +95,17 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
             <span className="block font-semibold">My leagues</span>
             <span className="text-xs text-zinc-500">{leagueCount ? `${leagueCount} league${leagueCount === 1 ? "" : "s"}` : "Run a competition"}</span>
           </Link>
-          <Link href="/account/events" className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
-            <span className="block font-semibold">My events</span>
-            <span className="text-xs text-zinc-500">{eventCount ? `${eventCount} event${eventCount === 1 ? "" : "s"}` : "Run a one-day event"}</span>
-          </Link>
+          {EVENTS_ENABLED || superAdmin ? (
+            <Link href="/account/events" className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+              <span className="block font-semibold">My events</span>
+              <span className="text-xs text-zinc-500">{eventCount ? `${eventCount} event${eventCount === 1 ? "" : "s"}` : "Run a one-day event"}</span>
+            </Link>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-zinc-300 p-3" aria-disabled>
+              <span className="block font-semibold text-zinc-500">My events</span>
+              <span className="text-xs text-zinc-500">Coming soon</span>
+            </div>
+          )}
         </div>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">

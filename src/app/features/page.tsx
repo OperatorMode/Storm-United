@@ -123,7 +123,7 @@ export default function FeaturesPage() {
         </li>
       </ul>
 
-      <h2>For events</h2>
+      <h2>For events (coming soon)</h2>
       <ul>
         <li>
           <b>Carnivals and gala days:</b> pools, a draw for the day, finals with placeholders like “1st Pool A”, and a public

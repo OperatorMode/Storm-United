@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EVENTS_ENABLED } from "@/lib/features";
 import { redirect } from "next/navigation";
 import { currentManager } from "@/lib/session";
 import { managedLeagues } from "@/lib/my-leagues";
@@ -23,11 +24,16 @@ export default async function MyLeaguesPage() {
         <span>
           <Link href="/account" className="underline">
             My teams
-          </Link>{" "}
-          ·{" "}
-          <Link href="/account/events" className="underline">
-            My events
           </Link>
+          {EVENTS_ENABLED && (
+            <>
+              {" "}
+              ·{" "}
+              <Link href="/account/events" className="underline">
+                My events
+              </Link>
+            </>
+          )}
         </span>
       </div>
       <div>

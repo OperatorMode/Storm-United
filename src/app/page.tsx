@@ -13,6 +13,7 @@ import { chatAuthor, currentChildren, currentManager } from "@/lib/session";
 import { emailEnabled } from "@/lib/email";
 import { managedTeams } from "@/lib/accounts";
 import { managedLeagues } from "@/lib/my-leagues";
+import { EVENTS_ENABLED } from "@/lib/features";
 
 // Landing page. Parents join a team; My Team, My League and My Event sign in
 // (one account covers all three). There's deliberately no public list of
@@ -83,7 +84,8 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
         title: l.name,
         detail: names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2} more` : names.join(", "),
       };
-      (l.isEvent ? runs.events : runs.leagues).push(run);
+      if (!l.isEvent) runs.leagues.push(run);
+      else if (EVENTS_ENABLED) runs.events.push(run);
     }
   }
   const has = { teams: managing.size > 0, leagues: runs.leagues.length > 0, events: runs.events.length > 0 };
@@ -190,7 +192,16 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
               <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">Managers</h2>
               {manager && <span className="text-xs opacity-60">Signed in as {manager.email}</span>}
             </div>
-            {DOORS.filter((d) => !has[d.key]).map((d) => (
+            {DOORS.filter((d) => !has[d.key]).map((d) =>
+              d.key === "events" && !EVENTS_ENABLED ? (
+                <div key={d.href} className="flex items-center gap-3 rounded-2xl bg-white/60 p-4 text-zinc-950 shadow-lg" aria-disabled>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold text-zinc-500">{d.title}</span>
+                    <span className="block text-xs text-zinc-500">{d.text}</span>
+                  </span>
+                  <span className="shrink-0 rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Coming soon</span>
+                </div>
+              ) : (
               <Link
                 key={d.href}
                 href={manager ? d.href : signIn(d.href)}
@@ -202,7 +213,8 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
                 </span>
                 <span className="text-zinc-400">→</span>
               </Link>
-            ))}
+              ),
+            )}
             {!manager && (
               <details className="rounded-2xl bg-white/90 px-4 py-3 text-sm text-zinc-950 shadow-lg">
                 <summary className="cursor-pointer text-zinc-600">Team manager with a team PIN?</summary>

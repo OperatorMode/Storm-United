@@ -4,10 +4,14 @@ import { redirect } from "next/navigation";
 import { NewLeagueForm } from "../../leagues/LeagueForms";
 import { currentManagerId } from "@/lib/session";
 import { SidelnrLink } from "@/components/SidelnrLink";
+import { ComingSoonPage } from "@/components/ComingSoon";
+import { EVENTS_ENABLED } from "@/lib/features";
+import { isSuperAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Create an event · Sidelnr", robots: { index: false } };
 
 export default async function NewEventPage() {
+  if (!EVENTS_ENABLED && !(await isSuperAdmin())) return <ComingSoonPage title="My Event" text="Carnivals and gala days with pools, finals and live results. We’re finishing it off." />;
   if (!(await currentManagerId())) redirect("/login?next=/account/events/new");
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
