@@ -159,7 +159,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/league-4-claim.webp",
         title: "Run the league? Claim it",
-        text: "A league added with a link belongs to the league, not to whoever added it. If you run it, claim it with a code sent to an email on the league’s own website domain, or ask us to check by hand.",
+        text: "A league added with a link belongs to the league, not to whoever added it. If you run it, ask to claim it: tell us your role in the league, and we’ll set it up with you by email.",
       },
       {
         image: "/guide/league-5-announce.webp",

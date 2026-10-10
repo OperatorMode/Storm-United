@@ -39,7 +39,7 @@ import { headers } from "next/headers";
 import { addAnnouncement } from "@/lib/messages";
 import { notifyManagers, notifyTeam, preview } from "@/lib/push";
 import { getManager, teamManagerIds } from "@/lib/accounts";
-import { leagueCodeEmail, leagueMessageEmail, sendEmail } from "@/lib/email";
+import { leagueCodeEmail, leagueMessageEmail, leagueRequestEmail, sendEmail } from "@/lib/email";
 import { confirmEmailClaim, officialDomains, requestReview, startEmailClaim } from "@/lib/league-verify";
 import { addLeagueMessage } from "@/lib/league-messages";
 
@@ -746,6 +746,8 @@ export async function sendLeagueMessage(competitionId: string, _: unknown, formD
 
 // Step 1: a code to an email on the league's own domain.
 export async function sendLeagueCode(competitionId: string, email: string) {
+  // Official access is by request only now (the Sidelnr owner sets it up per league).
+  if (OFFICIAL_BY_REQUEST_ONLY) return { error: "Official access is by request. Use the form to tell us about your league." };
   const c = await claimableCompetition(competitionId);
   const managerId = await currentManagerId();
   if (!c || !managerId) return { error: "Not authorised." };
@@ -762,6 +764,7 @@ export async function sendLeagueCode(competitionId: string, email: string) {
 
 // Step 2: the code back; the league is then official.
 export async function confirmLeagueCode(competitionId: string, code: string) {
+  if (OFFICIAL_BY_REQUEST_ONLY) return { error: "Official access is by request." };
   const c = await claimableCompetition(competitionId);
   const managerId = await currentManagerId();
   if (!c || !managerId) return { error: "Not authorised." };
@@ -770,13 +773,26 @@ export async function confirmLeagueCode(competitionId: string, code: string) {
   return res;
 }
 
-// No league domain: ask Sidelnr to check by hand.
+// Official access (and claiming an imported league) is by request: it goes to
+// the Sidelnr owner's page and inbox, who replies to the manager by email.
+const OFFICIAL_BY_REQUEST_ONLY = true;
+
 export async function requestLeagueReview(competitionId: string, note: string) {
   const c = await claimableCompetition(competitionId);
   const managerId = await currentManagerId();
   if (!c || !managerId) return { error: "Not authorised." };
-  if (c.league.verified_at) return { error: "This league is already verified." };
+  if (c.league.verified_at) return { error: "This league is already official." };
   const res = await requestReview(c.league_id, managerId, note);
-  if ("ok" in res) refreshAll();
+  if ("ok" in res) {
+    refreshAll();
+    const owner = process.env.OWNER_EMAIL?.trim();
+    const from = (await getManager(managerId))?.email ?? "unknown";
+    if (owner) {
+      after(async () => {
+        const mail = leagueRequestEmail(c.league.name, c.name, from, note.trim().slice(0, 1000), c.feed_url ?? c.league.website ?? null);
+        await sendEmail(owner, mail.subject, mail.text, mail.html);
+      });
+    }
+  }
   return res;
 }

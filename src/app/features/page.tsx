@@ -118,8 +118,8 @@ export default function FeaturesPage() {
           (notification and email), e.g. a washed-out game day.
         </li>
         <li>
-          <b>Official leagues:</b> announcements unlock once a league is verified, with a one-time code sent to an email on
-          the league’s own domain, or after a review by Sidelnr. Verified leagues show a tick.
+          <b>Official leagues:</b> announcements unlock once Sidelnr has made the league official, by request: the league
+          tells us who they are and we set it up with them by email. Official leagues show a tick.
         </li>
       </ul>
 

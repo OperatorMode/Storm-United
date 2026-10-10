@@ -22,8 +22,9 @@ import { UpdateNow } from "../../leagues/UpdateNow";
 import { LeagueMessageForm } from "../../leagues/LeagueMessage";
 import { listLeagueMessages } from "@/lib/league-messages";
 import { VerifyLeague } from "../../leagues/VerifyLeague";
-import { leagueClaims, officialDomains } from "@/lib/league-verify";
+import { leagueClaims } from "@/lib/league-verify";
 import { currentManagerId, isSuperAdmin } from "@/lib/session";
+import { getManager } from "@/lib/accounts";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
 import { formatTime } from "@/lib/time";
@@ -116,16 +117,16 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const [sent, claims] = await Promise.all([listLeagueMessages(competition.league_id, 5), verified ? [] : leagueClaims(competition.league_id)]);
   const waitingReview = claims.find((c) => c.kind === "review" && c.status === "pending");
   const messageCard = !verified ? (
-    <Card title={imported ? "Claim this league" : "League announcement"} aside={imported ? "Not claimed yet" : "Verify to unlock"}>
+    <Card title={imported ? "Claim this league" : "League announcement"} aside={imported ? "Not claimed yet" : "By request"}>
       {imported && (
         <p className="mb-3 text-sm text-zinc-600">
           This league was imported from its own website, so it belongs to the league, not to whoever imported it. If you run
-          it, claim it: once approved, you can send announcements, set the timezone and delete it.
+          it, ask to claim it: once Sidelnr has set it up with you, you can send announcements, set the timezone and delete it.
         </p>
       )}
       <VerifyLeague
         competitionId={id}
-        domains={officialDomains(competition.league, siblings.map((c) => c.feed_url))}
+        contactEmail={managerId ? ((await getManager(managerId))?.email ?? null) : null}
         reviewRequested={waitingReview ? formatDay(new Date(waitingReview.created_at), tz) : null}
         claim={imported}
       />

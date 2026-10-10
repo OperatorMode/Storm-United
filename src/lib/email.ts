@@ -100,3 +100,18 @@ export function feedbackEmail(kind: string, message: string, page: string | null
 </div>`;
   return { subject: `Sidelnr feedback: ${kind}`, text, html };
 }
+
+/** A league asks for official access (or to claim an imported league): to the owner, who replies by email. */
+export function leagueRequestEmail(league: string, competition: string, from: string, note: string, link: string | null) {
+  const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const text = `${league} (${competition}) asks for official access.\n\nFrom: ${from}\n${link ? `Website: ${link}\n` : ""}\n${note}\n\nReply to ${from} with your terms, then Approve or Decline on the owner page: https://sidelnr.app/super`;
+  const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#09090b">
+  <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
+  <p style="margin:0 0 16px;color:#52525b">Official league request</p>
+  <p style="font-size:16px;font-weight:600;margin:0">${esc(league)} <span style="font-weight:400;color:#52525b">(${esc(competition)})</span></p>
+  <p style="font-size:14px;margin:8px 0">From: <a href="mailto:${esc(from)}">${esc(from)}</a>${link ? `<br>Website: ${esc(link)}` : ""}</p>
+  <p style="white-space:pre-wrap;font-size:15px;line-height:1.5;background:#f4f4f5;border-radius:12px;padding:12px">${esc(note)}</p>
+  <p style="font-size:13px;color:#71717a">Reply to them with your terms, then Approve or Decline on the <a href="https://sidelnr.app/super">owner page</a>.</p>
+</div>`;
+  return { subject: `Official league request: ${league}`, text, html };
+}
