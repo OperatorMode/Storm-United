@@ -226,8 +226,9 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
           </section>
         )}
 
-        <p className="text-center text-xs opacity-50">
-          Fixtures, attendance, MVP votes, team chat and live ladders for any team sport.
+        <p className="px-2 text-center text-sm opacity-70">
+          <span className="font-semibold">Know where everyone needs to be.</span> For parents, players, coaches and leagues:
+          fixtures straight from the league, who’s playing, team chat, and your whole family’s week in one calendar.
         </p>
         <LegalLinks className="opacity-60" />
         {/* A new phone (no teams, not signed in) gets the guide on its first visit. */}

@@ -13,7 +13,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Sidelnr",
     short_name: "Sidelnr",
-    description: "Every game for your kids’ teams: when, where, attendance, MVP votes and team chat.",
+    description: "Know where everyone needs to be: fixtures from the league, who’s playing, team chat and your family’s week in one calendar.",
     start_url: "/",
     scope: "/",
     display: "standalone",
