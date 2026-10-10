@@ -3,13 +3,24 @@
 import { useState, useTransition } from "react";
 import { joinActivities, reimportActivity, removeActivity, shareActivities, toggleSession } from "./activity-actions";
 import { kidKey } from "@/lib/kid-key";
+import { ActivityForm, type ActivityInitial } from "./ActivityForm";
 
-export type ActivityRow = { id: string; name: string; person: string; schedule: string; imported: boolean; error: string | null; linked: boolean };
+export type ActivityRow = {
+  id: string;
+  name: string;
+  person: string;
+  schedule: string;
+  imported: boolean;
+  error: string | null;
+  linked: boolean;
+  edit: ActivityInitial; // the form, filled in, for Edit
+};
 
-// The family's activities: what's set up, update an imported one, remove one.
-export function ActivityList({ rows }: { rows: ActivityRow[] }) {
+// The family's activities: what's set up; edit, update (imported) or remove one.
+export function ActivityList({ rows, people }: { rows: ActivityRow[]; people: string[] }) {
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<string | null>(null);
   if (!rows.length) return null;
   return (
     <ul className="divide-y divide-zinc-100 text-sm">
@@ -31,6 +42,9 @@ export function ActivityList({ rows }: { rows: ActivityRow[] }) {
               {msg[r.id] && <span className="block text-xs text-zinc-600">{msg[r.id]}</span>}
             </span>
             <span className="flex shrink-0 gap-3 text-xs">
+              <button type="button" onClick={() => setEditing(editing === r.id ? null : r.id)} className="text-zinc-600 underline">
+                {editing === r.id ? "Close" : "Edit"}
+              </button>
               {r.imported && (
                 <button
                   type="button"
@@ -59,6 +73,11 @@ export function ActivityList({ rows }: { rows: ActivityRow[] }) {
               </button>
             </span>
           </div>
+          {editing === r.id && (
+            <div className="mt-3 rounded-xl bg-zinc-50 p-3">
+              <ActivityForm people={people} initial={r.edit} onDone={() => setEditing(null)} />
+            </div>
+          )}
         </li>
       ))}
     </ul>

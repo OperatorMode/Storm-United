@@ -40,6 +40,7 @@ async function household(): Promise<string> {
 
 const refresh = () => revalidatePath("/me");
 
+/** Adds an activity, or saves changes to one (when the form carries its id). */
 export async function addActivity(_: unknown, formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "").trim();
   const person = get("person").slice(0, 40);
@@ -49,22 +50,47 @@ export async function addActivity(_: unknown, formData: FormData) {
   if (!person) return { error: "Choose who it’s for." };
   if (!name) return { error: "Give the activity a name, e.g. Piano." };
   const id = await household();
-  if ((await listActivities(id)).length >= MAX_ACTIVITIES) return { error: "That’s a lot of activities. Remove some first." };
+  const existing = get("id") ? await mine(get("id")) : null;
+  if (get("id") && !existing) return { error: "That activity isn’t on this phone any more." };
+  if (!existing && (await listActivities(id)).length >= MAX_ACTIVITIES) return { error: "That’s a lot of activities. Remove some first." };
 
-  const base = newActivity(id, {
-    person,
-    name,
-    kind: (ACTIVITY_KINDS as readonly string[]).includes(get("kind")) ? get("kind") : null,
-    location: get("location").slice(0, 120) || null,
-    tz,
-  });
+  // Editing keeps the activity (its id, sharing and cancelled sessions) and
+  // replaces what it is and when it's on.
+  const base = existing
+    ? {
+        ...existing,
+        person,
+        name,
+        location: get("location").slice(0, 120) || null,
+        weekly: [],
+        starts_on: null,
+        ends_on: null,
+        extra: [],
+        source_url: null,
+        source_kind: null,
+        source_filter: null,
+        source_error: null,
+      }
+    : newActivity(id, {
+        person,
+        name,
+        kind: (ACTIVITY_KINDS as readonly string[]).includes(get("kind")) ? get("kind") : null,
+        location: get("location").slice(0, 120) || null,
+        tz,
+      });
 
   if (mode === "import") {
     const url = get("url");
     if (!url) return { error: "Paste the calendar or web page link." };
     const filter = get("filter").slice(0, 60) || null;
+    // Same link and filter as before: keep the sessions already read.
+    if (existing?.source_url && existing.source_url === url && (existing.source_filter ?? null) === filter) {
+      await saveActivity({ ...base, extra: existing.extra, source_url: url, source_kind: existing.source_kind, source_filter: filter, synced_at: existing.synced_at });
+      refresh();
+      return { ok: true, count: existing.extra.length };
+    }
     try {
-      const res = await readActivitySource(url, tz, filter, name);
+      const res = await readActivitySource(url, base.tz, filter, name);
       await saveActivity({ ...base, extra: res.sessions, source_url: res.url, source_kind: res.kind, source_filter: filter, synced_at: new Date().toISOString() });
       refresh();
       return { ok: true, count: res.sessions.length };
@@ -81,7 +107,7 @@ export async function addActivity(_: unknown, formData: FormData) {
   if (mode === "once") {
     const date = parseDate(get("date"));
     if (!date) return { error: "Pick the date." };
-    await saveActivity({ ...base, extra: [{ at: zonedTime(date, time, tz).toISOString(), m: minutes }] });
+    await saveActivity({ ...base, extra: [{ at: zonedTime(date, time, base.tz).toISOString(), m: minutes }] });
     refresh();
     return { ok: true, count: 1 };
   }

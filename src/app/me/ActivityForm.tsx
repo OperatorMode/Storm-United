@@ -14,14 +14,31 @@ const DAYS: [number, string][] = [
 ];
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
 
-// Adding a family activity: who it's for (a child, me, or someone new), what
-// it is, and when: every week (like training), just once, or imported from a
-// calendar or web page that has the dates.
-export function ActivityForm({ people }: { people: string[] }) {
-  const [person, setPerson] = useState(people[0] ?? "Me");
-  const [other, setOther] = useState(false);
-  const [mode, setMode] = useState<"weekly" | "once" | "import">("weekly");
-  const [days, setDays] = useState<number[]>([]);
+/** An activity as the form shows it, for editing. */
+export type ActivityInitial = {
+  id: string;
+  person: string;
+  name: string;
+  location: string;
+  mode: "weekly" | "once" | "import";
+  days: number[];
+  time: string; // "16:30"
+  minutes: number;
+  startsOn: string;
+  endsOn: string;
+  date: string;
+  url: string;
+  filter: string;
+};
+
+// Adding (or editing) a family activity: who it's for (a child, me, or someone
+// new), what it is, and when: every week (like training), just once, or
+// imported from a calendar or web page that has the dates.
+export function ActivityForm({ people, initial, onDone }: { people: string[]; initial?: ActivityInitial; onDone?: () => void }) {
+  const [person, setPerson] = useState(initial?.person ?? people[0] ?? "Me");
+  const [other, setOther] = useState(!!initial && initial.person !== "Me" && !people.includes(initial.person));
+  const [mode, setMode] = useState<"weekly" | "once" | "import">(initial?.mode ?? "weekly");
+  const [days, setDays] = useState<number[]>(initial?.days ?? []);
   const [msg, setMsg] = useState<{ error?: string; ok?: string } | null>(null);
   const [pending, start] = useTransition();
   const [key, setKey] = useState(0); // a fresh, empty form after each one added
@@ -39,6 +56,7 @@ export function ActivityForm({ people }: { people: string[] }) {
         start(async () => {
           const res = await addActivity(null, form);
           if ("error" in res) return setMsg({ error: res.error });
+          if (initial) return onDone?.(); // edited: close the form
           setMsg({ ok: mode === "import" ? `Added, with ${res.count} session${res.count === 1 ? "" : "s"} from the link.` : "Added." });
           setDays([]);
           setKey((k) => k + 1);
@@ -49,6 +67,7 @@ export function ActivityForm({ people }: { people: string[] }) {
       }}
       className="space-y-4 text-sm"
     >
+      {initial && <input type="hidden" name="id" value={initial.id} />}
       <div>
         <span className="mb-1 block font-medium">Who’s it for?</span>
         <div className="flex flex-wrap gap-1.5">
@@ -91,7 +110,7 @@ export function ActivityForm({ people }: { people: string[] }) {
 
       <label className="block">
         <span className="mb-1 block font-medium">Activity</span>
-        <input name="name" required maxLength={60} placeholder="e.g. Piano, Ballet, Swimming" className={field} />
+        <input name="name" required maxLength={60} defaultValue={initial?.name} placeholder="e.g. Piano, Ballet, Swimming" className={field} />
       </label>
 
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1">
@@ -121,11 +140,11 @@ export function ActivityForm({ people }: { people: string[] }) {
             <span className="mb-1.5 block text-xs text-zinc-500">
               A calendar link (Google Calendar, iCal or webcal), or a page with the dates on it, like a term timetable.
             </span>
-            <input name="url" required inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://…" className={field} />
+            <input name="url" required defaultValue={initial?.url} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://…" className={field} />
           </label>
           <label className="block">
             <span className="mb-1 block font-medium">Only sessions with these words (optional)</span>
-            <input name="filter" maxLength={60} placeholder="e.g. Junior Ballet, Year 4" className={field} />
+            <input name="filter" maxLength={60} defaultValue={initial?.filter} placeholder="e.g. Junior Ballet, Year 4" className={field} />
           </label>
         </div>
       ) : (
@@ -155,28 +174,28 @@ export function ActivityForm({ people }: { people: string[] }) {
           ) : (
             <label className="block">
               <span className="mb-1 block font-medium">Date</span>
-              <input name="date" type="date" required defaultValue={today} className={field} />
+              <input name="date" type="date" required defaultValue={initial?.date || today} className={field} />
             </label>
           )}
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
               <span className="mb-1 block font-medium">Starts</span>
-              <input name="time" type="time" required defaultValue="16:00" className={field} />
+              <input name="time" type="time" required defaultValue={initial?.time || "16:00"} className={field} />
             </label>
             <label className="block">
               <span className="mb-1 block font-medium">Minutes</span>
-              <input name="minutes" type="number" min={5} max={1440} required defaultValue={60} className={field} />
+              <input name="minutes" type="number" min={5} max={1440} required defaultValue={initial?.minutes || 60} className={field} />
             </label>
           </div>
           {mode === "weekly" && (
             <div className="grid grid-cols-2 gap-2">
               <label className="block">
                 <span className="mb-1 block font-medium">From</span>
-                <input name="starts_on" type="date" required defaultValue={today} className={field} />
+                <input name="starts_on" type="date" required defaultValue={initial?.startsOn || today} className={field} />
               </label>
               <label className="block">
                 <span className="mb-1 block font-medium">Until (optional)</span>
-                <input name="ends_on" type="date" className={field} />
+                <input name="ends_on" type="date" defaultValue={initial?.endsOn} className={field} />
               </label>
             </div>
           )}
@@ -185,12 +204,17 @@ export function ActivityForm({ people }: { people: string[] }) {
 
       <label className="block">
         <span className="mb-1 block font-medium">Where (optional)</span>
-        <input name="location" maxLength={120} placeholder="Address, for directions" className={field} />
+        <input name="location" maxLength={120} defaultValue={initial?.location} placeholder="Address, for directions" className={field} />
       </label>
 
       <button disabled={pending || !person.trim()} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white disabled:opacity-30">
-        {pending ? (mode === "import" ? "Reading the link…" : "Adding…") : "Add activity"}
+        {pending ? (mode === "import" ? "Reading the link…" : "Saving…") : initial ? "Save changes" : "Add activity"}
       </button>
+      {initial && onDone && (
+        <button type="button" onClick={onDone} className="w-full text-center text-zinc-500 underline">
+          Cancel
+        </button>
+      )}
       {msg?.error && <p className="text-accent">{msg.error}</p>}
       {msg?.ok && <p className="text-emerald-700">{msg.ok}</p>}
     </form>

@@ -5,7 +5,7 @@ import { canView, currentChildren } from "@/lib/session";
 import { knownTeamIds } from "@/lib/known-teams";
 import { gamePlace, getLeagueData, meetingTime, opponent, ourScore, pitchLabel, roundLabel, type Game } from "@/lib/league";
 import { getAttendance, type AttendanceStatus } from "@/lib/store";
-import { formatTime, formatWeekday, isoDateIn } from "@/lib/time";
+import { formatTime, formatWeekday, isoDateIn, minutesOfDay } from "@/lib/time";
 import { logoSrc } from "@/lib/brand";
 import { now as clockNow } from "@/lib/clock";
 import { Directions } from "@/components/Directions";
@@ -22,7 +22,8 @@ import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { currentHouseholdId } from "@/lib/session";
-import { listActivities, sessionsOf, weeklySummary } from "@/lib/activities";
+import { listActivities, sessionsOf, weeklySummary, type Activity } from "@/lib/activities";
+import type { ActivityInitial } from "./ActivityForm";
 import { needsRefresh, refreshActivity } from "@/lib/activity-import";
 import { ActivityForm } from "./ActivityForm";
 import { ActivityList, SessionToggle, ShareActivities } from "./ActivitiesManage";
@@ -327,6 +328,7 @@ export default async function MyPlayerPage() {
           <p className="mt-1 text-sm text-zinc-500">Music, dance, school, a sport that isn’t on Sidelnr: anything with a time and place.</p>
           <div className="mt-2">
             <ActivityList
+              people={people}
               rows={activities.map((a) => ({
                 id: a.id,
                 name: a.name,
@@ -345,6 +347,7 @@ export default async function MyPlayerPage() {
                 imported: !!a.source_url,
                 error: a.source_error,
                 linked: !!a.linked,
+                edit: editValues(a),
               }))}
             />
           </div>
@@ -372,6 +375,30 @@ export default async function MyPlayerPage() {
       </main>
     </div>
   );
+}
+
+/** An activity as the edit form shows it (local dates and times in its timezone). */
+function editValues(a: Activity): ActivityInitial {
+  const hhmm = (d: Date) => {
+    const m = minutesOfDay(d, a.tz);
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  };
+  const first = a.extra[0] ? new Date(a.extra[0].at) : null;
+  return {
+    id: a.id,
+    person: a.person,
+    name: a.name,
+    location: a.location ?? "",
+    mode: a.source_url ? "import" : a.weekly.length ? "weekly" : "once",
+    days: a.weekly.map((w) => w.d),
+    time: a.weekly[0]?.t ?? (first ? hhmm(first) : ""),
+    minutes: a.weekly[0]?.m ?? a.extra[0]?.m ?? 60,
+    startsOn: a.starts_on ?? "",
+    endsOn: a.ends_on ?? "",
+    date: first ? isoDateIn(first, a.tz) : "",
+    url: a.source_url ?? "",
+    filter: a.source_filter ?? "",
+  };
 }
 
 function ActivityCard({ e }: { e: Entry }) {
