@@ -28,6 +28,8 @@ import { needsRefresh, refreshActivity } from "@/lib/activity-import";
 import { MeActions } from "./MeActions";
 import { ActivityList, SessionToggle } from "./ActivitiesManage";
 import { ActivityReminders } from "./ActivityReminders";
+import { ClashSolver, type SkipTarget } from "./ClashSolver";
+import { listTakers } from "@/lib/takers";
 import { pushPublicKey } from "@/lib/push";
 import { SidelnrLink } from "@/components/SidelnrLink";
 
@@ -56,8 +58,10 @@ type Entry = {
   game: Game;
   tz: string;
   place: string | null;
-  kids: { name: string; status: AttendanceStatus | null }[];
+  kids: { name: string; status: AttendanceStatus | null; id?: string }[];
   clashes: { kind: "child" | "family"; text: string }[];
+  key: string; // for the clash solver: "<team>:<game or training>", or the activity session's id
+  taker?: string | null; // who's taking them (clash solver)
   training?: { cancelled: boolean; minutes: number; note: string | null };
   duties?: string[]; // jobs this family is on for the game (oranges, snacks…)
 };
@@ -73,13 +77,26 @@ const busy = (e: Entry): [number, number] => {
 };
 
 /**
- * Overlapping games: the same child (matched by first name across teams) in
- * two games at once, or different kids playing at the same time at different
- * venues (a parent can't be at both).
+ * Clashes: the same child (matched by first name across teams) down for two
+ * things at once, or different kids busy at the same time in different places
+ * (a parent can't be at both). A child marked "Can't make it" doesn't count,
+ * and two things with different people taking them aren't a clash any more.
  */
 function findClashes(entries: Entry[]): { child: number; family: number } {
   const count = { child: 0, family: 0 };
-  const live = entries.filter((e) => e.game.time !== "Postponed");
+  const going = (e: Entry) => e.kids.filter((k) => k.status !== "no");
+  const live = entries.filter((e) => e.game.time !== "Postponed" && going(e).length > 0);
+  const label = (y: Entry) => {
+    const who = going(y).map((k) => k.name).join(" & ");
+    const what = y.activity
+      ? y.activity.name
+      : y.training
+        ? "training"
+        : y.team
+          ? `game ${y.game.home === y.team.league_name ? "vs" : "@"} ${opponent(y.game, y.team.league_name)}`
+          : "activity";
+    return `${who}’s ${what} at ${formatTime(y.game.kickoff, y.tz)}`;
+  };
   for (let i = 0; i < live.length; i++) {
     for (let j = i + 1; j < live.length; j++) {
       const a = live[i];
@@ -87,22 +104,17 @@ function findClashes(entries: Entry[]): { child: number; family: number } {
       const [a0, a1] = busy(a);
       const [b0, b1] = busy(b);
       if (a0 >= b1 || b0 >= a1) continue;
-      const names = (e: Entry) => e.kids.map((k) => k.name.toLowerCase());
-      const shared = a.kids.filter((k) => names(b).includes(k.name.toLowerCase())).map((k) => k.name);
-      const other = (y: Entry) =>
-        y.activity || !y.team
-          ? `${y.activity?.name ?? "an activity"} at ${formatTime(y.game.kickoff, y.tz)}`
-          : y.training
-            ? `${y.team.name} training at ${formatTime(y.game.kickoff, y.tz)}`
-            : `${y.team.name} ${y.game.home === y.team.league_name ? "vs" : "@"} ${opponent(y.game, y.team.league_name)} at ${formatTime(y.game.kickoff, y.tz)}`;
+      const names = (e: Entry) => going(e).map((k) => k.name.toLowerCase());
+      const shared = going(a).filter((k) => names(b).includes(k.name.toLowerCase()));
       if (shared.length) {
-        const who = shared.join(" & ");
-        a.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} something else at the same time: ${other(b)}.` });
-        b.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} something else at the same time: ${other(a)}.` });
+        a.clashes.push({ kind: "child", text: `Clash with ${label(b)}` });
+        b.clashes.push({ kind: "child", text: `Clash with ${label(a)}` });
         count.child++;
-      } else if (a.kids.length && b.kids.length && a.place !== b.place) {
-        a.clashes.push({ kind: "family", text: `Same time as ${other(b)}, at a different venue.` });
-        b.clashes.push({ kind: "family", text: `Same time as ${other(a)}, at a different venue.` });
+      } else if (a.place !== b.place) {
+        const solved = !!a.taker && !!b.taker && a.taker.toLowerCase() !== b.taker.toLowerCase();
+        if (solved) continue;
+        a.clashes.push({ kind: "family", text: `Clash with ${label(b)}` });
+        b.clashes.push({ kind: "family", text: `Clash with ${label(a)}` });
         count.family++;
       }
     }
@@ -129,6 +141,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
       ]);
       const kidsFor = (id: string) =>
         children.map((c) => ({
+          id: c,
           name: firstName(playerName(team, c)),
           status: attendance.find((a) => a.game_id === id && a.player_id === c)?.status ?? null,
         }));
@@ -151,6 +164,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           tz,
           place: t.location,
           clashes: [],
+          key: `${team.id}:${t.id}`,
           kids: kidsFor(t.id),
           training: { cancelled: t.cancelled, minutes: t.minutes, note: t.note },
         }),
@@ -162,6 +176,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           tz,
           place: gamePlace(game.pitch, competition),
           clashes: [],
+          key: `${team.id}:${game.id}`,
           kids: kidsFor(game.id),
           duties: dutySignups.filter((d) => d.game_id === game.id && children.includes(d.player_id)).map((d) => d.duty),
         }),
@@ -194,6 +209,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
         place: s.place,
         kids: [{ name: a.person, status: null }],
         clashes: [],
+        key: `${a.id}-${s.start.toISOString()}`,
       }),
     ),
   );
@@ -204,6 +220,9 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
     .sort((a, b) => b.game.kickoff.getTime() - a.game.kickoff.getTime())
     .slice(0, 6);
 
+  // Who's taking whom (clash solver), then the clashes still to solve.
+  const takers = householdId ? await listTakers(householdId) : {};
+  for (const e of all) e.taker = takers[e.key] ?? null;
   const { child: childClashes, family: familyClashes } = findClashes(upcoming);
 
   const [calToken, host] = await Promise.all([calendarToken(teams, activities.length ? householdId : null, deviceId), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
@@ -212,6 +231,8 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
     await Promise.all(teams.map(async (t) => ((await canView(t)) ? (await currentChildren(t)).map((c) => firstName(playerName(t, c))) : [])))
   ).flat();
   const people = [...new Set([...teamKids, ...activities.map((a) => a.person)])].filter((p) => p !== "Me");
+  // Who can take a child somewhere (clash solver): Mum, Dad, anyone picked before, or the child on their own.
+  const takerOptions = [...new Set(["Mum", "Dad", ...Object.values(takers), ...people])];
 
   // Upcoming games grouped by day.
   const days = new Map<string, Entry[]>();
@@ -251,18 +272,9 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
         {calToken && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} label="Add everything to my calendar" />}
 
         {(childClashes > 0 || familyClashes > 0) && (
-          <div className={`rounded-2xl px-4 py-3 text-sm ${childClashes ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
-            <div className="font-semibold">
-              {childClashes > 0
-                ? `${childClashes} clash${childClashes > 1 ? "es" : ""} coming up`
-                : `${familyClashes} busy moment${familyClashes > 1 ? "s" : ""} coming up`}
-            </div>
-            <p className="mt-0.5 text-xs opacity-80">
-              {childClashes > 0
-                ? "Someone is down for two things at the same time."
-                : "Two of your family are busy at the same time in different places."}
-              {childClashes > 0 && familyClashes > 0 && " Also: things at the same time in different places."}
-            </p>
+          <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-900">
+            <div className="font-semibold">Clash detected. Please check the calendar.</div>
+            <p className="mt-0.5 text-xs opacity-80">Tap “Resolve clash” on the ones marked below.</p>
           </div>
         )}
 
@@ -277,7 +289,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
                     <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">{formatWeekday(entries[0].game.kickoff, entries[0].tz)}</h2>
                     <ul className="space-y-2">
                       {entries.map((e) => (
-                        <GameCard key={`${e.team?.id ?? "activity"}-${e.game.id}`} e={e} />
+                        <GameCard key={`${e.team?.id ?? "activity"}-${e.game.id}`} e={e} options={takerOptions} />
                       ))}
                     </ul>
                   </section>
@@ -288,7 +300,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
               date: day,
               title: formatWeekday(entries[0].game.kickoff, entries[0].tz),
               count: entries.length,
-              clash: entries.some((e) => e.clashes.some((c) => c.kind === "child")),
+              clash: entries.some((e) => e.clashes.length > 0),
               training: entries.every((e) => e.training),
               duty: entries.some((e) => (e.duties?.length ?? 0) > 0),
               kids: [
@@ -297,7 +309,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
               node: (
                 <ul className="space-y-2">
                   {entries.map((e) => (
-                    <GameCard key={`${e.team?.id ?? "activity"}-${e.game.id}`} e={e} />
+                    <GameCard key={`${e.team?.id ?? "activity"}-${e.game.id}`} e={e} options={takerOptions} />
                   ))}
                 </ul>
               ),
@@ -402,7 +414,34 @@ function editValues(a: Activity): ActivityInitial {
   };
 }
 
-function ActivityCard({ e }: { e: Entry }) {
+/** The clash solver on a card: Resolve clash (not going, or who's taking them), or who's taking them. */
+function Solver({ e, options }: { e: Entry; options: string[] }) {
+  const going = e.kids.filter((k) => k.status !== "no");
+  const future = e.game.kickoff.getTime() > clockNow().getTime();
+  const skip: SkipTarget | null = !future
+    ? null
+    : e.activity
+      ? { type: "activity", activityId: e.activity.id, start: e.activity.start }
+      : e.team && going.some((k) => k.id)
+        ? { type: e.training ? "training" : "game", teamId: e.team.id, id: e.game.id, kidIds: going.flatMap((k) => (k.id ? [k.id] : [])) }
+        : null;
+  return (
+    <ClashSolver
+      entryKey={e.key}
+      clash={
+        e.clashes.length
+          ? { kind: e.clashes.some((c) => c.kind === "child") ? "child" : "family", text: [...new Set(e.clashes.map((c) => c.text))].join(" · ") }
+          : null
+      }
+      kidNames={going.map((k) => k.name)}
+      taker={e.taker ?? null}
+      options={options}
+      skip={skip}
+    />
+  );
+}
+
+function ActivityCard({ e, options }: { e: Entry; options: string[] }) {
   const a = e.activity!;
   const who = e.kids[0]?.name ?? "";
   return (
@@ -411,15 +450,7 @@ function ActivityCard({ e }: { e: Entry }) {
       style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
       className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
     >
-      {e.clashes.map((c) => (
-        <p
-          key={c.text}
-          className={`mb-2 rounded-xl px-3 py-2 text-xs font-medium ${c.kind === "child" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900"}`}
-        >
-          {c.kind === "child" ? "Clash: " : "Heads-up: "}
-          {c.text}
-        </p>
-      ))}
+      <Solver e={e} options={options} />
       <span className="block text-xs text-zinc-500">
         <b data-kid={kidKey(who)} className="font-semibold" style={{ color: "var(--kid)" }}>
           {who}
@@ -439,8 +470,8 @@ function ActivityCard({ e }: { e: Entry }) {
   );
 }
 
-function GameCard({ e }: { e: Entry }) {
-  if (e.activity || !e.team) return <ActivityCard e={e} />;
+function GameCard({ e, options }: { e: Entry; options: string[] }) {
+  if (e.activity || !e.team) return <ActivityCard e={e} options={options} />;
   const { game, tz } = e;
   const team = e.team;
   const home = game.home === team.league_name;
@@ -451,15 +482,7 @@ function GameCard({ e }: { e: Entry }) {
       style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
       className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
     >
-      {e.clashes.map((c) => (
-        <p
-          key={c.text}
-          className={`mb-2 rounded-xl px-3 py-2 text-xs font-medium ${c.kind === "child" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900"}`}
-        >
-          {c.kind === "child" ? "Clash: " : "Heads-up: "}
-          {c.text}
-        </p>
-      ))}
+      <Solver e={e} options={options} />
       <Link href={`/${team.id}`} className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={logoSrc(team)} alt="" className="size-10 shrink-0 object-contain" />

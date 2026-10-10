@@ -29,6 +29,11 @@ const PATHS: Path[] = [
         text: "Switch to Calendar to see the whole month: a dot for each game or training, in each person’s colour, and a red ring for a clash. Tap a day to see what’s on.",
       },
       {
+        image: "/guide/act-5-clash.webp",
+        title: "Solve a clash",
+        text: "Two things at once? Tap Resolve clash. Choose Not going (the coach sees “Can’t make it”, or an activity skips that time), or pick who’s taking them: Mum, Dad, or the child on their own. With different people taking them, the clash is solved.",
+      },
+      {
         image: "/guide/act-3-add.webp",
         title: "Add anything",
         text: "Tap + Add activity at the top. Music, dance, swimming, school: add it every week, just once, or from a link to a club’s calendar or timetable. It works for the grown-ups too. Your activities fold away in a list further down.",

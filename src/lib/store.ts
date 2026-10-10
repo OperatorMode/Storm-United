@@ -83,6 +83,7 @@ export type LocalDb = {
   team_phones?: import("./phones").TeamPhone[];
   chat_reports?: import("./messages").ChatReport[];
   feedback?: import("./feedback").Feedback[];
+  clash_takers?: import("./takers").TakerRow[];
   household_push?: import("./activity-reminders").HouseholdPush[];
   activity_reminder_log?: { household_id: string; key: string; sent_at: string }[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];

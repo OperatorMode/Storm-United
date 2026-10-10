@@ -174,6 +174,7 @@ HOUSE = "22222222-2222-4222-8222-222222222222"
 d["households"] = [h for h in d.get("households", []) if h["id"] != HOUSE]
 d["households"].append({"id": HOUSE, "share_code_hash": None, "share_expires_at": None, "created_at": ago(400)})
 d["activities"] = [x for x in d.get("activities", []) if x["household_id"] != HOUSE]
+d["clash_takers"] = [x for x in d.get("clash_takers", []) if x["household_id"] != HOUSE]
 def activity(person, name, location, weekly=(), extra=()):
     d["activities"].append({"id": str(uuid.uuid4()), "household_id": HOUSE, "person": person, "name": name, "kind": None,
                             "location": location, "tz": "Australia/Perth", "weekly": list(weekly), "starts_on": None, "ends_on": None,

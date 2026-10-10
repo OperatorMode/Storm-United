@@ -30,6 +30,7 @@ import { COOKIE_OPTS, HOUSEHOLD_COOKIE, currentDeviceId, currentHouseholdId } fr
 import { ensureDeviceId } from "@/lib/device";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
+import { TAKER_MAX, setTaker } from "@/lib/takers";
 
 // My Activities: a family's own activities, stored for this phone's household.
 
@@ -267,4 +268,13 @@ export async function getActivityReminders(endpoint: string): Promise<{ day: boo
   const id = await currentHouseholdId();
   const row = id ? await getHouseholdPush(endpoint) : null;
   return row && row.household_id === id ? { day: row.remind_day, hour: row.remind_hour, news: row.notify_new ?? true } : null;
+}
+
+/** Clash solver: who's taking a child to a game, training or activity (null clears it). */
+export async function setClashTaker(entryKey: string, taker: string | null) {
+  const key = entryKey.slice(0, 200);
+  const who = taker?.replace(/\s+/g, " ").trim().slice(0, TAKER_MAX) || null;
+  await setTaker(await household(), key, who);
+  refresh();
+  return { ok: true };
 }

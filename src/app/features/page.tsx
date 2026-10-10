@@ -36,7 +36,7 @@ export default function FeaturesPage() {
         <li>
           <b>My Activities:</b> every game, training and duty for all your children, across all their teams, plus the family’s
           own activities (music, dance, school, any other sport), in a list or a calendar, each person in their own colour.
-          Clashes are flagged.
+          Clashes are flagged, and Resolve clash sorts them out: not going (the coach is told), or who’s taking whom (Mum, Dad, or the child on their own).
         </li>
         <li>
           <b>Your own activities:</b> for a child, yourself or anyone else. Add them every week (like training), just once, or
