@@ -1,4 +1,4 @@
-// Player names as the app keeps them: first name + last initial ("Zane B.").
+// Player names as the app keeps them: first name + last initial ("Sam T.").
 // Shared by the squad finder (server) and file uploads (browser).
 
 /** "LeBron James" -> "LeBron J."; a single name stays as is. */

@@ -8,7 +8,7 @@ import { LeaveTeam } from "./LeaveTeam";
 // Who this phone belongs to: a parent ("Parent of…" one child, or siblings in
 // the same team) or, in older teams, the player themselves ("I am…").
 // `inline` shows the list straight away (first visit); otherwise it's a small
-// button in the header ("Brooklyn & Sven's parent", or "Jesse") that opens it.
+// button in the header ("Sam & Ella's parent", or "Jo") that opens it.
 
 const first = (name: string) => name.split(" ")[0];
 

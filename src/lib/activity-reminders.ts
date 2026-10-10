@@ -3,7 +3,7 @@ import { listActivities, sessionsOf, type ActivitySession } from "./activities";
 import { sendPushTo } from "./push";
 import { formatTime } from "./time";
 
-// Reminders for family activities: "Tomorrow: Zane's Piano at 4:30 pm" about a
+// Reminders for family activities: "Tomorrow: Sam's Piano at 4:30 pm" about a
 // day before, and "In 1 hour: …" an hour before. Each phone turns either on or
 // off. Run by the 15-minute cron (api/cron/game-alerts); each reminder goes
 // out once (activity_reminder_log).

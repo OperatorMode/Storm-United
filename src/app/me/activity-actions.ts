@@ -13,6 +13,10 @@ import {
   newActivity,
   newShareCode,
   saveActivity,
+  activitiesForCode,
+  linkActivities,
+  newActivityShareCode,
+  unlinkActivity,
   type WeeklySlot,
 } from "@/lib/activities";
 import { readActivitySource, refreshActivity } from "@/lib/activity-import";
@@ -105,7 +109,9 @@ async function mine(activityId: string) {
 export async function removeActivity(activityId: string) {
   const a = await mine(activityId);
   if (!a) return;
-  await deleteActivity(a.household_id, a.id);
+  // A shared one only leaves this phone; the other phone keeps it.
+  if (a.linked) await unlinkActivity((await currentHouseholdId())!, a.id);
+  else await deleteActivity(a.household_id, a.id);
   refresh();
 }
 
@@ -129,16 +135,31 @@ export async function reimportActivity(activityId: string) {
 
 // ---------- sharing with another phone ----------
 
-/** A code another phone can enter (within 24 hours) to see this phone's activities. */
-export async function shareActivities() {
+/**
+ * A code another phone can enter (within 24 hours): for all of this phone's
+ * activities (both phones then share everything, including ones added later),
+ * or just the chosen ones.
+ */
+export async function shareActivities(activityIds: string[] | null) {
   const id = await household();
-  return { code: await newShareCode(id) };
+  const own = (await listActivities(id)).filter((a) => !a.linked).map((a) => a.id);
+  const chosen = activityIds ? activityIds.filter((x) => own.includes(x)) : null;
+  if (chosen && !chosen.length) return { error: "Tick at least one activity." };
+  if (!chosen || chosen.length === own.length) return { code: await newShareCode(id), all: true };
+  return { code: await newActivityShareCode(id, chosen), all: false };
 }
 
 /** Joins the household of another phone; this phone's own activities move across. */
 export async function joinActivities(code: string) {
   const target = await householdForCode(code);
-  if (!target) return { error: "That code isn’t right or has expired. Ask for a new one." };
+  if (!target) {
+    // A code for chosen activities: link just those to this phone.
+    const ids = await activitiesForCode(code);
+    if (!ids) return { error: "That code isn’t right or has expired. Ask for a new one." };
+    await linkActivities(await household(), ids);
+    refresh();
+    return { ok: true, count: ids.length };
+  }
   const current = await currentHouseholdId();
   if (current === target) return { ok: true };
   if (current) await moveActivities(current, target);

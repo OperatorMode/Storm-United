@@ -344,6 +344,7 @@ export default async function MyPlayerPage() {
                     : `Once${a.extra[0] ? `, ${formatWeekday(new Date(a.extra[0].at), a.tz)} ${formatTime(new Date(a.extra[0].at), a.tz)}` : ""}`,
                 imported: !!a.source_url,
                 error: a.source_error,
+                linked: !!a.linked,
               }))}
             />
           </div>
@@ -361,7 +362,7 @@ export default async function MyPlayerPage() {
           <details className="mt-3 border-t border-zinc-100 pt-3 text-sm">
             <summary className="cursor-pointer text-zinc-600">Share with another phone</summary>
             <div className="mt-3">
-              <ShareActivities hasActivities={activities.length > 0} />
+              <ShareActivities activities={activities.filter((a) => !a.linked).map((a) => ({ id: a.id, label: `${a.person} · ${a.name}` }))} />
             </div>
           </details>
         </section>

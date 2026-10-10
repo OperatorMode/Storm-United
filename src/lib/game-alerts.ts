@@ -8,7 +8,7 @@ import { listDutySignups } from "./duties";
 
 // Game alerts, checked every 15 minutes by a scheduled job (api/cron/game-alerts):
 // - a game's time or pitch changed, it was postponed, or it disappeared (cancelled)
-// - "Can Brooklyn play Saturday?" about two days before, to phones that haven't answered
+// - "Can Sam play Saturday?" about two days before, to phones that haven't answered
 // - match day: meeting time and venue a few hours before
 // Works the same for every fixture source, because it compares what the team
 // page would show now with what it showed at the last check.

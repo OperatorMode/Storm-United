@@ -163,7 +163,7 @@ export function TeamForm({
         <label htmlFor="team-players" className="mb-1 block font-medium">
           Players
         </label>
-        <span className="mb-1.5 block text-xs text-zinc-500">One per line, first name + last initial (e.g. “Zane B.”).</span>
+        <span className="mb-1.5 block text-xs text-zinc-500">One per line, first name + last initial (e.g. “Sam T.”).</span>
         {(leagueName || initial) && (
           <div className="mb-2">
             <SquadStatus

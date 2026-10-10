@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { addActivity } from "./activity-actions";
 
-const KINDS = ["Sport", "Music", "Dance", "School", "Other"];
 const DAYS: [number, string][] = [
   [1, "Mon"],
   [2, "Tue"],
@@ -34,7 +33,8 @@ export function ActivityForm({ people }: { people: string[] }) {
       key={key}
       onSubmit={(e) => {
         e.preventDefault();
-        const form = new FormData(e.currentTarget);
+        const el = e.currentTarget;
+        const form = new FormData(el);
         form.set("tz", Intl.DateTimeFormat().resolvedOptions().timeZone);
         start(async () => {
           const res = await addActivity(null, form);
@@ -42,6 +42,9 @@ export function ActivityForm({ people }: { people: string[] }) {
           setMsg({ ok: mode === "import" ? `Added, with ${res.count} session${res.count === 1 ? "" : "s"} from the link.` : "Added." });
           setDays([]);
           setKey((k) => k + 1);
+          // Fold the form away again: the new activity shows in the list above.
+          const box = el.closest("details");
+          if (box) box.open = false;
         });
       }}
       className="space-y-4 text-sm"
@@ -86,21 +89,10 @@ export function ActivityForm({ people }: { people: string[] }) {
         <input type="hidden" name="person" value={person} />
       </div>
 
-      <div className="grid grid-cols-[1fr_auto] gap-2">
-        <label className="block">
-          <span className="mb-1 block font-medium">Activity</span>
-          <input name="name" required maxLength={60} placeholder="e.g. Piano, Ballet, Swimming" className={field} />
-        </label>
-        <label className="block">
-          <span className="mb-1 block font-medium">Type</span>
-          <select name="kind" defaultValue="" className={field}>
-            <option value="">-</option>
-            {KINDS.map((k) => (
-              <option key={k}>{k}</option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <label className="block">
+        <span className="mb-1 block font-medium">Activity</span>
+        <input name="name" required maxLength={60} placeholder="e.g. Piano, Ballet, Swimming" className={field} />
+      </label>
 
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1">
         {(

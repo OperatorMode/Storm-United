@@ -39,7 +39,7 @@ export function TeamSettings({
           Players
         </label>
         <span className="mb-1.5 block text-xs text-zinc-500">
-          One per line, first name + last initial (e.g. “Zane B.”). Removing a player keeps their past votes and role
+          One per line, first name + last initial (e.g. “Sam T.”). Removing a player keeps their past votes and role
           history.
         </span>
         <div className="mb-2">
@@ -67,7 +67,7 @@ export function TeamSettings({
             ? "Set. Parents need it once to open the team page. Type a new one to change it."
             : "Not set. Anyone with the link can open the team page."}
         </span>
-        <input name="join_code" autoComplete="off" placeholder={hasJoinCode ? "New code (optional)" : "e.g. storm26"} className={field} />
+        <input name="join_code" autoComplete="off" placeholder={hasJoinCode ? "New code (optional)" : "e.g. riverside26"} className={field} />
         {hasJoinCode && (
           <span className="mt-1.5 flex items-center gap-2 text-xs text-zinc-600">
             <input type="checkbox" name="clear_join" className="size-4" /> Remove the join code

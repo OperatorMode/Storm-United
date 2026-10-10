@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <b>Players’ names</b>, as the coach enters them. We ask coaches to use a first name and last initial only (for
-          example “Brooklyn L”).
+          example “Sam T”).
         </li>
         <li>
           <b>What parents tap in the app</b>: whether a child can play, goalie volunteering, MVP votes, “Got it” on coach
