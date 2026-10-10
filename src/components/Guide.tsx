@@ -55,10 +55,61 @@ const PATHS: Path[] = [
       },
     ],
   },
+  {
+    id: "manage",
+    label: "Manage a team",
+    steps: [
+      {
+        image: "/guide/manage-1-signin.webp",
+        title: "Sign in with your email",
+        text: "On the home page, tap My Team. Enter your email and tap the link we send you. No password needed.",
+      },
+      {
+        image: "/guide/manage-2-myteams.webp",
+        title: "My teams",
+        text: "All the teams you run in one place. Create a team, Edit its details, or tap Manage to open Manager’s Corner.",
+      },
+      {
+        image: "/guide/manage-3-create.webp",
+        title: "Create your team",
+        text: "Search for your competition and pick your team in its draw. Fixtures, results and the ladder then load by themselves. Choose your colours, and add a logo if you have one.",
+      },
+      {
+        image: "/guide/manage-4-squad.webp",
+        title: "Your squad and codes",
+        text: "Add players one per line, or find them on the league’s website. A join code keeps the team private to your families. A manager PIN lets a co-coach help out.",
+      },
+      {
+        image: "/guide/manage-5-share.webp",
+        title: "Invite your families",
+        text: "Send families your team’s link (and the join code, if you set one), for example in your existing group chat. They pick their child once and they’re in.",
+      },
+      {
+        image: "/guide/manage-6-board.webp",
+        title: "Post on the Board",
+        text: "Tell every family at once: times, changes, what to bring. They get a notification and tap Got it, so you can see who’s read it and who you’re still waiting on.",
+      },
+      {
+        image: "/guide/manage-7-corner.webp",
+        title: "Manager’s Corner",
+        text: "Everything for running the team, folded into sections: game rotation, goalies, training, duties, the MVP tally, backup scores and team settings. Tap the picture to see it all.",
+      },
+      {
+        image: "/guide/manage-8-training.webp",
+        title: "Training and duties",
+        text: "Add weekly training once and it repeats. Cancel a session for rain and families are told. Set up duties like oranges or first aid, and families sign up for match days.",
+      },
+      {
+        image: "/guide/manage-9-phones.webp",
+        title: "Connected phones",
+        text: "See who follows each player, like “Ava’s Mum”. If a phone picked the wrong child, remove it, and it can’t pick them again.",
+      },
+    ],
+  },
 ];
 
 // Coming next: shown in the list, not ready yet.
-const LATER = ["Manage a team", "Create a league"];
+const LATER = ["Create a league"];
 
 const SEEN_KEY = "su_guide_seen";
 export const GUIDE_EVENT = "sidelnr:guide";
@@ -188,18 +239,22 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
                 <button
                   type="button"
                   onClick={() => setZoom(true)}
-                  className="relative aspect-[390/844] h-full max-w-full overflow-hidden rounded-[1.75rem] border-[6px] border-zinc-900 bg-zinc-100 shadow-lg"
+                  className="aspect-[390/844] h-full max-w-full overflow-hidden rounded-[1.75rem] border-[6px] border-zinc-900 bg-zinc-100 shadow-lg"
                   aria-label="Zoom in"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img key={current.image} src={current.image} alt={current.title} className="h-full w-full object-cover object-top" draggable={false} />
-                  <span className="absolute bottom-2 right-2 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-medium text-white">Tap to zoom</span>
                 </button>
               </div>
             </div>
             <div className="px-5 pt-3">
-              <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                {path.label} · {step + 1} of {steps.length}
+              <div className="flex items-baseline justify-between gap-2 text-xs text-zinc-500">
+                <span className="font-medium uppercase tracking-wide">
+                  {path.label} · {step + 1} of {steps.length}
+                </span>
+                <button type="button" onClick={() => setZoom(true)} className="underline">
+                  Tap picture to zoom
+                </button>
               </div>
               <h2 className="mt-0.5 text-xl font-semibold">{current.title}</h2>
               <p className="mt-1 min-h-[4.5rem] text-sm leading-relaxed text-zinc-600">{current.text}</p>

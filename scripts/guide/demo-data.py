@@ -19,6 +19,9 @@ old = [c["id"] for c in d.get("conversations", []) if c["team_id"] == TEAM]
 d["conversations"] = [c for c in d.get("conversations", []) if c["team_id"] != TEAM]
 d["conversation_members"] = [m for m in d.get("conversation_members", []) if m["conversation_id"] not in old]
 d["direct_messages"] = [m for m in d.get("direct_messages", []) if m["conversation_id"] not in old]
+for k in ("training", "team_duties", "duty_signups", "team_managers"):
+    d[k] = [x for x in d.get(k, []) if x.get("team_id") != TEAM]
+d["managers"] = [m for m in d.get("managers", []) if m["id"] != "demo-coach"]
 for k in ("attendance", "announcements", "chat", "team_phones", "ballots"):
     d[k] = [x for x in d.get(k, []) if x.get("team_id") != TEAM and not str(x.get("game_id", "")).startswith("demo-")]
 
@@ -91,9 +94,10 @@ chat = [
 for author, body, h in chat:
     d["chat"].append({"id": str(uuid.uuid4()), "team_id": TEAM, "author_id": author, "body": body, "created_at": ago(h)})
 
-d["announcements"].append({"id": str(uuid.uuid4()), "team_id": TEAM, "created_at": ago(30), "source": None,
+welcome, latest = str(uuid.uuid4()), str(uuid.uuid4())
+d["announcements"].append({"id": welcome, "team_id": TEAM, "created_at": ago(30), "source": None,
                            "body": "Welcome to the Rockets team app! Please mark attendance for each game by Thursday night, so we know numbers. Shin pads every game."})
-d["announcements"].append({"id": str(uuid.uuid4()), "team_id": TEAM, "created_at": ago(6), "source": None,
+d["announcements"].append({"id": latest, "team_id": TEAM, "created_at": ago(6), "source": None,
                            "body": "Saturday: we meet 20 minutes before kick-off at Riverside Park, pitch 2. Bring a water bottle."})
 
 # Private messages for Leo's Dad: one-to-one with Noah's Dad, and a carpool group.
@@ -121,6 +125,32 @@ conversation(None, ["coach", me], [
     ("coach", "Could Leo try in defence this week?", 30),
     (me, "Sounds good, he'll be keen", 29),
 ], read_all=True)
+
+# The coach: signed in as coach@example.test, owner of the team.
+d["managers"].append({"id": "demo-coach", "email": "coach@example.test", "name": None, "created_at": ago(500)})
+d["team_managers"].append({"team_id": TEAM, "manager_id": "demo-coach", "role": "owner", "created_at": ago(500)})
+
+# Training: Tuesdays and Thursdays 5:30 pm Perth (09:30 UTC) for the next few weeks.
+for series, weekday in (("demo-tue", 1), ("demo-thu", 3)):
+    day = datetime(2026, 10, 5, 9, 30, tzinfo=timezone.utc)
+    while day.weekday() != weekday:
+        day += timedelta(days=1)
+    for w in range(6):
+        t = day + timedelta(weeks=w)
+        d.setdefault("training", []).append({"id": f"{series}-{w}", "team_id": TEAM, "starts_at": t.isoformat().replace("+00:00", ".000Z"),
+                                             "minutes": 60, "location": "Riverside Park, pitch 2", "note": None, "cancelled": False, "series_id": series})
+
+# Duty roster for match days.
+for i, name in enumerate(["Oranges", "First aid kit", "Goal nets"]):
+    d.setdefault("team_duties", []).append({"team_id": TEAM, "name": name, "sort": i})
+for duty, kid in (("Oranges", "ava"), ("Goal nets", "noah")):
+    d.setdefault("duty_signups", []).append({"team_id": TEAM, "game_id": nxt, "duty": duty, "player_id": kid, "created_at": ago(20)})
+
+# Families who tapped Got it (not Leo's: his Dad is the phone in the screenshots).
+d["acks"] = [x for x in d.get("acks", []) if x["announcement_id"] not in (welcome, latest) and not x.get("demo")]
+for aid, kids in ((welcome, ["ava", "noah", "zoe", "max", "isla", "ethan", "ruby", "oliver"]), (latest, ["ava", "noah", "zoe", "max", "isla", "ruby", "oliver"])):
+    for kid in kids:
+        d["acks"].append({"announcement_id": aid, "player_id": kid, "created_at": ago(4), "demo": True})
 
 json.dump(d, open(p, "w", encoding="utf8"), indent=2)
 print("demo ready")

@@ -1,7 +1,9 @@
 // Phone-sized screenshots of the local app for the in-app guide.
 // Usage: node capture.mjs shots.json outDir
-// Each shot: { name, url, cookies?: {name: value}, js?: "code run after load", wait?: ms, full?: true }
+// Each shot: { name, url, cookies?: {name: value}, manager?: "id", js?: "code run after load", wait?: ms, full?: true }
+// manager: signed in as that manager account (needs the local server's SESSION_SECRET, default "localtest").
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -58,7 +60,12 @@ await s("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme
 for (const shot of shots) {
   await s("Network.clearBrowserCookies");
   const origin = new URL(shot.url).origin;
-  for (const [name, value] of Object.entries(shot.cookies ?? {})) {
+  const cookies = { ...(shot.cookies ?? {}) };
+  if (shot.manager) {
+    const payload = `${shot.manager}.${Date.now() + 24 * 3600_000}`;
+    cookies.su_mgr = `${payload}.${createHmac("sha256", process.env.SESSION_SECRET ?? "localtest").update(payload).digest("base64url")}`;
+  }
+  for (const [name, value] of Object.entries(cookies)) {
     await s("Network.setCookie", { name, value, url: origin, path: "/" });
   }
   await s("Page.navigate", { url: shot.url });
