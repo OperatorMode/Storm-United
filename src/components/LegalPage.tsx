@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SidelnrLink } from "./SidelnrLink";
 import { FeedbackLink } from "./FeedbackLink";
+import { GuideLink } from "./Guide";
 
 export const CONTACT_EMAIL = "hello@sidelnr.app";
 
@@ -14,6 +15,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
       <div className="legal mt-6 space-y-4 text-[15px] leading-relaxed text-zinc-800 [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-semibold [&_a]:underline [&_li]:ml-5 [&_li]:list-disc [&_ul]:space-y-1">
         {children}
       </div>
+      <LegalLinks className="mt-12 text-zinc-500" />
     </div>
   );
 }
@@ -22,6 +24,8 @@ export function LegalPage({ title, updated, children }: { title: string; updated
 export function LegalLinks({ className = "" }: { className?: string }) {
   return (
     <p className={`text-center text-xs ${className}`}>
+      <GuideLink />{" "}
+      ·{" "}
       <FeedbackLink />{" "}
       ·{" "}
       <Link href="/features" className="underline">

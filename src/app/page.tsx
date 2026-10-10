@@ -5,6 +5,7 @@ import { competitionLabel, getCompetition } from "@/lib/league";
 import { tabData } from "@/lib/tabs";
 import { listChat } from "@/lib/messages";
 import { LegalLinks } from "@/components/LegalPage";
+import { Guide } from "@/components/Guide";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
@@ -53,7 +54,8 @@ function ManagerBadge() {
   );
 }
 
-export default async function Landing() {
+export default async function Landing({ searchParams }: PageProps<"/">) {
+  const openGuide = (await searchParams).guide !== undefined;
   const ids = await knownTeamIds();
   const [known, manager] = await Promise.all([
     Promise.all(ids.map((id) => getTeam(id))).then((ts) => ts.filter((t) => t !== null)),
@@ -216,6 +218,8 @@ export default async function Landing() {
           Fixtures, attendance, MVP votes, team chat and live ladders for any team sport.
         </p>
         <LegalLinks className="opacity-60" />
+        {/* A new phone (no teams, not signed in) gets the guide on its first visit. */}
+        <Guide autoOpen={!ids.length && !manager} openNow={openGuide} />
       </div>
     </div>
   );

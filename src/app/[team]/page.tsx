@@ -6,6 +6,7 @@ import { ChildrenPicker, PersonForm } from "@/components/ChildrenPicker";
 import { phoneFor } from "@/lib/phones";
 import { personId, teamLabels } from "@/lib/people";
 import { LeaveTeam } from "@/components/LeaveTeam";
+import { GuideLink } from "@/components/Guide";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { pushPublicKey } from "@/lib/push";
@@ -379,6 +380,9 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
             managing={(await adminAccess(team)) === "manager"}
             className="rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-600"
           />
+          <p className="mt-4 text-xs text-zinc-500">
+            <GuideLink />
+          </p>
         </div>
       </main>
       <TabBar teamId={team.id} active="home" {...tabs} />

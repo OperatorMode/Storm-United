@@ -110,7 +110,7 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
             />
             <Toggle label="Message board" hint="When the coach posts" checked={prefs.board} disabled={pending} onChange={(v) => update({ ...prefs, board: v })} />
             <Toggle label="Team chat" hint="When someone writes in the chat" checked={prefs.chat} disabled={pending} onChange={(v) => update({ ...prefs, chat: v })} />
-            <Toggle label="Private messages" hint="When another family or the coach messages you" checked={prefs.dm} disabled={pending} onChange={(v) => update({ ...prefs, dm: v })} />
+            <Toggle label="Private messages" hint="When someone in the team or the coach messages you" checked={prefs.dm} disabled={pending} onChange={(v) => update({ ...prefs, dm: v })} />
             <p className="text-xs text-zinc-400">Applies to this phone only.</p>
             {(prefs.board || prefs.chat || prefs.games || prefs.reminders || prefs.dm) && (
               <button

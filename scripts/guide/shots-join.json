@@ -1,0 +1,56 @@
+[
+  {
+    "name": "join-1-code",
+    "url": "http://localhost:3100/",
+    "js": "const i=document.querySelector('input[placeholder=\"Team code\"]'); const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; set.call(i,'ROCKETS26'); i.dispatchEvent(new Event('input',{bubbles:true})); i.focus();"
+  },
+  {
+    "name": "join-2-who",
+    "url": "http://localhost:3100/riverside-rockets",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "document.querySelector('header details').open=true;"
+  },
+  {
+    "name": "join-3-attendance",
+    "url": "http://localhost:3100/riverside-rockets",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "const h=[...document.querySelectorAll('h2,div')].find(e=>e.textContent.trim()==='Attendance'); (h.closest('section')||h).scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
+  },
+  {
+    "name": "join-4-chat",
+    "url": "http://localhost:3100/riverside-rockets/chat",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "window.scrollTo(0, document.body.scrollHeight);"
+  },
+  {
+    "name": "join-5-board",
+    "url": "http://localhost:3100/riverside-rockets/board",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    }
+  },
+  {
+    "name": "join-6-notify",
+    "url": "http://localhost:3100/riverside-rockets/board",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "const d=[...document.querySelectorAll('details')].find(x=>x.querySelector('summary')?.textContent.includes('Notifications')); d.open=true; await new Promise(r=>setTimeout(r,400)); d.scrollIntoView({block:'start'}); window.scrollBy(0,-16);"
+  }
+]
