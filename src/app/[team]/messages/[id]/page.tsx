@@ -6,6 +6,7 @@ import { teamTz } from "@/lib/league";
 import { blocksBy, getConversation, markRead, memberLabel, membersOf, messagesIn } from "@/lib/dms";
 import { JoinGate } from "@/components/JoinGate";
 import { DmThread } from "./DmThread";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 // One private conversation: the messages, a box to write, and Leave (groups)
 // or Block (one-to-one).
@@ -31,9 +32,12 @@ export default async function ConversationPage({ params }: PageProps<"/[team]/me
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col bg-zinc-50">
       <header className="jersey sticky top-0 z-10 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-        <Link href={`/${team.id}/messages`} className="text-xs font-medium text-on-team/70">
-          ← Messages
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <SidelnrLink className="" />
+          <Link href={`/${team.id}/messages`} className="text-sm font-medium text-on-team/70">
+            ← Messages
+          </Link>
+        </div>
         <h1 className="mt-1 truncate text-lg font-semibold">{title}</h1>
         {conv.is_group && <p className="truncate text-xs text-on-team/60">{["You", ...others.map((o) => names[o])].join(", ")}</p>}
       </header>

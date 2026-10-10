@@ -30,6 +30,7 @@ import { formatTime } from "@/lib/time";
 import { isPoolStage } from "@/lib/events";
 import { listTeams } from "@/lib/store";
 import { now as clockNow } from "@/lib/clock";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "Competition · Sidelnr", robots: { index: false } };
 
@@ -164,7 +165,8 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
     );
     return (
       <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-        <div className="text-sm text-zinc-500">
+        <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+          <SidelnrLink className="text-zinc-900" />
           <Link href="/account/leagues">← My leagues</Link>
         </div>
         <div>
@@ -301,13 +303,16 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <div className="flex items-center justify-between text-sm text-zinc-500">
-        <Link href={event ? "/account/events" : "/account/leagues"}>← {event ? "My events" : "My leagues"}</Link>
-        {event && (
-          <Link href={`/events/${competition.league_id}`} className="underline">
-            Public page ↗
-          </Link>
-        )}
+      <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+        <SidelnrLink className="text-zinc-900" />
+        <span className="flex gap-3">
+          <Link href={event ? "/account/events" : "/account/leagues"}>← {event ? "My events" : "My leagues"}</Link>
+          {event && (
+            <Link href={`/events/${competition.league_id}`} className="underline">
+              Public page ↗
+            </Link>
+          )}
+        </span>
       </div>
       <div>
         <div className="text-xs uppercase tracking-widest text-zinc-400">

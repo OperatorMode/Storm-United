@@ -9,6 +9,7 @@ import { getTeam } from "@/lib/teams";
 import { competitionLabel, getCompetition } from "@/lib/league";
 import { managedLeagues } from "@/lib/my-leagues";
 import { logoSrc } from "@/lib/brand";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "My teams · Sidelnr", robots: { index: false } };
 
@@ -38,9 +39,7 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
     <div className="min-h-dvh">
       <header className="jersey px-4 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)]">
         <div className="mx-auto flex max-w-md items-center justify-between">
-          <Link href="/" className="text-2xl font-bold tracking-tight">
-            Sidelnr<span className="text-accent">.</span>
-          </Link>
+          <SidelnrLink className="" />
           <form action={signOut}>
             <button className="text-sm opacity-70 underline">Sign out</button>
           </form>

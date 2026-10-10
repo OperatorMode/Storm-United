@@ -14,6 +14,7 @@ import { listTeams } from "@/lib/store";
 import { getTeam } from "@/lib/teams";
 import { competitionLabel, listCompetitions } from "@/lib/league";
 import { logoSrc } from "@/lib/brand";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "All teams · Admin", robots: { index: false } };
 
@@ -50,9 +51,10 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   if (creating || editing) {
     return (
       <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-        <Link href="/super" className="text-sm text-zinc-500">
-          ← All teams
-        </Link>
+        <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+          <SidelnrLink className="text-zinc-900" />
+          <Link href="/super">← All teams</Link>
+        </div>
         <Card title={editing ? `Edit ${editing.name}` : "New team"}>
           <TeamForm
             competitionLabel={editing ? labelOf(editing.competition_id) : null}
@@ -92,11 +94,12 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">All teams</h1>
+        <SidelnrLink className="" />
         <form action={superLogout}>
           <button className="text-sm text-zinc-500">Lock</button>
         </form>
       </div>
+      <h1 className="text-lg font-semibold">All teams</h1>
 
       {saved && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Saved /{saved}.</p>}
 

@@ -9,6 +9,7 @@ import { listFixtures } from "@/lib/fixtures";
 import { isPoolStage } from "@/lib/events";
 import { formatIsoDate, formatTime } from "@/lib/time";
 import type { FixtureRow } from "@/lib/store";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 // The public game-day page for an event: the draw by time and pitch, live
 // results, pool tables and finals. No sign-in, share the link on the day.
@@ -57,9 +58,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/ev
     <div className="mx-auto max-w-md pb-10">
       <AutoRefresh seconds={30} />
       <header className="jersey px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
-        <Link href="/" className="text-xs font-semibold tracking-tight opacity-60">
-          Sidelnr<span className="text-accent">.</span>
-        </Link>
+        <SidelnrLink />
         <h1 className="mt-2 text-2xl font-semibold leading-tight">{league.name}</h1>
         <p className="mt-1 text-sm opacity-70">
           {[date && formatIsoDate(date, tz), league.venue].filter(Boolean).join(" · ")}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LoginForm } from "./LoginForm";
 import { currentManager } from "@/lib/session";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "Sign in · Sidelnr", robots: { index: false } };
 
@@ -14,6 +15,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <div className="jersey min-h-dvh px-4 pt-[calc(env(safe-area-inset-top)+3rem)]">
       <div className="mx-auto max-w-sm space-y-6">
+        <SidelnrLink className="-mt-6" />
         <div className="text-center">
           <h1 className="text-4xl font-bold tracking-tight">
             Sidelnr<span className="text-accent">.</span>

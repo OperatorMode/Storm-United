@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { currentManager } from "@/lib/session";
 import { managedLeagues } from "@/lib/my-leagues";
 import { MagicImport, ManualLink } from "./MagicImport";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "My leagues · Sidelnr", robots: { index: false } };
 
@@ -17,8 +18,8 @@ export default async function MyLeaguesPage() {
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <div className="flex items-center justify-between text-sm text-zinc-500">
-        <Link href="/">← Home</Link>
+      <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+        <SidelnrLink className="text-zinc-900" />
         <span>
           <Link href="/account" className="underline">
             My teams

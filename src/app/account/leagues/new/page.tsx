@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { NewLeagueForm } from "../LeagueForms";
 import { MagicImport, ManualLink } from "../MagicImport";
 import { currentManagerId } from "@/lib/session";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "Add your league · Sidelnr", robots: { index: false } };
 
@@ -17,9 +18,10 @@ export default async function NewLeaguePage({ searchParams }: PageProps<"/accoun
   if (!manual) {
     return (
       <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-        <Link href="/account/leagues" className="text-sm text-zinc-500">
-          ← My leagues
-        </Link>
+        <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+          <SidelnrLink className="text-zinc-900" />
+          <Link href="/account/leagues">← My leagues</Link>
+        </div>
         <div>
           <h1 className="text-xl font-semibold">Got a league website?</h1>
           <p className="mt-1 text-sm text-zinc-500">
@@ -37,9 +39,10 @@ export default async function NewLeaguePage({ searchParams }: PageProps<"/accoun
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <Link href="/account/leagues/new" className="text-sm text-zinc-500">
-        ← Import from a link instead
-      </Link>
+      <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
+        <SidelnrLink className="text-zinc-900" />
+        <Link href="/account/leagues/new">← Import from a link instead</Link>
+      </div>
       <div>
         <h1 className="text-xl font-semibold">Add your league</h1>
         <p className="mt-1 text-sm text-zinc-500">

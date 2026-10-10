@@ -29,6 +29,7 @@ import { ActivityForm } from "./ActivityForm";
 import { ActivityList, JoinCode, SessionToggle, ShareActivities } from "./ActivitiesManage";
 import { ActivityReminders } from "./ActivityReminders";
 import { pushPublicKey } from "@/lib/push";
+import { SidelnrLink } from "@/components/SidelnrLink";
 
 // My Activities: every game, training and duty for every team this phone
 // follows, plus the family's own activities (music, dance, school...), in one
@@ -222,9 +223,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
   return (
     <div className="mx-auto max-w-md pb-10">
       <header className="jersey px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
-        <Link href="/" className="text-xs font-semibold tracking-tight opacity-60">
-          Sidelnr<span className="text-accent">.</span>
-        </Link>
+        <SidelnrLink />
         <h1 className="mt-2 text-2xl font-semibold">My Activities</h1>
         <p className="mt-1 text-sm opacity-70">Every game, training and activity for your family: when, where and how to get there.</p>
       </header>
