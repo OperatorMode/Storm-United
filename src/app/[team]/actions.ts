@@ -239,6 +239,7 @@ export async function leaveTeam(teamId: string, pushEndpoint: string | null) {
   store.delete(voterCookie(team.id));
   store.delete(selfCookie(team.id));
   store.delete(joinCookie(team.id));
+  store.delete(adminCookie(team.id)); // the team PIN on this device too, or home keeps listing the team
   if (team.id === "storm-united") store.delete("su_voter"); // from before teams had their own links
   if (pushEndpoint) await deletePushSub(team.id, pushEndpoint);
   revalidatePath("/", "layout");

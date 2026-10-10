@@ -44,7 +44,7 @@ import { firstName, getTeam, playerName, type Team } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
 import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
-import { canView, currentChildren, isPlayerSelf } from "@/lib/session";
+import { adminAccess, canView, currentChildren, isPlayerSelf } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
 import { PhoneCheckIn } from "@/components/PhoneCheckIn";
 
@@ -363,6 +363,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
           <LeaveTeam
             teamId={team.id}
             teamName={team.name}
+            managing={(await adminAccess(team)) === "manager"}
             className="rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-600"
           />
         </div>
