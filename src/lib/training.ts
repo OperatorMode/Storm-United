@@ -70,4 +70,17 @@ export async function deleteTraining(teamId: string, id: string, laterInSeries: 
   check(await s.from("training_sessions").delete().eq("team_id", teamId).in("id", ids));
 }
 
+/** New season without last season's training: every session from now on goes. */
+export async function deleteFutureTraining(teamId: string, from: Date): Promise<void> {
+  const ids = (await listTraining(teamId)).filter((t) => new Date(t.starts_at) >= from).map((t) => t.id);
+  if (!ids.length) return;
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.training = (d.training ?? []).filter((t) => !(t.team_id === teamId && ids.includes(t.id)));
+    return writeLocal(d);
+  }
+  check(await s.from("training_sessions").delete().eq("team_id", teamId).in("id", ids));
+}
+
 export const newTrainingId = () => `tr-${randomUUID()}`;

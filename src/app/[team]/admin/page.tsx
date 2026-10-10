@@ -168,6 +168,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
   // Season over: games were played and none are left.
   const lastKickoff = ourGames.at(-1)?.kickoff.getTime() ?? 0;
   const seasonOver = ourGames.length > 0 && lastKickoff + 2 * 60 * 60 * 1000 < now.getTime();
+  // The last game is within a week: time to get next season ready.
+  const seasonEnding = !seasonOver && ourGames.length > 0 && lastKickoff > now.getTime() && lastKickoff - now.getTime() < 7 * 24 * 60 * 60 * 1000;
   const rollover = (
     <SeasonRollover
       teamId={team.id}
@@ -198,10 +200,12 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
               : "Unlocked with the Sidelnr owner PIN, which opens every team on this device."}{" "}
           Lock it at the bottom of this page.
         </p>
-        {seasonOver && (
-          <Section title="New season" aside="Season finished" open>
+        {(seasonOver || seasonEnding) && (
+          <Section title="New season" aside={seasonOver ? "Season finished" : "Season ends soon"} open>
             <p className="mb-3 text-sm text-zinc-500">
-              The last game has been played. Before {team.name} rolls into a new season, answer three quick questions.
+              {seasonOver
+                ? `The last game has been played. Before ${team.name} rolls into a new season, answer a few quick questions.`
+                : `The last game is ${formatDay(new Date(lastKickoff), tz)}. Get next season ready: start it once the season is over.`}
             </p>
             {rollover}
           </Section>
@@ -543,7 +547,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
 
       <div className="pt-6" aria-hidden />
 
-      {!seasonOver && (
+      {!seasonOver && !seasonEnding && (
         <Section title="New season" aside="Next season or age group">
           <p className="mb-3 text-sm text-zinc-500">Moving up an age group or into next season’s competition? Set it up here.</p>
           {rollover}

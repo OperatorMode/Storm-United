@@ -1,5 +1,8 @@
 "use server";
 
+import { deleteFutureTraining } from "@/lib/training";
+import { clearBoardAndChat } from "@/lib/messages";
+
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
@@ -147,7 +150,14 @@ export async function drawTeamNames(teamId: string, competitionId: string): Prom
 // earlier seasons stay as history.
 export async function rolloverSeason(
   teamId: string,
-  input: { competitionId: string; leagueName: string; keep: string[]; newPlayers: string[] },
+  input: {
+    competitionId: string;
+    leagueName: string;
+    keep: string[];
+    newPlayers: string[];
+    // What to take to next season (all taken unless unticked; the Board and chat stay unless "start fresh").
+    take?: { training: boolean; duties: boolean; freshBoard: boolean };
+  },
 ) {
   const team = await adminTeam(teamId);
   if (!team) return { error: "Not authorised." };
@@ -163,6 +173,10 @@ export async function rolloverSeason(
   if (!row) return { error: "Team not found." };
   await upsertTeam({ ...row, competition_id: competition.id, league_name: leagueName });
   await savePlayers(team.id, mergePlayers(team.allPlayers, [...kept, ...added]));
+  const take = input.take ?? { training: true, duties: true, freshBoard: false };
+  if (!take.training) await deleteFutureTraining(team.id, new Date());
+  if (!take.duties) await saveDuties(team.id, []);
+  if (take.freshBoard) await clearBoardAndChat(team.id);
   revalidatePath(`/${team.id}`, "layout");
   revalidatePath("/me");
   return { ok: true };

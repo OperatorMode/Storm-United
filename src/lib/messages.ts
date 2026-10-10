@@ -66,6 +66,22 @@ export async function deleteAnnouncement(teamId: string, id: string): Promise<vo
   check(await s.from("announcements").delete().eq("team_id", teamId).eq("id", id));
 }
 
+/** A fresh start for a new season: the Board and the team chat are emptied. */
+export async function clearBoardAndChat(teamId: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const data = await readLocal();
+    const gone = (data.announcements ?? []).filter((a) => a.team_id === teamId).map((a) => a.id);
+    data.announcements = (data.announcements ?? []).filter((a) => a.team_id !== teamId);
+    data.acks = (data.acks ?? []).filter((k) => !gone.includes(k.announcement_id));
+    data.chat = (data.chat ?? []).filter((m) => m.team_id !== teamId);
+    data.chat_reports = (data.chat_reports ?? []).filter((r) => r.team_id !== teamId);
+    return writeLocal(data);
+  }
+  check(await s.from("announcements").delete().eq("team_id", teamId));
+  check(await s.from("chat_messages").delete().eq("team_id", teamId));
+}
+
 // Returns false if the announcement isn't this team's.
 export async function ackAnnouncement(teamId: string, id: string, playerId: string): Promise<boolean> {
   const s = db();

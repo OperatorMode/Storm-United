@@ -115,3 +115,17 @@ export function leagueRequestEmail(league: string, competition: string, from: st
 </div>`;
   return { subject: `Official league request: ${league}`, text, html };
 }
+
+/** A week before the last game: get next season ready. */
+export function seasonEndEmail(team: string, lastGame: string, link: string) {
+  const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const text = `The last game of the season for ${team} is ${lastGame}.\n\nGet next season ready in Manager's Corner: pick next season's competition, who's playing again, and what to take (training times, duty roster).\n\n${link}`;
+  const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#09090b">
+  <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
+  <p style="margin:0 0 16px;color:#52525b">The season ends soon</p>
+  <p style="font-size:15px;line-height:1.5">The last game of the season for ${esc(team)} is <b>${esc(lastGame)}</b>.</p>
+  <p style="font-size:15px;line-height:1.5">Get next season ready in Manager’s Corner: pick next season’s competition, who’s playing again, and what to take (training times, duty roster).</p>
+  <p><a href="${esc(link)}" style="display:inline-block;background:#09090b;color:#fff;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:600">Open Manager’s Corner</a></p>
+</div>`;
+  return { subject: `${team}: the season ends soon`, text, html };
+}

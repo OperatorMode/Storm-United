@@ -31,6 +31,8 @@ export function SeasonRollover({
   const [drawTeams, setDrawTeams] = useState<string[]>([]);
   const [keep, setKeep] = useState<string[]>(players.map((p) => p.id));
   const [newPlayers, setNewPlayers] = useState("");
+  // What to take to next season.
+  const [take, setTake] = useState({ training: true, duties: true, freshBoard: false });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -63,6 +65,9 @@ export function SeasonRollover({
             <li>{keep.length} players continue</li>
             {leaving.length > 0 && <li>Leaving: {leaving.map((p) => p.name.split(" ")[0]).join(", ")}</li>}
             {added.length > 0 && <li>New: {added.join(", ")}</li>}
+            <li>Training times: {take.training ? "kept" : "cleared, add next season’s in Training"}</li>
+            <li>Duty roster: {take.duties ? "kept" : "cleared"}</li>
+            {take.freshBoard && <li>The Board and team chat start empty</li>}
             <li>This season’s attendance, votes and MVP results are kept as history.</li>
           </ul>
         </div>
@@ -75,7 +80,7 @@ export function SeasonRollover({
             disabled={pending}
             onClick={() =>
               start(async () => {
-                const res = await rolloverSeason(teamId, { competitionId: competition, leagueName: name, keep, newPlayers: added });
+                const res = await rolloverSeason(teamId, { competitionId: competition, leagueName: name, keep, newPlayers: added, take });
                 if (res.error) setError(res.error);
                 else setStep("done");
               })
@@ -140,6 +145,36 @@ export function SeasonRollover({
         <span className={label}>3. New players (one per line)</span>
         <textarea value={newPlayers} onChange={(e) => setNewPlayers(e.target.value)} rows={3} placeholder={"e.g. Max R\nNoah T"} className={field} />
       </label>
+
+      <details className="rounded-xl border border-zinc-200 p-3">
+        <summary className="cursor-pointer font-medium">4. What to take to next season</summary>
+        <div className="mt-2 space-y-2">
+          {(
+            [
+              ["training", "Training times", "Keep the weekly sessions going"],
+              ["duties", "Duty roster", "Oranges, first aid and the rest"],
+              ["freshBoard", "Start the Board and team chat fresh", "Clears this season’s posts and chat"],
+            ] as const
+          ).map(([key, title, hint]) => (
+            <label key={key} className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={take[key]}
+                onChange={(e) => setTake({ ...take, [key]: e.target.checked })}
+                className="mt-0.5 size-4 shrink-0"
+              />
+              <span>
+                <span className="block font-medium">{title}</span>
+                <span className="block text-xs text-zinc-500">{hint}</span>
+              </span>
+            </label>
+          ))}
+          <p className="text-xs text-zinc-500">
+            Always kept: players who continue, families’ phones, team colours, codes and PIN, and this season’s results and MVP
+            votes as history.
+          </p>
+        </div>
+      </details>
 
       <button
         type="button"
