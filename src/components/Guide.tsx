@@ -31,12 +31,12 @@ const PATHS: Path[] = [
       {
         image: "/guide/act-3-add.webp",
         title: "Add anything",
-        text: "Music, dance, swimming, school: add it every week, just once, or from a link to a club’s calendar or timetable. It works for the grown-ups too.",
+        text: "Tap + Add activity at the top. Music, dance, swimming, school: add it every week, just once, or from a link to a club’s calendar or timetable. It works for the grown-ups too. Your activities fold away in a list further down.",
       },
       {
         image: "/guide/act-4-share.webp",
         title: "Share with another phone",
-        text: "Tap Get a code to share all your activities, or just some, then type the code on the other phone. It works once, so nobody else can use it.",
+        text: "Tap Share at the top, then Get a code for all your activities or just some, and type it on the other phone under “Got a code?”. It works once, so nobody else can use it.",
       },
       {
         image: "/guide/act-1-week.webp",

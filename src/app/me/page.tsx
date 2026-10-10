@@ -25,8 +25,8 @@ import { currentDeviceId, currentHouseholdId } from "@/lib/session";
 import { listActivities, sessionsOf, weeklySummary, type Activity } from "@/lib/activities";
 import type { ActivityInitial } from "./ActivityForm";
 import { needsRefresh, refreshActivity } from "@/lib/activity-import";
-import { ActivityForm } from "./ActivityForm";
-import { ActivityList, JoinCode, SessionToggle, ShareActivities } from "./ActivitiesManage";
+import { MeActions } from "./MeActions";
+import { ActivityList, SessionToggle } from "./ActivitiesManage";
 import { ActivityReminders } from "./ActivityReminders";
 import { pushPublicKey } from "@/lib/push";
 import { SidelnrLink } from "@/components/SidelnrLink";
@@ -226,11 +226,15 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
         <SidelnrLink />
         <h1 className="mt-2 text-2xl font-semibold">My Activities</h1>
         <p className="mt-1 text-sm opacity-70">Every game, training and activity for your family: when, where and how to get there.</p>
+        <MeActions
+          people={people}
+          shareable={activities.filter((a) => !a.linked).map((a) => ({ id: a.id, label: `${a.person} · ${a.name}` }))}
+          joinInitial={joinCode}
+        />
       </header>
 
       <main className="mt-4 space-y-5 px-4">
         <ActivityReminders vapidKey={pushPublicKey()} />
-        {joinCode && <JoinCode initial={joinCode} highlight />}
         {teams.length > 0 && <InstallPrompt name="Sidelnr" icon="/app-icon/192" />}
         {teams.length === 0 && activities.length === 0 && (
           <div className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
@@ -238,7 +242,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
             <Link href="/" className="font-medium text-zinc-900 underline">
               Join your team
             </Link>{" "}
-            with the code from your coach, or add an activity below (music, dance, school…), and it all shows up here.
+            with the code from your coach, or tap + Add activity above (music, dance, school…), and it all shows up here.
           </div>
         )}
 
@@ -327,51 +331,45 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
             </ul>
           </section>
         )}
-        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Activities</h2>
-          <p className="mt-1 text-sm text-zinc-500">Music, dance, school, a sport that isn’t on Sidelnr: anything with a time and place.</p>
-          <div className="mt-2">
-            <ActivityList
-              people={people}
-              rows={activities.map((a) => ({
-                id: a.id,
-                name: a.name,
-                person: a.person,
-                schedule: a.source_url
-                  ? `From ${(() => {
-                      try {
-                        return new URL(a.source_url).hostname.replace(/^www\./, "");
-                      } catch {
-                        return "a link";
-                      }
-                    })()} · ${a.extra.length} session${a.extra.length === 1 ? "" : "s"}${a.source_filter ? ` · “${a.source_filter}”` : ""}`
-                  : a.weekly.length
-                    ? `${weeklySummary(a)}${a.ends_on ? ` until ${a.ends_on.split("-").reverse().join("/")}` : ""}`
-                    : `Once${a.extra[0] ? `, ${formatWeekday(new Date(a.extra[0].at), a.tz)} ${formatTime(new Date(a.extra[0].at), a.tz)}` : ""}`,
-                imported: !!a.source_url,
-                error: a.source_error,
-                linked: !!a.linked,
-                mine: !!a.mine,
-                edit: editValues(a),
-              }))}
-            />
-          </div>
-          <details className="mt-3 border-t border-zinc-100 pt-3" open={activities.length === 0 && teams.length === 0}>
-            <summary className="cursor-pointer font-semibold">+ Add an activity</summary>
-            <div className="mt-3">
-              <ActivityForm people={people} />
+        {activities.length > 0 && (
+          <details className="group rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
+              <span>
+                <span className="block text-sm font-semibold uppercase tracking-wide text-zinc-500">Activities ({activities.length})</span>
+                <span className="block text-xs text-zinc-500">Edit or remove the ones you’ve added.</span>
+              </span>
+              <svg viewBox="0 0 20 20" aria-hidden className="size-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-180">
+                <path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </summary>
+            <div className="px-4 pb-4">
+                <ActivityList
+                  people={people}
+                  rows={activities.map((a) => ({
+                    id: a.id,
+                    name: a.name,
+                    person: a.person,
+                    schedule: a.source_url
+                      ? `From ${(() => {
+                          try {
+                            return new URL(a.source_url).hostname.replace(/^www\./, "");
+                          } catch {
+                            return "a link";
+                          }
+                        })()} · ${a.extra.length} session${a.extra.length === 1 ? "" : "s"}${a.source_filter ? ` · “${a.source_filter}”` : ""}`
+                      : a.weekly.length
+                        ? `${weeklySummary(a)}${a.ends_on ? ` until ${a.ends_on.split("-").reverse().join("/")}` : ""}`
+                        : `Once${a.extra[0] ? `, ${formatWeekday(new Date(a.extra[0].at), a.tz)} ${formatTime(new Date(a.extra[0].at), a.tz)}` : ""}`,
+                    imported: !!a.source_url,
+                    error: a.source_error,
+                    linked: !!a.linked,
+                    mine: !!a.mine,
+                    edit: editValues(a),
+                  }))}
+                />
             </div>
           </details>
-          <div className="mt-3 border-t border-zinc-100 pt-3">
-            <JoinCode />
-          </div>
-          <details className="mt-3 border-t border-zinc-100 pt-3 text-sm">
-            <summary className="cursor-pointer font-semibold">Share with another phone</summary>
-            <div className="mt-3">
-              <ShareActivities activities={activities.filter((a) => !a.linked).map((a) => ({ id: a.id, label: `${a.person} · ${a.name}` }))} />
-            </div>
-          </details>
-        </section>
+        )}
 
         {teams.length > 0 && <ForgetPhone />}
         <LegalLinks className="pt-2 text-zinc-400" />
