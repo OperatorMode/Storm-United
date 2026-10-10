@@ -26,7 +26,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/act-2-calendar.webp",
         title: "The month at a glance",
-        text: "Switch to Calendar to see the whole month: a dot for each game or training, in each person’s colour, and a red ring for a clash. Tap a day to see what’s on.",
+        text: "Switch to Calendar to see the whole month. Each person gets a dot in their colour: with a ring around it if they’re skipping something that day, or just a ring if they’re not going at all. A red ring around a day is a clash, green once it’s solved. Tap a day to see what’s on.",
       },
       {
         image: "/guide/act-5-clash.webp",

@@ -10,7 +10,9 @@ export type CalendarDay = {
   resolved?: boolean; // a clash that day, and it's been solved (who's taking whom, or not going)
   training: boolean; // only training that day
   duty: boolean; // the family is on a duty that day
-  kids: { key: string; training: boolean }[]; // a dot per child (hollow = training)
+  // One marker per person, in their colour: going to everything (dot), skipping
+  // at least one thing (dot with a ring), or not going to anything (ring only).
+  kids: { key: string; state: "going" | "some" | "none" }[];
   node: ReactNode; // that day's cards
 };
 
@@ -70,10 +72,13 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
           <Months days={days} selected={selected} onPick={pick} />
           <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full bg-zinc-500" /> Game
+              <Marker state="going" /> Going
             </span>
             <span className="flex items-center gap-1">
-              <span className="size-2 rounded-full" style={{ boxShadow: "inset 0 0 0 1.5px #71717a" }} /> Training
+              <Marker state="some" /> Skipping one
+            </span>
+            <span className="flex items-center gap-1">
+              <Marker state="none" /> Not going
             </span>
             <span className="flex items-center gap-1">
               <span className="size-3 rounded ring-2 ring-red-600" /> Clash
@@ -137,18 +142,13 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                     key={date}
                     type="button"
                     onClick={() => onPick(date)}
-                    className={`relative rounded-lg bg-zinc-100 pb-3 pt-1.5 font-semibold text-zinc-900 ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
+                    className={`relative rounded-lg bg-zinc-100 ${day.kids.length > 3 ? "pb-5" : "pb-3"} pt-1.5 font-semibold text-zinc-900 ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
                   >
                     {i + 1}
                     {day.duty && <span className="absolute left-0.5 top-0 text-[9px] text-amber-500">★</span>}
-                    <span className="absolute inset-x-0 bottom-1 flex justify-center gap-0.5">
-                      {day.kids.slice(0, 4).map((k, n) => (
-                        <span
-                          key={n}
-                          data-kid={k.key}
-                          className="size-1.5 rounded-full"
-                          style={k.training ? { boxShadow: "inset 0 0 0 1.5px var(--kid, #71717a)" } : { background: "var(--kid, #71717a)" }}
-                        />
+                    <span className="absolute inset-x-0 bottom-1 mx-auto flex max-w-[2.6rem] flex-wrap justify-center gap-[3px]">
+                      {day.kids.slice(0, 6).map((k, n) => (
+                        <Marker key={n} kid={k.key} state={k.state} />
                       ))}
                     </span>
                   </button>
@@ -160,4 +160,16 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
       })}
     </div>
   );
+}
+
+/** A person's marker on a calendar day, in their colour (grey in the key). */
+function Marker({ kid, state }: { kid?: string; state: "going" | "some" | "none" }) {
+  const c = kid ? "var(--kid, #71717a)" : "#71717a";
+  const style =
+    state === "going"
+      ? { background: c }
+      : state === "some"
+        ? { background: c, boxShadow: `0 0 0 1px #f4f4f5, 0 0 0 2.2px ${c}` }
+        : { boxShadow: `inset 0 0 0 1.5px ${c}` };
+  return <span data-kid={kid} className={`inline-block size-1.5 shrink-0 rounded-full ${state === "some" ? "mx-[2px]" : ""}`} style={style} />;
 }

@@ -323,9 +323,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
               resolved: entries.some((e) => (e.resolved?.length ?? 0) > 0),
               training: entries.every((e) => e.training),
               duty: entries.some((e) => (e.duties?.length ?? 0) > 0),
-              kids: [
-                ...new Map(entries.flatMap((e) => e.kids.map((k) => [kidKey(k.name), { key: kidKey(k.name), training: !!e.training }] as const))).values(),
-              ],
+              kids: dayMarkers(entries),
               node: (
                 <ul className="space-y-2">
                   {entries.map((e) => (
@@ -432,6 +430,23 @@ function editValues(a: Activity): ActivityInitial {
     url: a.source_url ?? "",
     filter: a.source_filter ?? "",
   };
+}
+
+/**
+ * One calendar marker per person that day: going to everything, skipping at
+ * least one thing (not going, a skipped activity, or a cancelled training),
+ * or not going to anything.
+ */
+function dayMarkers(entries: Entry[]): { key: string; state: "going" | "some" | "none" }[] {
+  const per = new Map<string, { going: boolean; off: boolean }>();
+  for (const e of entries) {
+    for (const k of e.kids) {
+      const off = k.status === "no" || !!e.activity?.cancelled || e.game.time === "Postponed";
+      const p = per.get(kidKey(k.name)) ?? { going: false, off: false };
+      per.set(kidKey(k.name), { going: p.going || !off, off: p.off || off });
+    }
+  }
+  return [...per.entries()].map(([key, p]) => ({ key, state: p.going && p.off ? "some" : p.going ? "going" : "none" }));
 }
 
 /** The clash solver on a card: Resolve clash (not going, or who's taking them), or who's taking them. */
