@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AddLeagueCallout } from "@/components/AddLeagueCallout";
 import { redirect } from "next/navigation";
 import { TeamForm } from "@/components/TeamForm";
 import { createMyTeam } from "../team-actions";
@@ -29,6 +30,7 @@ export default async function NewTeamPage({ searchParams }: PageProps<"/account/
           Pick your competition and your team in its draw. Fixtures, results and the ladder then load automatically.
         </p>
       </div>
+      <AddLeagueCallout />
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <TeamForm
           competitionLabel={competition ? competitionLabel(competition) : null}
@@ -40,7 +42,7 @@ export default async function NewTeamPage({ searchParams }: PageProps<"/account/
       <p className="text-center text-sm text-zinc-500">
         Can’t find your league or competition?{" "}
         <Link href="/account/leagues/new" className="font-medium text-zinc-900 underline">
-          Add it
+          Add it with a link
         </Link>{" "}
         and then create your team in it.
       </p>

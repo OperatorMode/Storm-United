@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AddLeagueCallout } from "./AddLeagueCallout";
 
 // "How Sidelnr works": a short guide over the home page. It asks why you're
 // here, then shows the basics for that with real screens (made-up teams and
@@ -72,7 +73,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/manage-3-create.webp",
         title: "Create your team",
-        text: "Search for your competition and pick your team in its draw. Fixtures, results and the ladder then load by themselves. Choose your colours, and add a logo if you have one.",
+        text: "Search for your competition and pick your team in its draw: fixtures, results and the ladder load by themselves. Can’t find your team? Add your league first with a link to its website (My League, Add a league), then come back.",
       },
       {
         image: "/guide/manage-4-squad.webp",
@@ -109,7 +110,7 @@ const PATHS: Path[] = [
 ];
 
 // Coming next: shown in the list, not ready yet.
-const LATER = ["Create a league"];
+const LATER = ["Add your league"];
 
 const SEEN_KEY = "su_guide_seen";
 export const GUIDE_EVENT = "sidelnr:guide";
@@ -191,34 +192,74 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
         </div>
 
         {!path ? (
-          <div className="space-y-4 px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-2">
-            <h2 className="text-2xl font-semibold">Why are you here?</h2>
-            <p className="text-sm text-zinc-600">Pick one and we’ll show you the basics in a few steps.</p>
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                const p = PATHS.find((x) => x.id === e.target.value);
-                if (p) {
-                  setPath(p);
-                  setStep(0);
-                }
-              }}
-              className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-base"
-            >
-              <option value="" disabled>
-                Choose…
-              </option>
-              {PATHS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
+          <div className="max-h-[calc(100dvh-env(safe-area-inset-top)-4.5rem)] space-y-4 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-1">
+            {/* How it fits together: a league, its teams, their families. */}
+            <div>
+              <h2 className="text-lg font-semibold">How it fits together</h2>
+              <ol className="mt-2">
+                {[
+                  { n: 1, title: "League", text: "Fixtures, results and the ladder. The league adds it, or anyone adds it with a link to its website." },
+                  { n: 2, title: "Team", text: "A coach picks their team in the league’s draw." },
+                  { n: 3, title: "Families and players", text: "Join their team with its code." },
+                ].map((l, i) => (
+                  <li key={l.n}>
+                    {i > 0 && <div className="ml-[15px] h-3 w-0.5 bg-zinc-300" aria-hidden />}
+                    <div className="flex gap-3 rounded-2xl bg-zinc-100 p-3">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-zinc-900 text-sm font-semibold text-white">{l.n}</span>
+                      <span className="text-sm">
+                        <span className="block font-semibold">{l.title}</span>
+                        <span className="text-zinc-600">{l.text}</span>
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <AddLeagueCallout
+              learnHow={
+                PATHS.some((p) => p.id === "league") ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPath(PATHS.find((p) => p.id === "league")!);
+                      setStep(0);
+                    }}
+                    className="text-sm font-medium underline"
+                  >
+                    Learn how
+                  </button>
+                ) : undefined
+              }
+            />
+            <div className="space-y-2 border-t border-zinc-100 pt-4">
+              <h2 className="text-2xl font-semibold">Why are you here?</h2>
+              <p className="text-sm text-zinc-600">Pick one and we’ll show you the basics in a few steps.</p>
+              <select
+                value=""
+                onChange={(e) => {
+                  const p = PATHS.find((x) => x.id === e.target.value);
+                  if (p) {
+                    setPath(p);
+                    setStep(0);
+                  }
+                }}
+                className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-base"
+              >
+                <option value="" disabled>
+                  Choose…
                 </option>
-              ))}
-              {LATER.map((l) => (
-                <option key={l} value={l} disabled>
-                  {l} (coming soon)
-                </option>
-              ))}
-            </select>
+                {PATHS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+                {LATER.map((l) => (
+                  <option key={l} value={l} disabled>
+                    {l} (coming soon)
+                  </option>
+                ))}
+              </select>
+            </div>
             <button type="button" onClick={close} className="w-full py-2 text-sm text-zinc-500 underline">
               Skip, I’ll look around myself
             </button>

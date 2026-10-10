@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { searchCompetitions, type CompetitionHit } from "@/app/competition-actions";
 
@@ -75,7 +76,15 @@ export function CompetitionPicker({
               ))}
             </ul>
           )}
-          {query.trim().length >= 2 && !shown.length && <p className="mt-1 text-xs text-zinc-500">No matches yet. Try fewer words.</p>}
+          {query.trim().length >= 2 && !shown.length && (
+            <p className="mt-1 text-xs text-zinc-500">
+              No matches. Try fewer words, or{" "}
+              <Link href="/account/leagues/new" className="font-semibold text-zinc-900 underline">
+                add your league with a link
+              </Link>
+              .
+            </p>
+          )}
           {value && (
             <button type="button" onClick={() => setSearching(false)} className="mt-1 text-xs text-zinc-500 underline">
               Keep {label ?? "the current one"}
