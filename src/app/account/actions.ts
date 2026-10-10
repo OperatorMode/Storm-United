@@ -3,7 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createLoginToken, isEmail, linkManager, normaliseEmail } from "@/lib/accounts";
+import { createLoginToken, deleteManagerAccount, isEmail, linkManager, normaliseEmail, unlinkManager } from "@/lib/accounts";
 import { emailEnabled, loginEmail, sendEmail } from "@/lib/email";
 import { lookupTeam } from "@/lib/team-lookup";
 import { getTeam, verifySecret } from "@/lib/teams";
@@ -63,4 +63,23 @@ export async function addTeamToAccount(teamId: string) {
   await linkManager(team.id, managerId);
   revalidatePath(`/${team.id}/admin`);
   revalidatePath("/account");
+}
+
+/** Stop managing a team (it carries on for its families; see accounts.ts). */
+export async function leaveTeamAsManager(teamId: string) {
+  const managerId = await currentManagerId();
+  if (!managerId) return { error: "Sign in first." };
+  await unlinkManager(teamId, managerId);
+  revalidatePath("/", "layout");
+  redirect("/account");
+}
+
+/** Deletes this manager account, then signs out. Teams and leagues stay. */
+export async function deleteMyAccount() {
+  const managerId = await currentManagerId();
+  if (!managerId) return { error: "Sign in first." };
+  await deleteManagerAccount(managerId);
+  (await cookies()).delete(MANAGER_COOKIE);
+  revalidatePath("/", "layout");
+  redirect("/?account-deleted");
 }

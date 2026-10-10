@@ -56,7 +56,9 @@ function ManagerBadge() {
 }
 
 export default async function Landing({ searchParams }: PageProps<"/">) {
-  const openGuide = (await searchParams).guide !== undefined;
+  const params = await searchParams;
+  const openGuide = params.guide !== undefined;
+  const accountDeleted = params["account-deleted"] !== undefined;
   const ids = await knownTeamIds();
   const [known, manager] = await Promise.all([
     Promise.all(ids.map((id) => getTeam(id))).then((ts) => ts.filter((t) => t !== null)),
@@ -118,6 +120,10 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
           </h1>
           <p className="mt-1 text-sm font-medium opacity-80">Your team, on the sideline.</p>
         </div>
+
+        {accountDeleted && (
+          <p className="rounded-2xl bg-white/90 px-4 py-3 text-center text-sm text-zinc-900">Your account has been deleted. Thanks for using Sidelnr.</p>
+        )}
 
         {/* My Activities is always there: for team games, and for activities of any kind. */}
         {(

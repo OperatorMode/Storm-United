@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { DeleteAccount, StopManaging } from "./AccountControls";
 import { EVENTS_ENABLED } from "@/lib/features";
 import { redirect } from "next/navigation";
 import { ClaimTeamForm } from "./ClaimTeamForm";
@@ -87,6 +88,9 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
                 Manage
               </Link>
             </div>
+            <div className="mt-2 text-right">
+              <StopManaging teamId={team.id} teamName={team.name} owner={role === "owner"} />
+            </div>
           </div>
         ))}
 
@@ -113,6 +117,8 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
           <p className="mb-3 mt-0.5 text-sm text-zinc-500">Enter the team’s code or name and its manager PIN.</p>
           <ClaimTeamForm />
         </section>
+
+        <DeleteAccount email={manager.email} />
 
         {superAdmin && (
           <Link href="/super" className="block text-center text-sm text-zinc-500 underline">

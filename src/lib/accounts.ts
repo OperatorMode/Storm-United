@@ -140,3 +140,59 @@ export async function linkManager(teamId: string, managerId: string): Promise<vo
   }
   check(await s.from("team_managers").upsert(row, { onConflict: "team_id,manager_id" }));
 }
+
+/**
+ * A manager stops managing a team. The team carries on (its families, its
+ * PIN). If they were its owner, the longest-serving other manager becomes owner.
+ */
+export async function unlinkManager(teamId: string, managerId: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    const rows = d.team_managers ?? [];
+    const leaving = rows.find((x) => x.team_id === teamId && x.manager_id === managerId);
+    let rest = rows.filter((x) => !(x.team_id === teamId && x.manager_id === managerId));
+    const others = rest.filter((x) => x.team_id === teamId).sort((a, b) => a.created_at.localeCompare(b.created_at));
+    if (leaving?.role === "owner" && others.length && !others.some((x) => x.role === "owner")) {
+      rest = rest.map((x) => (x === others[0] ? { ...x, role: "owner" as TeamRole } : x));
+    }
+    d.team_managers = rest;
+    return writeLocal(d);
+  }
+  const rows = check(await s.from("team_managers").select("manager_id, role, created_at").eq("team_id", teamId).order("created_at")) as {
+    manager_id: string;
+    role: TeamRole;
+    created_at: string;
+  }[];
+  const leaving = rows.find((r) => r.manager_id === managerId);
+  if (!leaving) return;
+  check(await s.from("team_managers").delete().eq("team_id", teamId).eq("manager_id", managerId));
+  const others = rows.filter((r) => r.manager_id !== managerId);
+  if (leaving.role === "owner" && others.length && !others.some((r) => r.role === "owner")) {
+    check(await s.from("team_managers").update({ role: "owner" }).eq("team_id", teamId).eq("manager_id", others[0].manager_id));
+  }
+}
+
+/**
+ * Deletes a manager account: off every team (owners handed on as above) and
+ * league, its sign-in links and waiting league requests, then the account
+ * itself. Teams and leagues stay for everyone else.
+ */
+export async function deleteManagerAccount(managerId: string): Promise<void> {
+  const me = await getManager(managerId);
+  if (!me) return;
+  for (const t of await managedTeams(managerId)) await unlinkManager(t.team_id, managerId);
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.league_admins = (d.league_admins ?? []).filter((x) => x.manager_id !== managerId);
+    d.league_claims = (d.league_claims ?? []).filter((c) => !(c.manager_id === managerId && c.status === "pending"));
+    d.login_tokens = (d.login_tokens ?? []).filter((t) => t.email !== me.email);
+    d.managers = (d.managers ?? []).filter((m) => m.id !== managerId);
+    return writeLocal(d);
+  }
+  check(await s.from("league_admins").delete().eq("manager_id", managerId));
+  check(await s.from("league_claims").delete().eq("manager_id", managerId).eq("status", "pending"));
+  check(await s.from("login_tokens").delete().eq("email", me.email));
+  check(await s.from("managers").delete().eq("id", managerId));
+}
