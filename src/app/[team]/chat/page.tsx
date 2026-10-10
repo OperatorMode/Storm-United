@@ -4,7 +4,8 @@ import { JoinGate } from "@/components/JoinGate";
 import { TabBar } from "@/components/TabBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { ChatThread } from "./ChatThread";
-import { firstName, getTeam } from "@/lib/teams";
+import { getTeam } from "@/lib/teams";
+import { teamLabels } from "@/lib/people";
 import { canView, chatAuthor, isTeamAdmin } from "@/lib/session";
 import { listChat } from "@/lib/messages";
 import { tabData } from "@/lib/tabs";
@@ -23,8 +24,9 @@ export default async function ChatPage({ params }: PageProps<"/[team]/chat">) {
     tabData(team),
     teamTz(team),
   ]);
-  // Names for every family that ever posted (incl. players who've left).
-  const names = Object.fromEntries(team.allPlayers.map((p) => [p.id, `${firstName(p.name)}'s parent`]));
+  // Names for everyone who ever posted: people ("Leo's Dad"), the coach, and
+  // older posts by a family ("Leo's parent"), incl. players who've left.
+  const names = await teamLabels(team.id);
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col">

@@ -1,11 +1,12 @@
 import { randomUUID } from "crypto";
 import { check, db, readLocal, writeLocal } from "./store";
-import { firstName, type Team } from "./teams";
 
-// Private messages between families in a team: one-to-one or small groups.
-// Parents only: players' own phones ("I am…") can't use them (see session's
-// isPlayerSelf). A member is a player's id (the phone that picked that child
-// is "Sam's parent") or "coach" (any phone in Manager's Corner).
+
+// Private messages in a team: one-to-one or small groups. For parents, family
+// and coaches: players' own phones ("I am…") can't use them (see session's
+// isPlayerSelf). A member is a person ("p:<member_id>", people.ts), "coach"
+// (any phone in Manager's Corner) or, in older conversations, a player's id
+// (every phone that picked that child is "Sam's parent").
 // Same pattern as store.ts: Supabase in production, a local JSON file in dev.
 
 export type Conversation = {
@@ -38,11 +39,9 @@ export type DmReport = { id: string; team_id: string; message_id: string; report
 export const COACH = "coach";
 export const MAX_GROUP = 12;
 
-/** "Coach", or "Sam's parent". */
-export function memberLabel(team: Team, member: string): string {
-  if (member === COACH) return "Coach";
-  const p = team.allPlayers.find((x) => x.id === member);
-  return p ? `${firstName(p.name)}’s parent` : "A parent";
+/** "Coach", "Leo's Dad", or (older conversations) "Sam's parent". Labels from people.ts's teamLabels. */
+export function memberLabel(labels: Record<string, string>, member: string): string {
+  return labels[member] ?? (member === COACH ? "Coach" : "Someone");
 }
 
 const now = () => new Date().toISOString();

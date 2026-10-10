@@ -2,8 +2,9 @@
 
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getTeam, firstName, playerName, type Team } from "@/lib/teams";
-import { canView, chatAuthor, currentChildren, currentVoter, isTeamAdmin } from "@/lib/session";
+import { getTeam, type Team } from "@/lib/teams";
+import { teamLabels } from "@/lib/people";
+import { canView, chatAuthor, currentChildren, currentPerson, currentVoter, isTeamAdmin } from "@/lib/session";
 import {
   COACH_AUTHOR,
   ackAnnouncement,
@@ -23,10 +24,6 @@ import { notifyManagers, notifyTeam, preview, pushEnabled, sendPush } from "@/li
 async function viewableTeam(teamId: string): Promise<Team | null> {
   const team = await getTeam(teamId);
   return team && (await canView(team)) ? team : null;
-}
-
-function authorLabel(team: Team, authorId: string): string {
-  return authorId === COACH_AUTHOR ? "Coach" : `${firstName(playerName(team, authorId))}'s parent`;
 }
 
 // ---------- message board ----------
@@ -81,12 +78,13 @@ export async function sendChat(teamId: string, body: string, fromEndpoint: strin
   if (!text) return { error: "Write something first." };
   if (text.length > 1000) return { error: "Keep it under 1000 characters." };
   await addChat(team.id, author, text);
+  const from = (await teamLabels(team.id))[author] ?? (author === COACH_AUTHOR ? "Coach" : team.name);
   after(() =>
     notifyTeam(
       team.id,
       "chat",
       {
-        title: `${authorLabel(team, author)}`,
+        title: from,
         body: preview(text),
         url: `/${team.id}/chat`,
         icon: `/${team.id}/icon/192`,
@@ -131,8 +129,8 @@ export async function removeChat(teamId: string, id: string) {
   if (!team) return;
   if (await isTeamAdmin(team)) await deleteChat(team.id, id);
   else {
-    const author = await currentVoter(team);
-    if (author) await deleteChat(team.id, id, author);
+    // Your own posts; and posts from before people, made by your family.
+    for (const author of [await currentPerson(team), await currentVoter(team)]) if (author) await deleteChat(team.id, id, author);
   }
   revalidatePath(`/${team.id}`, "layout");
 }
@@ -165,6 +163,7 @@ export async function savePushSubscription(
     notify_reminders: prefs.reminders,
     notify_dm: prefs.dm !== false,
     children: (await currentChildren(team)).join(",") || null,
+    person_id: await currentPerson(team),
   });
   return { ok: true };
 }
@@ -175,8 +174,12 @@ export async function getPushPrefs(teamId: string, endpoint: string) {
   const sub = await getPushSub(team.id, endpoint);
   if (!sub) return null;
   // Keep the phone's children up to date for personal reminders.
+  // ... and who it is (private messages, and not notifying you of your own chat posts).
   const children = (await currentChildren(team)).join(",") || null;
-  if ((sub.children ?? null) !== children) await savePushSub({ ...sub, children });
+  const [person, author] = [await currentPerson(team), await chatAuthor(team)];
+  if ((sub.children ?? null) !== children || (sub.person_id ?? null) !== person || sub.author_id !== author) {
+    await savePushSub({ ...sub, children, person_id: person, author_id: author });
+  }
   return {
     board: sub.notify_board,
     chat: sub.notify_chat,

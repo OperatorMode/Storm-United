@@ -8,6 +8,7 @@ import { canView, dmIdentities, isPlayerSelf } from "@/lib/session";
 import { tabData } from "@/lib/tabs";
 import { teamTz } from "@/lib/league";
 import { COACH, blocksBy, conversationsFor, lastMessages, memberLabel, membersOf, unreadCounts } from "@/lib/dms";
+import { messageablePeople, teamLabels } from "@/lib/people";
 import { formatTime, formatWeekday, isoDateIn } from "@/lib/time";
 import { NewMessage } from "./NewMessage";
 
@@ -22,19 +23,25 @@ export default async function MessagesPage({ params }: PageProps<"/[team]/messag
   const convs = ids?.length ? await conversationsFor(team.id, ids) : [];
   const convIds = convs.map((c) => c.id);
   const blocked = ids?.length ? await blocksBy(team.id, ids) : [];
-  const [members, last, unread] = await Promise.all([membersOf(convIds), lastMessages(convIds), ids?.length ? unreadCounts(convIds, ids, blocked) : ({} as Record<string, number>)]);
+  const [members, last, unread, labels, people] = await Promise.all([
+    membersOf(convIds),
+    lastMessages(convIds),
+    ids?.length ? unreadCounts(convIds, ids, blocked) : ({} as Record<string, number>),
+    teamLabels(team.id),
+    messageablePeople(team),
+  ]);
 
   const title = (convId: string, name: string | null) => {
     if (name) return name;
-    const others = members.filter((m) => m.conversation_id === convId && !ids?.includes(m.member)).map((m) => memberLabel(team, m.member));
+    const others = members.filter((m) => m.conversation_id === convId && !ids?.includes(m.member)).map((m) => memberLabel(labels, m.member));
     return others.join(", ") || "Just you";
   };
   const today = isoDateIn(new Date(), tz);
   const when = (iso: string) => (isoDateIn(iso, tz) === today ? formatTime(new Date(iso), tz) : formatWeekday(new Date(iso), tz).split(" ").slice(0, 3).join(" "));
-  // Families to message: everyone in the squad except this phone's own, plus the coach.
+  // People to message: everyone in the team except this phone (and anyone it blocked), plus the coach.
   const families = [
     ...(ids?.includes(COACH) ? [] : [{ id: COACH, label: "Coach" }]),
-    ...team.players.filter((p) => !ids?.includes(p.id) && !blocked.includes(p.id)).map((p) => ({ id: p.id, label: memberLabel(team, p.id) })),
+    ...people.filter((p) => !ids?.includes(p.id) && !blocked.includes(p.id)),
   ];
 
   return (
@@ -43,20 +50,20 @@ export default async function MessagesPage({ params }: PageProps<"/[team]/messag
         <SidelnrLink />
         <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
         <h1 className="mt-0.5 text-xl font-semibold">Messages</h1>
-        <p className="mt-0.5 text-xs text-on-team/60">Private messages between families, and with the coach.</p>
+        <p className="mt-0.5 text-xs text-on-team/60">Private messages between parents, family and the coach.</p>
       </header>
 
       <main className="space-y-4 px-4 pt-4">
         {self ? (
           <p className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
-            Private messages are for parents and coaches. Players can talk to the whole team in the Chat.
+            Private messages are for parents, family and coaches. Players can talk to the whole team in the Chat.
           </p>
         ) : !ids?.length ? (
           <p className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
             <Link href={`/${team.id}`} className="font-medium underline">
               Pick your child on Home
             </Link>{" "}
-            first, then you can message other families.
+            first, then you can message others in the team.
           </p>
         ) : (
           <>
@@ -87,8 +94,8 @@ export default async function MessagesPage({ params }: PageProps<"/[team]/messag
                                 : m.removed
                                   ? "Message removed"
                                   : hidden
-                                    ? "Message from a blocked family"
-                                    : `${m.kind === "text" && c.is_group && !ids.includes(m.author) ? `${memberLabel(team, m.author)}: ` : ids.includes(m.author) ? "You: " : ""}${m.body}`}
+                                    ? "Message from someone you blocked"
+                                    : `${m.kind === "text" && c.is_group && !ids.includes(m.author) ? `${memberLabel(labels, m.author)}: ` : ids.includes(m.author) ? "You: " : ""}${m.body}`}
                             </span>
                             {n > 0 && (
                               <span className="grid min-w-5 shrink-0 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-semibold leading-5 text-on-accent">

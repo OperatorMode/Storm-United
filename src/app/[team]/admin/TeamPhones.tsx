@@ -6,7 +6,7 @@ import { removePhoneChild } from "../actions";
 export type ChildPhones = {
   id: string;
   name: string;
-  phones: { deviceId: string; device: string; seen: string; self: boolean }[];
+  phones: { deviceId: string; device: string; who: string | null; seen: string; self: boolean }[];
 };
 
 // Manager's Corner: which phones follow each child. If a phone picked a child
@@ -26,6 +26,7 @@ export function TeamPhones({ teamId, kids }: { teamId: string; kids: ChildPhones
               {c.phones.map((p) => (
                 <li key={p.deviceId} className="flex items-center justify-between gap-2 text-xs text-zinc-600">
                   <span>
+                    {p.who ? `${p.who} · ` : ""}
                     {p.device}
                     {p.self ? " · the player’s own" : ""} · seen {p.seen}
                   </span>

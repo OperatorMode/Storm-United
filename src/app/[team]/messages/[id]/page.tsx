@@ -4,6 +4,7 @@ import { getTeam } from "@/lib/teams";
 import { canView, dmIdentities } from "@/lib/session";
 import { teamTz } from "@/lib/league";
 import { blocksBy, getConversation, markRead, memberLabel, membersOf, messagesIn } from "@/lib/dms";
+import { teamLabels } from "@/lib/people";
 import { JoinGate } from "@/components/JoinGate";
 import { DmThread } from "./DmThread";
 import { SidelnrLink } from "@/components/SidelnrLink";
@@ -22,11 +23,11 @@ export default async function ConversationPage({ params }: PageProps<"/[team]/me
   const me = members.find((m) => ids.includes(m.member) && !m.left_at)?.member;
   if (!me) redirect(`/${team.id}/messages`);
 
-  const [messages, tz, blocked] = await Promise.all([messagesIn(conv.id), teamTz(team), blocksBy(team.id, ids)]);
+  const [messages, tz, blocked, labels] = await Promise.all([messagesIn(conv.id), teamTz(team), blocksBy(team.id, ids), teamLabels(team.id)]);
   await markRead(conv.id, me);
   const active = members.filter((m) => !m.left_at);
   const others = active.filter((m) => m.member !== me).map((m) => m.member);
-  const names = Object.fromEntries([...new Set([...members.map((m) => m.member), ...messages.map((m) => m.author)])].map((m) => [m, memberLabel(team, m)]));
+  const names = Object.fromEntries([...new Set([...members.map((m) => m.member), ...messages.map((m) => m.author)])].map((m) => [m, memberLabel(labels, m)]));
   const title = conv.name ?? (others.map((o) => names[o]).join(", ") || "Just you");
 
   return (

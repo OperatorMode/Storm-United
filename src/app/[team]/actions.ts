@@ -16,7 +16,8 @@ import { getAttendance, setAttendance, upsertBallot, type AttendanceStatus, type
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 import { notifyManagers } from "@/lib/push";
 import { ensureDeviceId } from "@/lib/device";
-import { recordPhone, removeChildFromPhone, removedChildren } from "@/lib/phones";
+import { recordPhone, removeChildFromPhone, removedChildren, selfTakenBy, setPhonePerson } from "@/lib/phones";
+import { NAME_MAX, RELATION_MAX } from "@/lib/people";
 import {
   COOKIE_OPTS,
   adminCookie,
@@ -45,18 +46,41 @@ async function findGame(team: Team, gameId: string) {
 // The child (or children) this phone belongs to; an empty list forgets it.
 export async function setChildren(teamId: string, ids: string[], self = false) {
   const team = await teamFor(teamId);
-  if (!team) return;
+  if (!team) return { error: "Team not found." };
   const store = await cookies();
   // A player picks just themselves; a parent can pick siblings too.
   const deviceId = await ensureDeviceId();
   const removed = await removedChildren(team.id, deviceId);
   const valid = [...new Set(ids)].filter((id) => isActivePlayer(team, id) && !removed.includes(id)).slice(0, self ? 1 : 10);
+  // A player is one person: only one phone can be them ("I am…").
+  if (self && valid[0] && (await selfTakenBy(team.id, valid[0], deviceId))) {
+    const name = team.players.find((p) => p.id === valid[0])?.name.split(" ")[0] ?? "This player";
+    return { error: `${name} is already on another phone. If that’s wrong, ask the coach to remove it under Connected phones.` };
+  }
   if (self) store.set(selfCookie(team.id), "1", COOKIE_OPTS);
   else store.delete(selfCookie(team.id));
   if (!valid.length) store.delete(voterCookie(team.id));
   else store.set(voterCookie(team.id), valid.join(","), COOKIE_OPTS);
   await recordPhone(team.id, deviceId, valid, self, (await headers()).get("user-agent"));
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+// "I belong to…": who this phone's person is to the children ("Dad", "Friend"…)
+// and, if they like, their name. Shown in chat and private messages.
+export async function setPerson(teamId: string, relation: string, name: string) {
+  const team = await teamFor(teamId);
+  if (!team) return { error: "Team not found." };
+  const clean = (v: string, max: number) => v.replace(/\s+/g, " ").trim().slice(0, max);
+  const rel = clean(relation, RELATION_MAX);
+  if (!rel) return { error: "Say who you are to them, e.g. Dad, Mum or Friend." };
+  const deviceId = await ensureDeviceId();
+  if (!(await currentChildren(team)).length) return { error: "Tick your child first." };
+  // Make sure this phone is recorded (older phones may not be yet).
+  await recordPhone(team.id, deviceId, await currentChildren(team), false, (await headers()).get("user-agent"));
+  await setPhonePerson(team.id, deviceId, rel.charAt(0).toUpperCase() + rel.slice(1), clean(name, NAME_MAX) || null);
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 // Sets attendance and/or the goalie volunteer slot. Volunteering for goal

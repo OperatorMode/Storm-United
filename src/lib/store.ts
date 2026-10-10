@@ -167,6 +167,7 @@ export type PushSubRow = {
   notify_reminders?: boolean; // "can your child play?" and match-day reminders
   notify_dm?: boolean; // private messages (migration 023)
   children?: string | null; // player ids this phone picked, comma-separated
+  person_id?: string | null; // who this phone is (people.ts), for private messages (migration 028)
 };
 
 /** A team's upcoming games at the last alert check: game id -> details. */

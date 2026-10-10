@@ -22,8 +22,9 @@ export default function FeaturesPage() {
           <b>Team home:</b> the next game with time, venue and directions, your team’s fixtures and results, and the ladder.
         </li>
         <li>
-          <b>Parent of… or I am…:</b> pick your child (or several, if siblings play in the same team), or your own name if
-          you’re the player.
+          <b>I belong to… or I am…:</b> pick the player you belong to (or several, if siblings play in the same team) and say
+          who you are to them: Mum, Dad, Grandparent, Friend or anything else, with your name if you like. Everyone shows up as
+          themselves in the chat, like “Leo’s Dad”. Players pick their own name, and only one phone can be each player.
         </li>
         <li>
           <b>Attendance:</b> tap Can play, Maybe or Can’t make it for each game, and see who else is in.

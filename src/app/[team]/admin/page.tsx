@@ -35,6 +35,7 @@ import { memberLabel, openReports } from "@/lib/dms";
 import { ReportedMessages } from "./ReportedMessages";
 import { TeamPhones } from "./TeamPhones";
 import { listPhones } from "@/lib/phones";
+import { personId, teamLabels } from "@/lib/people";
 import { openChatReports } from "@/lib/messages";
 import { tally, winners } from "@/lib/mvp";
 import { firstName, getTeam, playerName } from "@/lib/teams";
@@ -106,7 +107,12 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     ? (await leagueMessagesFor(comp.league_id, comp.id)).filter((m) => clockNow().getTime() - new Date(m.created_at).getTime() < 60 * 24 * 60 * 60 * 1000)
     : [];
   // Private messages families reported to the managers, and the phones following each child.
-  const [dmReports, chatReports, phones] = await Promise.all([openReports(team.id).catch(() => []), openChatReports(team.id), listPhones(team.id)]);
+  const [dmReports, chatReports, phones, labels] = await Promise.all([
+    openReports(team.id).catch(() => []),
+    openChatReports(team.id),
+    listPhones(team.id),
+    teamLabels(team.id),
+  ]);
   const reports = [
     ...dmReports.map((r) => ({ id: r.id, kind: "dm" as const, author: r.message?.author ?? null, reporter: r.reporter, body: r.message?.body, at: r.message?.created_at })),
     ...chatReports.map((r) => ({ id: r.id, kind: "chat" as const, author: r.message?.author_id ?? null, reporter: r.reporter, body: r.message?.body, at: r.message?.created_at })),
@@ -246,8 +252,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             reports={reports.map((r) => ({
               id: r.id,
               kind: r.kind,
-              from: r.author ? memberLabel(team, r.author) : "Unknown",
-              reporter: memberLabel(team, r.reporter),
+              from: r.author ? memberLabel(labels, r.author) : "Unknown",
+              reporter: memberLabel(labels, r.reporter),
               body: r.body ?? "(message deleted)",
               when: r.at ? formatDay(new Date(r.at), tz) : "",
             }))}
@@ -498,7 +504,13 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             name: firstName(p.name),
             phones: phones
               .filter((ph) => ph.children.split(",").includes(p.id))
-              .map((ph) => ({ deviceId: ph.device_id, device: ph.device ?? "Phone", seen: formatDay(new Date(ph.last_seen), tz), self: ph.is_self })),
+              .map((ph) => ({
+                deviceId: ph.device_id,
+                device: ph.device ?? "Phone",
+                who: ph.member_id ? (labels[personId(ph.member_id)] ?? null) : null,
+                seen: formatDay(new Date(ph.last_seen), tz),
+                self: ph.is_self,
+              })),
           }))}
         />
       </Section>

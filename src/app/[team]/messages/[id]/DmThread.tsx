@@ -139,7 +139,7 @@ export function DmThread({
       <div className="fixed inset-x-0 bottom-0 z-10 border-t border-zinc-200 bg-zinc-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto max-w-md space-y-2 px-3 py-2">
           {otherBlocked ? (
-            <p className="py-2 text-center text-sm text-zinc-600">You blocked this family.</p>
+            <p className="py-2 text-center text-sm text-zinc-600">You blocked this person.</p>
           ) : (
             <form
               onSubmit={(e) => {

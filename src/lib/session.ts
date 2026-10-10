@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { isActivePlayer, type Team } from "./teams";
 import { getManager, managedTeams, type Manager } from "./accounts";
-import { removedChildren } from "./phones";
+import { phoneFor, removedChildren } from "./phones";
+import { personId } from "./people";
 import { ownerStillValid } from "./owner-auth";
 
 // No logins. Per team, a cookie remembers:
@@ -164,14 +165,27 @@ export async function currentChildren(team: Team): Promise<string[]> {
 }
 
 /**
- * Who this phone is in private messages: the children it picked ("Sam's
- * parent") and, in Manager's Corner, "coach". Null for players' own phones
- * ("I am…"): private messages are for parents only.
+ * Who this phone is in the team (people.ts): "p:<member_id>", once it has
+ * picked a child and been recorded. Null before that.
+ */
+export async function currentPerson(team: Team): Promise<string | null> {
+  const device = await currentDeviceId();
+  if (!device || !(await currentChildren(team)).length) return null;
+  const phone = await phoneFor(team.id, device);
+  return phone?.member_id ? personId(phone.member_id) : null;
+}
+
+/**
+ * Who this phone is in private messages: its person first, then (for older
+ * conversations, from before people) the children it picked ("Sam's parent"),
+ * and in Manager's Corner "coach". Null for players' own phones ("I am…"):
+ * private messages are for parents, family and coaches.
  */
 export async function dmIdentities(team: Team): Promise<string[] | null> {
   if (await isPlayerSelf(team)) return null;
-  const ids = await currentChildren(team);
-  return (await isTeamAdmin(team)) ? ["coach", ...ids] : ids;
+  const [person, children, admin] = await Promise.all([currentPerson(team), currentChildren(team), isTeamAdmin(team)]);
+  const ids = [...(person ? [person] : []), ...children];
+  return admin ? ["coach", ...ids] : ids;
 }
 
 /** Whether this phone is the player's own ("I am…") rather than a parent's. */
@@ -187,8 +201,9 @@ export async function currentVoter(team: Team): Promise<string | null> {
   return (await currentChildren(team))[0] ?? null;
 }
 
-// Who this browser posts as in the team chat: the coach (team admin) or a family.
+// Who this browser posts as in the team chat: the coach (team admin) or its
+// person ("Leo's Dad"). Phones not recorded yet post as the family, like before.
 export async function chatAuthor(team: Team): Promise<string | null> {
   if (await isTeamAdmin(team)) return "coach";
-  return currentVoter(team);
+  return (await currentPerson(team)) ?? (await currentVoter(team));
 }

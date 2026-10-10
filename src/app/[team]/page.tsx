@@ -2,7 +2,9 @@ import { Card } from "@/components/Card";
 import { gameParts, roleName, slotLabel, type GameParts } from "@/lib/role";
 import { OfficialLadderTable } from "@/components/OfficialLadderTable";
 import { SidelnrLink } from "@/components/SidelnrLink";
-import { ChildrenPicker } from "@/components/ChildrenPicker";
+import { ChildrenPicker, PersonForm } from "@/components/ChildrenPicker";
+import { phoneFor } from "@/lib/phones";
+import { personId, teamLabels } from "@/lib/people";
 import { LeaveTeam } from "@/components/LeaveTeam";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { NotificationSettings } from "@/components/NotificationSettings";
@@ -44,7 +46,7 @@ import { firstName, getTeam, playerName, type Team } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
 import { getAttendance, getBallots, type AttendanceRow, type AttendanceStatus } from "@/lib/store";
 import { tally, winners } from "@/lib/mvp";
-import { adminAccess, canView, currentChildren, isPlayerSelf } from "@/lib/session";
+import { adminAccess, canView, currentChildren, currentDeviceId, isPlayerSelf } from "@/lib/session";
 import { now as clockNow } from "@/lib/clock";
 import { PhoneCheckIn } from "@/components/PhoneCheckIn";
 
@@ -61,6 +63,11 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
     tabData(team),
   ]);
   const self = await isPlayerSelf(team);
+  // How the team sees this phone ("Leo's Dad"), and what it said it is to its children.
+  const deviceId = await currentDeviceId();
+  const phone = deviceId && children.length ? await phoneFor(team.id, deviceId) : null;
+  const personLabel = phone?.member_id ? ((await teamLabels(team.id))[personId(phone.member_id)] ?? null) : null;
+  const personProps = { label: personLabel, relation: phone?.relation ?? null, name: phone?.name ?? null };
   const byWins = ladderStyle === "wins";
   const [calToken, host, training, duties, dutySignups] = await Promise.all([
     calendarToken([team]),
@@ -96,7 +103,7 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
               <div className="text-xs text-on-team/60">{competition ? competitionLabel(competition) : team.division}</div>
             </div>
           </div>
-          <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} self={self} />
+          <ChildrenPicker teamId={team.id} players={PLAYERS} current={children} self={self} {...personProps} />
         </div>
 
         <NextGame
@@ -112,6 +119,12 @@ export default async function TeamHome({ params }: PageProps<"/[team]">) {
         <PhoneCheckIn teamId={team.id} />
         {children.length > 0 && <NotificationSettings teamId={team.id} vapidKey={pushPublicKey()} />}
         {calToken && children.length > 0 && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} />}
+        {voter && !self && !phone?.relation && (
+          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-2 font-semibold">One more thing</h2>
+            <PersonForm teamId={team.id} kids={children.map((c) => firstName(nameOf(c)))} relation={null} name={null} />
+          </section>
+        )}
         {!voter && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="font-semibold">Welcome! Who are you?</h2>
