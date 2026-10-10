@@ -227,6 +227,7 @@ export default async function MyPlayerPage() {
       </header>
 
       <main className="mt-4 space-y-5 px-4">
+        <ActivityReminders vapidKey={pushPublicKey()} />
         {teams.length > 0 && <InstallPrompt name="Sidelnr" icon="/app-icon/192" />}
         {teams.length === 0 && activities.length === 0 && (
           <div className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
@@ -351,11 +352,6 @@ export default async function MyPlayerPage() {
               }))}
             />
           </div>
-          {activities.length > 0 && (
-            <div className="mt-3 border-t border-zinc-100 pt-3">
-              <ActivityReminders vapidKey={pushPublicKey()} />
-            </div>
-          )}
           <details className="mt-3 border-t border-zinc-100 pt-3" open={activities.length === 0 && teams.length === 0}>
             <summary className="cursor-pointer font-semibold">+ Add an activity</summary>
             <div className="mt-3">

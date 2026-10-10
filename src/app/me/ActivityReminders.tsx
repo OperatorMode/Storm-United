@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { getActivityReminders, saveActivityReminders } from "./activity-actions";
 
-type Prefs = { day: boolean; hour: boolean };
+type Prefs = { day: boolean; hour: boolean; news: boolean };
 type Mode = "loading" | "unsupported" | "ios-install" | "blocked" | "ready";
 
 function urlBase64ToUint8Array(base64: string) {
@@ -12,11 +12,12 @@ function urlBase64ToUint8Array(base64: string) {
 }
 const registration = () => navigator.serviceWorker.register("/sw.js", { scope: "/" });
 
-// Reminders for the family's own activities on this phone: a day before and
-// an hour before, each on or off.
+// A small "Reminders" switch at the top of My Activities, for all activities on
+// this phone: a day before, an hour before, and when someone else adds one.
 export function ActivityReminders({ vapidKey }: { vapidKey: string | null }) {
   const [mode, setMode] = useState<Mode>("loading");
-  const [prefs, setPrefs] = useState<Prefs>({ day: false, hour: false });
+  const [prefs, setPrefs] = useState<Prefs>({ day: false, hour: false, news: false });
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -43,7 +44,7 @@ export function ActivityReminders({ vapidKey }: { vapidKey: string | null }) {
       try {
         const reg = await registration();
         let sub = await reg.pushManager.getSubscription();
-        if (!sub && (next.day || next.hour)) {
+        if (!sub && (next.day || next.hour || next.news)) {
           if ((await Notification.requestPermission()) !== "granted") {
             setMode(Notification.permission === "denied" ? "blocked" : "ready");
             return;
@@ -60,36 +61,47 @@ export function ActivityReminders({ vapidKey }: { vapidKey: string | null }) {
     });
 
   if (mode === "loading") return null;
+  const on = prefs.day || prefs.hour || prefs.news;
   return (
-    <div className="space-y-2 text-sm">
-      <span className="block font-medium">Reminders on this phone</span>
-      {mode === "ready" ? (
-        <div className="grid grid-cols-2 gap-2">
-          {(
-            [
-              ["day", "A day before"],
-              ["hour", "An hour before"],
-            ] as const
-          ).map(([k, label]) => (
-            <label
-              key={k}
-              className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 ${prefs[k] ? "border-zinc-900 bg-zinc-50 font-medium" : "border-zinc-300 bg-white text-zinc-700"}`}
-            >
-              <input type="checkbox" checked={prefs[k]} disabled={pending} onChange={() => update({ ...prefs, [k]: !prefs[k] })} className="size-4 accent-zinc-900" />
-              {label}
-            </label>
-          ))}
+    <div className="text-sm">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          className={`rounded-full border px-3 py-1 text-xs font-medium ${on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-700"}`}
+        >
+          Reminders: {on ? "On" : "Off"}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-2 space-y-2 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm">
+          <span className="block text-xs text-zinc-500">For all activities, on this phone.</span>
+          {mode === "ready" ? (
+            (
+              [
+                ["day", "A day before"],
+                ["hour", "An hour before"],
+                ["news", "When someone adds an activity you share"],
+              ] as const
+            ).map(([k, label]) => (
+              <label key={k} className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={prefs[k]} disabled={pending} onChange={() => update({ ...prefs, [k]: !prefs[k] })} className="size-4 accent-zinc-900" />
+                {label}
+              </label>
+            ))
+          ) : (
+            <p className="text-xs text-zinc-500">
+              {mode === "ios-install"
+                ? "On iPhone, add Sidelnr to your home screen first (Share, then Add to Home Screen), then turn reminders on from there."
+                : mode === "blocked"
+                  ? "Notifications are blocked for Sidelnr on this phone. Allow them in your phone’s settings to get reminders."
+                  : "This browser can’t show notifications."}
+            </p>
+          )}
+          {error && <p className="text-xs text-accent">{error}</p>}
         </div>
-      ) : (
-        <p className="text-xs text-zinc-500">
-          {mode === "ios-install"
-            ? "On iPhone, add Sidelnr to your home screen first (Share, then Add to Home Screen), then turn reminders on from there."
-            : mode === "blocked"
-              ? "Notifications are blocked for Sidelnr on this phone. Allow them in your phone’s settings to get reminders."
-              : "This browser can’t show notifications."}
-        </p>
       )}
-      {error && <p className="text-xs text-accent">{error}</p>}
     </div>
   );
 }

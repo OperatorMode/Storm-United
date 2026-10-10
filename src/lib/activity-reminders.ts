@@ -15,6 +15,7 @@ export type HouseholdPush = {
   auth: string;
   remind_day: boolean;
   remind_hour: boolean;
+  notify_new: boolean; // someone else added an activity this phone shares
   created_at: string;
 };
 
@@ -114,4 +115,22 @@ export async function sendActivityReminders(now = Date.now()): Promise<number> {
     }
   }
   return sent;
+}
+
+/** Tells the household's other phones that an activity was added (not the phone that added it). */
+export async function notifyNewActivity(
+  householdId: string,
+  a: { id: string; person: string; name: string },
+  summary: string,
+  exceptEndpoint: string | null,
+): Promise<void> {
+  const phones = (await allHouseholdPush()).filter((p) => p.household_id === householdId && p.notify_new && p.endpoint !== exceptEndpoint);
+  const payload = {
+    title: `New activity: ${a.person === "Me" ? "" : `${a.person}’s `}${a.name}`,
+    body: summary,
+    url: "/me",
+    icon: "/app-icon/192",
+    tag: `activity-new-${a.id}`,
+  };
+  await Promise.allSettled(phones.map((p) => sendPushTo(p, payload, () => deleteHouseholdPush(p.endpoint))));
 }

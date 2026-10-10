@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { addActivity } from "./activity-actions";
+import { pushEndpoint } from "@/lib/push-endpoint";
 
 const DAYS: [number, string][] = [
   [1, "Mon"],
@@ -54,6 +55,7 @@ export function ActivityForm({ people, initial, onDone }: { people: string[]; in
         const form = new FormData(el);
         form.set("tz", Intl.DateTimeFormat().resolvedOptions().timeZone);
         start(async () => {
+          form.set("endpoint", (await pushEndpoint()) ?? ""); // so this phone isn't told about its own addition
           const res = await addActivity(null, form);
           if ("error" in res) return setMsg({ error: res.error });
           if (initial) return onDone?.(); // edited: close the form

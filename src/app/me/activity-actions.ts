@@ -17,10 +17,13 @@ import {
   linkActivities,
   newActivityShareCode,
   unlinkActivity,
+  weeklySummary,
+  type Activity,
   type WeeklySlot,
 } from "@/lib/activities";
 import { readActivitySource, refreshActivity } from "@/lib/activity-import";
-import { deleteHouseholdPush, getHouseholdPush, saveHouseholdPush } from "@/lib/activity-reminders";
+import { deleteHouseholdPush, getHouseholdPush, notifyNewActivity, saveHouseholdPush } from "@/lib/activity-reminders";
+import { after } from "next/server";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
 import { COOKIE_OPTS, HOUSEHOLD_COOKIE, currentHouseholdId } from "@/lib/session";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
@@ -40,6 +43,17 @@ async function household(): Promise<string> {
 
 const refresh = () => revalidatePath("/me");
 
+/** After adding (not editing) an activity: tell the household's other phones. */
+function announce(a: Activity, isNew: boolean, endpoint: string) {
+  if (!isNew) return;
+  const summary = a.source_url
+    ? `${a.extra.length} session${a.extra.length === 1 ? "" : "s"} from a link`
+    : a.weekly.length
+      ? weeklySummary(a)
+      : "One session";
+  after(() => notifyNewActivity(a.household_id, a, summary, endpoint || null));
+}
+
 /** Adds an activity, or saves changes to one (when the form carries its id). */
 export async function addActivity(_: unknown, formData: FormData) {
   const get = (k: string) => String(formData.get(k) ?? "").trim();
@@ -50,6 +64,11 @@ export async function addActivity(_: unknown, formData: FormData) {
   if (!person) return { error: "Choose who it’s for." };
   if (!name) return { error: "Give the activity a name, e.g. Piano." };
   const id = await household();
+  const endpoint = get("endpoint"); // this phone's push address: it isn't told about its own addition
+  const store = async (a: Activity) => {
+    await saveActivity(a);
+    announce(a, !existing, endpoint);
+  };
   const existing = get("id") ? await mine(get("id")) : null;
   if (get("id") && !existing) return { error: "That activity isn’t on this phone any more." };
   if (!existing && (await listActivities(id)).length >= MAX_ACTIVITIES) return { error: "That’s a lot of activities. Remove some first." };
@@ -85,13 +104,13 @@ export async function addActivity(_: unknown, formData: FormData) {
     const filter = get("filter").slice(0, 60) || null;
     // Same link and filter as before: keep the sessions already read.
     if (existing?.source_url && existing.source_url === url && (existing.source_filter ?? null) === filter) {
-      await saveActivity({ ...base, extra: existing.extra, source_url: url, source_kind: existing.source_kind, source_filter: filter, synced_at: existing.synced_at });
+      await store({ ...base, extra: existing.extra, source_url: url, source_kind: existing.source_kind, source_filter: filter, synced_at: existing.synced_at });
       refresh();
       return { ok: true, count: existing.extra.length };
     }
     try {
       const res = await readActivitySource(url, base.tz, filter, name);
-      await saveActivity({ ...base, extra: res.sessions, source_url: res.url, source_kind: res.kind, source_filter: filter, synced_at: new Date().toISOString() });
+      await store({ ...base, extra: res.sessions, source_url: res.url, source_kind: res.kind, source_filter: filter, synced_at: new Date().toISOString() });
       refresh();
       return { ok: true, count: res.sessions.length };
     } catch (e) {
@@ -107,7 +126,7 @@ export async function addActivity(_: unknown, formData: FormData) {
   if (mode === "once") {
     const date = parseDate(get("date"));
     if (!date) return { error: "Pick the date." };
-    await saveActivity({ ...base, extra: [{ at: zonedTime(date, time, base.tz).toISOString(), m: minutes }] });
+    await store({ ...base, extra: [{ at: zonedTime(date, time, base.tz).toISOString(), m: minutes }] });
     refresh();
     return { ok: true, count: 1 };
   }
@@ -121,7 +140,7 @@ export async function addActivity(_: unknown, formData: FormData) {
   if (get("ends_on") && !endsOn) return { error: "That end date doesn’t look right." };
   if (endsOn && endsOn < startsOn) return { error: "The end date is before the start." };
   const weekly: WeeklySlot[] = [...new Set(days)].map((d) => ({ d, t: time, m: minutes }));
-  await saveActivity({ ...base, weekly, starts_on: startsOn, ends_on: endsOn });
+  await store({ ...base, weekly, starts_on: startsOn, ends_on: endsOn });
   refresh();
   return { ok: true, count: weekly.length };
 }
@@ -199,9 +218,9 @@ export async function joinActivities(code: string) {
 type BrowserSubscription = { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
 
 /** This phone's reminder switches (a day before, an hour before). */
-export async function saveActivityReminders(sub: BrowserSubscription, prefs: { day: boolean; hour: boolean }) {
+export async function saveActivityReminders(sub: BrowserSubscription, prefs: { day: boolean; hour: boolean; news: boolean }) {
   if (!sub?.endpoint?.startsWith("https://") || !sub.keys?.p256dh || !sub.keys?.auth) return { error: "Invalid subscription." };
-  if (!prefs.day && !prefs.hour) {
+  if (!prefs.day && !prefs.hour && !prefs.news) {
     await deleteHouseholdPush(sub.endpoint);
     return { ok: true };
   }
@@ -214,13 +233,14 @@ export async function saveActivityReminders(sub: BrowserSubscription, prefs: { d
     auth: sub.keys.auth,
     remind_day: prefs.day,
     remind_hour: prefs.hour,
+    notify_new: prefs.news,
     created_at: existing?.created_at ?? new Date().toISOString(),
   });
   return { ok: true };
 }
 
-export async function getActivityReminders(endpoint: string): Promise<{ day: boolean; hour: boolean } | null> {
+export async function getActivityReminders(endpoint: string): Promise<{ day: boolean; hour: boolean; news: boolean } | null> {
   const id = await currentHouseholdId();
   const row = id ? await getHouseholdPush(endpoint) : null;
-  return row && row.household_id === id ? { day: row.remind_day, hour: row.remind_hour } : null;
+  return row && row.household_id === id ? { day: row.remind_day, hour: row.remind_hour, news: row.notify_new ?? true } : null;
 }
