@@ -99,7 +99,7 @@ export default async function Landing() {
         team: t,
         league: competition ? competitionLabel(competition) : t.division,
         kids: children.map((c) => firstName(playerName(t, c))),
-        boardUnread: tabs.boardUnread,
+        boardUnread: tabs.boardUnread + tabs.messagesUnread, // unread board posts and private messages
         chatTimes: chat.filter((m) => m.author_id !== me).slice(-50).map((m) => m.created_at),
       };
     }),

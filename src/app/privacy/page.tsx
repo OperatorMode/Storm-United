@@ -22,7 +22,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           <b>What parents tap in the app</b>: whether a child can play, goalie volunteering, MVP votes, “Got it” on coach
-          messages, and team chat messages.
+          messages, team chat messages, and private messages between families. Private messages are only visible to the
+          people in that conversation, unless one of them reports a message, which then shows it to the team’s managers.
         </li>
         <li>
           <b>Coaches’ and organisers’ email addresses</b>, used only to send sign-in links. There are no passwords.

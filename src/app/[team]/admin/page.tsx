@@ -30,6 +30,8 @@ import { competitionLabel, formatDay, getLeagueData, listCompetitions, roundLabe
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { roleByPart, roleTally } from "@/lib/goalies";
 import { leagueMessagesFor } from "@/lib/league-messages";
+import { memberLabel, openReports } from "@/lib/dms";
+import { ReportedMessages } from "./ReportedMessages";
 import { tally, winners } from "@/lib/mvp";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { now as clockNow } from "@/lib/clock";
@@ -99,6 +101,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
   const leagueNews = comp
     ? (await leagueMessagesFor(comp.league_id, comp.id)).filter((m) => clockNow().getTime() - new Date(m.created_at).getTime() < 60 * 24 * 60 * 60 * 1000)
     : [];
+  // Private messages families reported to the managers.
+  const reports = await openReports(team.id).catch(() => []);
   const [training, duties, dutySignups, rotations] = await Promise.all([
     listTraining(team.id),
     listDuties(team.id),
@@ -226,6 +230,21 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           Team chat
         </Link>
       </div>
+
+      {reports.length > 0 && (
+        <Section title="Reported messages" aside={`${reports.length} to look at`} open>
+          <ReportedMessages
+            teamId={team.id}
+            reports={reports.map((r) => ({
+              id: r.id,
+              from: r.message ? memberLabel(team, r.message.author) : "Unknown",
+              reporter: memberLabel(team, r.reporter),
+              body: r.message?.body ?? "(message deleted)",
+              when: r.message ? formatDay(new Date(r.message.created_at), tz) : "",
+            }))}
+          />
+        </Section>
+      )}
 
       {leagueNews.length > 0 && comp && (
         <Section title="League announcements" aside={comp.league.short_name ?? comp.league.name} open={now.getTime() - new Date(leagueNews[0].created_at).getTime() < 3 * 24 * 60 * 60 * 1000}>

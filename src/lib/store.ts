@@ -74,6 +74,11 @@ export type LocalDb = {
   activity_shares?: { code_hash: string; household_id: string; activity_ids: string[]; expires_at: string; created_at: string }[];
   activity_links?: { household_id: string; activity_id: string; created_at: string }[];
   activity_hidden?: { device_id: string; activity_id: string; created_at: string }[];
+  conversations?: import("./dms").Conversation[];
+  conversation_members?: import("./dms").ConversationMember[];
+  direct_messages?: import("./dms").DirectMessage[];
+  dm_blocks?: { team_id: string; blocker: string; blocked: string; created_at: string }[];
+  dm_reports?: import("./dms").DmReport[];
   household_push?: import("./activity-reminders").HouseholdPush[];
   activity_reminder_log?: { household_id: string; key: string; sent_at: string }[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];
@@ -156,6 +161,7 @@ export type PushSubRow = {
   notify_chat: boolean;
   notify_games?: boolean; // time/pitch changes, postponed, cancelled
   notify_reminders?: boolean; // "can your child play?" and match-day reminders
+  notify_dm?: boolean; // private messages (migration 023)
   children?: string | null; // player ids this phone picked, comma-separated
 };
 

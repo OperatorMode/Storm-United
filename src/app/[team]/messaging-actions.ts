@@ -114,12 +114,12 @@ type BrowserSubscription = { endpoint: string; keys: { p256dh: string; auth: str
 export async function savePushSubscription(
   teamId: string,
   sub: BrowserSubscription,
-  prefs: { board: boolean; chat: boolean; games: boolean; reminders: boolean },
+  prefs: { board: boolean; chat: boolean; games: boolean; reminders: boolean; dm?: boolean },
 ) {
   const team = await viewableTeam(teamId);
   if (!team) return { error: "Team not found." };
   if (!sub?.endpoint?.startsWith("https://") || !sub.keys?.p256dh || !sub.keys?.auth) return { error: "Invalid subscription." };
-  if (!prefs.board && !prefs.chat && !prefs.games && !prefs.reminders) {
+  if (!prefs.board && !prefs.chat && !prefs.games && !prefs.reminders && !prefs.dm) {
     await deletePushSub(team.id, sub.endpoint);
     return { ok: true };
   }
@@ -133,6 +133,7 @@ export async function savePushSubscription(
     notify_chat: prefs.chat,
     notify_games: prefs.games,
     notify_reminders: prefs.reminders,
+    notify_dm: prefs.dm !== false,
     children: (await currentChildren(team)).join(",") || null,
   });
   return { ok: true };
@@ -146,7 +147,13 @@ export async function getPushPrefs(teamId: string, endpoint: string) {
   // Keep the phone's children up to date for personal reminders.
   const children = (await currentChildren(team)).join(",") || null;
   if ((sub.children ?? null) !== children) await savePushSub({ ...sub, children });
-  return { board: sub.notify_board, chat: sub.notify_chat, games: sub.notify_games !== false, reminders: sub.notify_reminders !== false };
+  return {
+    board: sub.notify_board,
+    chat: sub.notify_chat,
+    games: sub.notify_games !== false,
+    reminders: sub.notify_reminders !== false,
+    dm: sub.notify_dm !== false,
+  };
 }
 
 // "Send a test notification" to this phone only, to check notifications work.

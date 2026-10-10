@@ -152,7 +152,7 @@ export async function getPushSubs(teamId: string): Promise<PushSubRow[]> {
   return check(
     await s
       .from("push_subscriptions")
-      .select("endpoint, team_id, author_id, p256dh, auth, notify_board, notify_chat, notify_games, notify_reminders, children")
+      .select("endpoint, team_id, author_id, p256dh, auth, notify_board, notify_chat, notify_games, notify_reminders, notify_dm, children")
       .eq("team_id", teamId),
   );
 }

@@ -133,6 +133,17 @@ export async function currentChildren(team: Team): Promise<string[]> {
   return [...new Set((raw ?? "").split(","))].filter((id) => id && isActivePlayer(team, id));
 }
 
+/**
+ * Who this phone is in private messages: the children it picked ("Sam's
+ * parent") and, in Manager's Corner, "coach". Null for players' own phones
+ * ("I am…"): private messages are for parents only.
+ */
+export async function dmIdentities(team: Team): Promise<string[] | null> {
+  if (await isPlayerSelf(team)) return null;
+  const ids = await currentChildren(team);
+  return (await isTeamAdmin(team)) ? ["coach", ...ids] : ids;
+}
+
 /** Whether this phone is the player's own ("I am…") rather than a parent's. */
 export async function isPlayerSelf(team: Team): Promise<boolean> {
   return (await cookies()).get(selfCookie(team.id))?.value === "1";

@@ -46,6 +46,11 @@ export default function FeaturesPage() {
           and a team chat.
         </li>
         <li>
+          <b>Private messages:</b> message another family or the coach, or start a small group (“Carpool Saturday”). Leave
+          a group any time, block a family, or report a message to the team’s managers. For parents and coaches only, not
+          players.
+        </li>
+        <li>
           <b>MVP votes:</b> 3, 2 and 1 points after each game, with a season tally.
         </li>
         <li>
