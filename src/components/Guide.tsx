@@ -31,7 +31,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/act-5-clash.webp",
         title: "Solve a clash",
-        text: "Two things at once? Tap Resolve clash. Choose Not going (the coach sees “Can’t make it”, or an activity skips that time), or pick who’s taking them: Mum, Dad, or the child on their own. With different people taking them, the clash is solved.",
+        text: "Two things at once? Tap Resolve clash. Choose Not going (the coach sees “Can’t make it”, or an activity skips that time), or pick who’s taking them: Mum, Dad, or the child on their own. Once it’s sorted, the clash turns green: resolved.",
       },
       {
         image: "/guide/act-3-add.webp",

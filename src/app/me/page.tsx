@@ -60,6 +60,7 @@ type Entry = {
   place: string | null;
   kids: { name: string; status: AttendanceStatus | null; id?: string }[];
   clashes: { kind: "child" | "family"; text: string }[];
+  resolved?: string[]; // clashes already solved, and how ("Dad takes Leo, Mum takes Zara")
   key: string; // for the clash solver: "<team>:<game or training>", or the activity session's id
   taker?: string | null; // who's taking them (clash solver)
   training?: { cancelled: boolean; minutes: number; note: string | null };
@@ -84,18 +85,22 @@ const busy = (e: Entry): [number, number] => {
  */
 function findClashes(entries: Entry[]): { child: number; family: number } {
   const count = { child: 0, family: 0 };
-  const going = (e: Entry) => e.kids.filter((k) => k.status !== "no");
-  const live = entries.filter((e) => e.game.time !== "Postponed" && going(e).length > 0);
-  const label = (y: Entry) => {
-    const who = going(y).map((k) => k.name).join(" & ");
-    const what = y.activity
+  const going = (e: Entry) => (e.activity?.cancelled ? [] : e.kids.filter((k) => k.status !== "no"));
+  // Cancelled training and postponed games don't count; a skipped activity or a
+  // child who isn't going still does, as a solved clash.
+  const live = entries.filter((e) => e.kids.length > 0 && (e.game.time !== "Postponed" || e.activity?.cancelled));
+  const what = (y: Entry) =>
+    y.activity
       ? y.activity.name
       : y.training
         ? "training"
         : y.team
           ? `game ${y.game.home === y.team.league_name ? "vs" : "@"} ${opponent(y.game, y.team.league_name)}`
           : "activity";
-    return `${who}’s ${what} at ${formatTime(y.game.kickoff, y.tz)}`;
+  const label = (y: Entry) => `${y.kids.map((k) => k.name).join(" & ")}’s ${what(y)} at ${formatTime(y.game.kickoff, y.tz)}`;
+  const resolve = (x: Entry, y: Entry, how: string) => {
+    x.resolved = [...new Set([...(x.resolved ?? []), how])];
+    y.resolved = [...new Set([...(y.resolved ?? []), how])];
   };
   for (let i = 0; i < live.length; i++) {
     for (let j = i + 1; j < live.length; j++) {
@@ -104,19 +109,33 @@ function findClashes(entries: Entry[]): { child: number; family: number } {
       const [a0, a1] = busy(a);
       const [b0, b1] = busy(b);
       if (a0 >= b1 || b0 >= a1) continue;
-      const names = (e: Entry) => going(e).map((k) => k.name.toLowerCase());
-      const shared = going(a).filter((k) => names(b).includes(k.name.toLowerCase()));
-      if (shared.length) {
+      const lower = (e: Entry) => e.kids.map((k) => k.name.toLowerCase());
+      const sameKid = a.kids.some((k) => lower(b).includes(k.name.toLowerCase()));
+      if (!sameKid && a.place === b.place) continue; // same place: one grown-up can be there for both
+      // Solved by not going: one of the two is off.
+      const off = [a, b].find((e) => !going(e).length);
+      if (off) {
+        resolve(a, b, off.activity ? `${off.kids[0]?.name ?? "They"}’s ${off.activity.name} is skipped this time` : `${off.kids.map((k) => k.name).join(" & ")} isn’t going to the ${what(off)}`);
+        continue;
+      }
+      if (sameKid) {
         a.clashes.push({ kind: "child", text: `Clash with ${label(b)}` });
         b.clashes.push({ kind: "child", text: `Clash with ${label(a)}` });
         count.child++;
-      } else if (a.place !== b.place) {
-        const solved = !!a.taker && !!b.taker && a.taker.toLowerCase() !== b.taker.toLowerCase();
-        if (solved) continue;
-        a.clashes.push({ kind: "family", text: `Clash with ${label(b)}` });
-        b.clashes.push({ kind: "family", text: `Clash with ${label(a)}` });
-        count.family++;
+        continue;
       }
+      // Solved by different people taking them.
+      if (a.taker && b.taker && a.taker.toLowerCase() !== b.taker.toLowerCase()) {
+        const takes = (e: Entry) => {
+          const kids = going(e).map((k) => k.name).join(" & ");
+          return kids.toLowerCase() === e.taker!.toLowerCase() ? `${kids} goes on their own` : `${e.taker} takes ${kids}`;
+        };
+        resolve(a, b, `${takes(a)}, ${takes(b)}`);
+        continue;
+      }
+      a.clashes.push({ kind: "family", text: `Clash with ${label(b)}` });
+      b.clashes.push({ kind: "family", text: `Clash with ${label(a)}` });
+      count.family++;
     }
   }
   return count;
@@ -301,6 +320,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
               title: formatWeekday(entries[0].game.kickoff, entries[0].tz),
               count: entries.length,
               clash: entries.some((e) => e.clashes.length > 0),
+              resolved: entries.some((e) => (e.resolved?.length ?? 0) > 0),
               training: entries.every((e) => e.training),
               duty: entries.some((e) => (e.duties?.length ?? 0) > 0),
               kids: [
@@ -435,6 +455,7 @@ function Solver({ e, options }: { e: Entry; options: string[] }) {
       }
       kidNames={going.map((k) => k.name)}
       taker={e.taker ?? null}
+      resolved={e.clashes.length ? null : (e.resolved?.join(" · ") ?? null)}
       options={options}
       skip={skip}
     />
@@ -448,7 +469,7 @@ function ActivityCard({ e, options }: { e: Entry; options: string[] }) {
     <li
       data-kid={who ? kidKey(who) : undefined}
       style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
-      className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
+      className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : e.resolved?.length ? "border-emerald-300" : "border-zinc-200"}`}
     >
       <Solver e={e} options={options} />
       <span className="block text-xs text-zinc-500">
@@ -480,7 +501,7 @@ function GameCard({ e, options }: { e: Entry; options: string[] }) {
     <li
       data-kid={e.kids[0] ? kidKey(e.kids[0].name) : undefined}
       style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
-      className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
+      className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : e.resolved?.length ? "border-emerald-300" : "border-zinc-200"}`}
     >
       <Solver e={e} options={options} />
       <Link href={`/${team.id}`} className="flex items-start gap-3">

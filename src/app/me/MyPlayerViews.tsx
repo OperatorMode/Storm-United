@@ -6,7 +6,8 @@ export type CalendarDay = {
   date: string; // yyyy-mm-dd
   title: string; // "Saturday 7 Nov"
   count: number;
-  clash: boolean; // a child has two things at once that day
+  clash: boolean; // a clash still to solve that day
+  resolved?: boolean; // a clash that day, and it's been solved (who's taking whom, or not going)
   training: boolean; // only training that day
   duty: boolean; // the family is on a duty that day
   kids: { key: string; training: boolean }[]; // a dot per child (hollow = training)
@@ -78,6 +79,9 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
               <span className="size-3 rounded ring-2 ring-red-600" /> Clash
             </span>
             <span className="flex items-center gap-1">
+              <span className="size-3 rounded ring-2 ring-emerald-500" /> Resolved
+            </span>
+            <span className="flex items-center gap-1">
               <span className="text-amber-500">★</span> Your duty
             </span>
           </div>
@@ -133,7 +137,7 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                     key={date}
                     type="button"
                     onClick={() => onPick(date)}
-                    className={`relative rounded-lg bg-zinc-100 pb-3 pt-1.5 font-semibold text-zinc-900 ${day.clash ? "ring-2 ring-red-600" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
+                    className={`relative rounded-lg bg-zinc-100 pb-3 pt-1.5 font-semibold text-zinc-900 ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
                   >
                     {i + 1}
                     {day.duty && <span className="absolute left-0.5 top-0 text-[9px] text-amber-500">★</span>}

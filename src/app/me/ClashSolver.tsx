@@ -19,6 +19,7 @@ export function ClashSolver({
   clash,
   kidNames,
   taker,
+  resolved = null,
   options,
   skip,
 }: {
@@ -26,6 +27,7 @@ export function ClashSolver({
   clash: { kind: "child" | "family"; text: string } | null;
   kidNames: string[];
   taker: string | null;
+  resolved?: string | null; // a solved clash, and how ("Dad takes Leo, Mum takes Zara")
   options: string[]; // family members to pick from
   skip: SkipTarget | null;
 }) {
@@ -57,7 +59,7 @@ export function ClashSolver({
       router.refresh();
     });
 
-  if (!clash && !taker) return null;
+  if (!clash && !taker && !resolved) return null;
   return (
     <div className="mb-2">
       {clash && (
@@ -70,7 +72,21 @@ export function ClashSolver({
           </div>
         </div>
       )}
-      {!clash && taker && (
+      {!clash && resolved && (
+        <div className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900">
+          <div className="flex items-center justify-between gap-2">
+            <span>
+              <span className="font-semibold">Clash resolved:</span> {resolved}
+            </span>
+            {taker && (
+              <button type="button" onClick={() => setOpen(!open)} className="shrink-0 rounded-full bg-white px-2.5 py-1 font-semibold text-zinc-900 shadow-sm">
+                {open ? "Close" : "Change"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {!clash && !resolved && taker && (
         <div className="flex items-center gap-2 text-xs">
           <span className="rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700">Taken by {taker}</span>
           <button type="button" onClick={() => setOpen(!open)} className="text-zinc-500 underline">
