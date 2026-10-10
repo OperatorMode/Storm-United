@@ -26,7 +26,7 @@ import { listActivities, sessionsOf, weeklySummary, type Activity } from "@/lib/
 import type { ActivityInitial } from "./ActivityForm";
 import { needsRefresh, refreshActivity } from "@/lib/activity-import";
 import { ActivityForm } from "./ActivityForm";
-import { ActivityList, SessionToggle, ShareActivities } from "./ActivitiesManage";
+import { ActivityList, JoinCode, SessionToggle, ShareActivities } from "./ActivitiesManage";
 import { ActivityReminders } from "./ActivityReminders";
 import { pushPublicKey } from "@/lib/push";
 
@@ -109,7 +109,10 @@ function findClashes(entries: Entry[]): { child: number; family: number } {
   return count;
 }
 
-export default async function MyPlayerPage() {
+export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
+  // An invitation link (/me?join=ABCD-EFGH): the code is shown ready to add.
+  const join = (await searchParams).join;
+  const joinCode = typeof join === "string" ? join.slice(0, 12) : "";
   const ids = await knownTeamIds();
   const teams = (await Promise.all(ids.map((id) => getTeam(id)))).filter((t): t is Team => t !== null);
   const now = clockNow().getTime();
@@ -228,6 +231,7 @@ export default async function MyPlayerPage() {
 
       <main className="mt-4 space-y-5 px-4">
         <ActivityReminders vapidKey={pushPublicKey()} />
+        {joinCode && <JoinCode initial={joinCode} highlight />}
         {teams.length > 0 && <InstallPrompt name="Sidelnr" icon="/app-icon/192" />}
         {teams.length === 0 && activities.length === 0 && (
           <div className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
@@ -358,8 +362,11 @@ export default async function MyPlayerPage() {
               <ActivityForm people={people} />
             </div>
           </details>
+          <div className="mt-3 border-t border-zinc-100 pt-3">
+            <JoinCode />
+          </div>
           <details className="mt-3 border-t border-zinc-100 pt-3 text-sm">
-            <summary className="cursor-pointer text-zinc-600">Share with another phone</summary>
+            <summary className="cursor-pointer font-semibold">Share with another phone</summary>
             <div className="mt-3">
               <ShareActivities activities={activities.filter((a) => !a.linked).map((a) => ({ id: a.id, label: `${a.person} · ${a.name}` }))} />
             </div>

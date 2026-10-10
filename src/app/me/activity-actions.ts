@@ -7,13 +7,13 @@ import {
   createHousehold,
   deleteActivity,
   householdExists,
-  householdForCode,
   listActivities,
   moveActivities,
   newActivity,
   newShareCode,
   saveActivity,
-  activitiesForCode,
+  redeemCode,
+  showCode,
   linkActivities,
   newActivityShareCode,
   unlinkActivity,
@@ -190,25 +190,30 @@ export async function shareActivities(activityIds: string[] | null) {
   const own = (await listActivities(id)).filter((a) => !a.linked).map((a) => a.id);
   const chosen = activityIds ? activityIds.filter((x) => own.includes(x)) : null;
   if (chosen && !chosen.length) return { error: "Tick at least one activity." };
-  if (!chosen || chosen.length === own.length) return { code: await newShareCode(id), all: true };
-  return { code: await newActivityShareCode(id, chosen), all: false };
+  try {
+    if (!chosen || chosen.length === own.length) return { code: showCode(await newShareCode(id)), all: true };
+    return { code: showCode(await newActivityShareCode(id, chosen)), all: false };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Couldn’t make a code." };
+  }
 }
 
 /** Joins the household of another phone; this phone's own activities move across. */
 export async function joinActivities(code: string) {
-  const target = await householdForCode(code);
-  if (!target) {
-    // A code for chosen activities: link just those to this phone.
-    const ids = await activitiesForCode(code);
-    if (!ids) return { error: "That code isn’t right or has expired. Ask for a new one." };
-    await linkActivities(await household(), ids);
+  // The code is used up here: nobody else can use it after this.
+  const shared = await redeemCode(code);
+  if (!shared) return { error: "That code isn’t right, has expired or has already been used. Ask for a new one." };
+  if ("activityIds" in shared) {
+    // Chosen activities: link just those to this phone.
+    await linkActivities(await household(), shared.activityIds);
     refresh();
-    return { ok: true, count: ids.length };
+    return { ok: true, count: shared.activityIds.length };
   }
   const current = await currentHouseholdId();
-  if (current === target) return { ok: true };
-  if (current) await moveActivities(current, target);
-  (await cookies()).set(HOUSEHOLD_COOKIE, target, COOKIE_OPTS);
+  if (current !== shared.household) {
+    if (current) await moveActivities(current, shared.household);
+    (await cookies()).set(HOUSEHOLD_COOKIE, shared.household, COOKIE_OPTS);
+  }
   refresh();
   return { ok: true };
 }

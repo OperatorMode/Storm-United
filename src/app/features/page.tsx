@@ -39,7 +39,7 @@ export default function FeaturesPage() {
         <li>
           <b>Your own activities:</b> for a child, yourself or anyone else. Add them every week (like training), just once, or
           import the dates from a calendar or a web page. Mark a single session as not on, and share all your activities, or just
-          chosen ones, with another phone using a code. Get a reminder a day before, an hour before, or both.
+          chosen ones, with another phone using a one-time code or an invitation link. Get a reminder a day before, an hour before, or both.
         </li>
         <li>
           <b>Board and chat:</b> messages from the coach (tap “Got it” so they know you’ve seen it), league announcements,

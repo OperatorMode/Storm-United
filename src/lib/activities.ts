@@ -140,15 +140,53 @@ export function newActivity(householdId: string, fields: Partial<Activity> & Pic
   };
 }
 
-// ---------- sharing a household with another phone ----------
+// ---------- sharing with another phone ----------
+// A share code works once, for 24 hours: the first phone to use it gets in,
+// and it's gone after that. Codes are 8 characters (shown as ABCD-EFGH), so
+// guessing one in time isn't realistic, and a new code is never the same as
+// one that's still open.
 
 const hashCode = (code: string) => createHash("sha256").update(code.toUpperCase()).digest("hex");
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O, 1/I
+const CODE_LENGTH = 8;
 
-/** A new 6-character code that links another phone to this household for 24 hours. */
+/** "abcd efgh" or "ABCD-EFGH" → "ABCDEFGH" (null if it can't be a code). */
+export function cleanCode(code: string): string | null {
+  const c = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return c.length === CODE_LENGTH ? c : null;
+}
+
+/** "ABCDEFGH" → "ABCD-EFGH". */
+export const showCode = (code: string) => `${code.slice(0, 4)}-${code.slice(4)}`;
+
+async function codeInUse(hash: string): Promise<boolean> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    return (d.households ?? []).some((h) => h.share_code_hash === hash) || (d.activity_shares ?? []).some((r) => r.code_hash === hash);
+  }
+  const [h, a] = await Promise.all([
+    s.from("households").select("id").eq("share_code_hash", hash).limit(1),
+    s.from("activity_shares").select("code_hash").eq("code_hash", hash).limit(1),
+  ]);
+  return !!(check(h)?.length || check(a)?.length);
+}
+
+/** A fresh code, different from every code that's still open. */
+async function freshCode(): Promise<string> {
+  for (let i = 0; i < 10; i++) {
+    const code = Array.from({ length: CODE_LENGTH }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join("");
+    if (!(await codeInUse(hashCode(code)))) return code;
+  }
+  throw new Error("Couldn’t make a code just now. Try again.");
+}
+
+const expiry = () => new Date(Date.now() + SHARE_HOURS * 3600_000).toISOString();
+
+/** A one-use, 24-hour code that links another phone to this household (all activities). */
 export async function newShareCode(householdId: string): Promise<string> {
-  const code = Array.from({ length: 6 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join("");
-  const patch = { share_code_hash: hashCode(code), share_expires_at: new Date(Date.now() + SHARE_HOURS * 3600_000).toISOString() };
+  const code = await freshCode();
+  const patch = { share_code_hash: hashCode(code), share_expires_at: expiry() };
   const s = db();
   if (!s) {
     const d = await readLocal();
@@ -156,18 +194,6 @@ export async function newShareCode(householdId: string): Promise<string> {
     await writeLocal(d);
   } else check(await s.from("households").update(patch).eq("id", householdId));
   return code;
-}
-
-/** The household a share code belongs to (if it's still valid). */
-export async function householdForCode(code: string): Promise<string | null> {
-  const clean = code.replace(/[^a-z0-9]/gi, "");
-  if (clean.length !== 6) return null;
-  const s = db();
-  const rows: HouseholdRow[] = s
-    ? (check(await s.from("households").select("*").eq("share_code_hash", hashCode(clean))) as HouseholdRow[])
-    : ((await readLocal()).households ?? []).filter((h) => h.share_code_hash === hashCode(clean));
-  const h = rows.find((r) => r.share_expires_at && new Date(r.share_expires_at).getTime() > Date.now());
-  return h?.id ?? null;
 }
 
 /** Moves a phone's own activities into the household it's joining. */
@@ -180,16 +206,10 @@ export async function moveActivities(from: string, to: string): Promise<void> {
 
 type ShareRow = { code_hash: string; household_id: string; activity_ids: string[]; expires_at: string; created_at: string };
 
-/** A 24-hour code for these activities only. */
+/** A one-use, 24-hour code for these activities only. */
 export async function newActivityShareCode(householdId: string, activityIds: string[]): Promise<string> {
-  const code = Array.from({ length: 6 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join("");
-  const row: ShareRow = {
-    code_hash: hashCode(code),
-    household_id: householdId,
-    activity_ids: activityIds,
-    expires_at: new Date(Date.now() + SHARE_HOURS * 3600_000).toISOString(),
-    created_at: new Date().toISOString(),
-  };
+  const code = await freshCode();
+  const row: ShareRow = { code_hash: hashCode(code), household_id: householdId, activity_ids: activityIds, expires_at: expiry(), created_at: new Date().toISOString() };
   const s = db();
   if (!s) {
     const d = await readLocal();
@@ -199,15 +219,39 @@ export async function newActivityShareCode(householdId: string, activityIds: str
   return code;
 }
 
-/** The activities a code shares (if it's still valid). */
-export async function activitiesForCode(code: string): Promise<string[] | null> {
-  const clean = code.replace(/[^a-z0-9]/gi, "");
-  if (clean.length !== 6) return null;
+/**
+ * Uses up a code: what it shares (a whole household, or chosen activities), or
+ * null if it's wrong, expired or already used. One database step each, so two
+ * phones using the same code at the same moment can't both get in.
+ */
+export async function redeemCode(code: string): Promise<{ household: string } | { activityIds: string[] } | null> {
+  const clean = cleanCode(code);
+  if (!clean) return null;
+  const hash = hashCode(clean);
+  const now = new Date().toISOString();
   const s = db();
-  const row: ShareRow | null | undefined = s
-    ? (check(await s.from("activity_shares").select("*").eq("code_hash", hashCode(clean)).maybeSingle()) as ShareRow | null)
-    : ((await readLocal()).activity_shares ?? []).find((r) => r.code_hash === hashCode(clean));
-  return row && new Date(row.expires_at).getTime() > Date.now() ? row.activity_ids : null;
+  if (!s) {
+    const d = await readLocal();
+    const h = (d.households ?? []).find((x) => x.share_code_hash === hash && x.share_expires_at && x.share_expires_at > now);
+    if (h) {
+      h.share_code_hash = null;
+      await writeLocal(d);
+      return { household: h.id };
+    }
+    const row = (d.activity_shares ?? []).find((r) => r.code_hash === hash && r.expires_at > now);
+    if (!row) return null;
+    d.activity_shares = (d.activity_shares ?? []).filter((r) => r !== row);
+    await writeLocal(d);
+    return { activityIds: row.activity_ids };
+  }
+  const taken = check(
+    await s.from("households").update({ share_code_hash: null }).eq("share_code_hash", hash).gt("share_expires_at", now).select("id"),
+  ) as { id: string }[];
+  if (taken.length) return { household: taken[0].id };
+  const used = check(await s.from("activity_shares").delete().eq("code_hash", hash).gt("expires_at", now).select("activity_ids")) as {
+    activity_ids: string[];
+  }[];
+  return used.length ? { activityIds: used[0].activity_ids } : null;
 }
 
 export async function linkActivities(householdId: string, activityIds: string[]): Promise<void> {
