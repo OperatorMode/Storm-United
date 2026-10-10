@@ -20,12 +20,24 @@ import { KidColours } from "./KidColours";
 import { kidKey } from "@/lib/kid-key";
 import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
+import { after } from "next/server";
+import { currentHouseholdId } from "@/lib/session";
+import { listActivities, sessionsOf, weeklySummary } from "@/lib/activities";
+import { needsRefresh, refreshActivity } from "@/lib/activity-import";
+import { ActivityForm } from "./ActivityForm";
+import { ActivityList, SessionToggle, ShareActivities } from "./ActivitiesManage";
 
-// My Player: every game for every team this phone follows, in one list: when,
-// where (with directions), meeting time and whether you've said your child
-// can play. For families with more than one child or team.
+// My Activities: every game, training and duty for every team this phone
+// follows, plus the family's own activities (music, dance, school...), in one
+// list: when, where (with directions), meeting time and whether you've said
+// your child can play. For families with more than one child or activity.
 
-export const metadata: Metadata = { title: "My Player · Sidelnr", robots: { index: false } };
+export const metadata: Metadata = { title: "My Activities · Sidelnr", robots: { index: false } };
+
+// Importing an activity from a web page can take a minute.
+export const maxDuration = 300;
+
+const ACTIVITY_DAYS_AHEAD = 120;
 
 const STATUS: Record<AttendanceStatus, { label: string; cls: string }> = {
   yes: { label: "Can play", cls: "bg-emerald-50 text-emerald-800" },
@@ -35,7 +47,8 @@ const STATUS: Record<AttendanceStatus, { label: string; cls: string }> = {
 const GAME_WINDOW_MS = 90 * 60 * 1000; // a game stays "upcoming" until ~1.5h after kick-off
 
 type Entry = {
-  team: Team;
+  team: Team | null; // null: a family activity
+  activity?: { id: string; name: string; kind: string | null; start: string; minutes: number; cancelled: boolean };
   game: Game;
   tz: string;
   place: string | null;
@@ -50,7 +63,9 @@ const BUSY_AFTER_MS = 60 * 60 * 1000; // a game keeps you busy until ~1h after k
 /** From meeting time until an hour after kick-off. */
 const busy = (e: Entry): [number, number] => {
   const k = e.game.kickoff.getTime();
-  return [k - e.team.meet_minutes * 60_000, k + BUSY_AFTER_MS];
+  if (e.activity) return [k, k + e.activity.minutes * 60_000];
+  if (e.training) return [k, k + e.training.minutes * 60_000];
+  return [k - (e.team?.meet_minutes ?? 0) * 60_000, k + BUSY_AFTER_MS];
 };
 
 /**
@@ -70,11 +85,16 @@ function findClashes(entries: Entry[]): { child: number; family: number } {
       if (a0 >= b1 || b0 >= a1) continue;
       const names = (e: Entry) => e.kids.map((k) => k.name.toLowerCase());
       const shared = a.kids.filter((k) => names(b).includes(k.name.toLowerCase())).map((k) => k.name);
-      const other = (y: Entry) => `${y.team.name} ${y.game.home === y.team.league_name ? "vs" : "@"} ${opponent(y.game, y.team.league_name)} at ${formatTime(y.game.kickoff, y.tz)}`;
+      const other = (y: Entry) =>
+        y.activity || !y.team
+          ? `${y.activity?.name ?? "an activity"} at ${formatTime(y.game.kickoff, y.tz)}`
+          : y.training
+            ? `${y.team.name} training at ${formatTime(y.game.kickoff, y.tz)}`
+            : `${y.team.name} ${y.game.home === y.team.league_name ? "vs" : "@"} ${opponent(y.game, y.team.league_name)} at ${formatTime(y.game.kickoff, y.tz)}`;
       if (shared.length) {
         const who = shared.join(" & ");
-        a.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} another game at the same time: ${other(b)}.` });
-        b.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} another game at the same time: ${other(a)}.` });
+        a.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} something else at the same time: ${other(b)}.` });
+        b.clashes.push({ kind: "child", text: `${who} ${shared.length > 1 ? "have" : "has"} something else at the same time: ${other(a)}.` });
         count.child++;
       } else if (a.kids.length && b.kids.length && a.place !== b.place) {
         a.clashes.push({ kind: "family", text: `Same time as ${other(b)}, at a different venue.` });
@@ -141,16 +161,50 @@ export default async function MyPlayerPage() {
       )];
     }),
   );
-  const all = perTeam.flat();
+  // The family's own activities, from a couple of hours ago to four months ahead.
+  const householdId = await currentHouseholdId();
+  const activities = householdId ? await listActivities(householdId) : [];
+  const stale = activities.filter(needsRefresh);
+  if (stale.length) after(() => Promise.allSettled(stale.map(refreshActivity)).then(() => undefined));
+  const activityEntries = activities.flatMap((a) =>
+    sessionsOf(a, new Date(now - 2 * 3600_000), new Date(now + ACTIVITY_DAYS_AHEAD * 86_400_000)).map(
+      (s): Entry => ({
+        team: null,
+        activity: { id: a.id, name: s.title, kind: a.kind, start: s.start.toISOString(), minutes: s.minutes, cancelled: s.cancelled },
+        game: {
+          id: `${a.id}-${s.start.toISOString()}`,
+          round: null,
+          time: s.cancelled ? "Postponed" : formatTime(s.start, a.tz),
+          pitch: null,
+          stage: "Activity",
+          home: "",
+          away: "",
+          kickoff: s.start,
+          score: null,
+          scoreSource: null,
+        },
+        tz: a.tz,
+        place: s.place,
+        kids: [{ name: a.person, status: null }],
+        clashes: [],
+      }),
+    ),
+  );
+  const all = [...perTeam.flat(), ...activityEntries];
   const upcoming = all.filter((e) => e.game.kickoff.getTime() + GAME_WINDOW_MS > now).sort((a, b) => a.game.kickoff.getTime() - b.game.kickoff.getTime());
   const results = all
-    .filter((e) => e.game.kickoff.getTime() + GAME_WINDOW_MS <= now && e.game.score)
+    .filter((e): e is Entry & { team: Team } => !!e.team && e.game.kickoff.getTime() + GAME_WINDOW_MS <= now && !!e.game.score)
     .sort((a, b) => b.game.kickoff.getTime() - a.game.kickoff.getTime())
     .slice(0, 6);
 
   const { child: childClashes, family: familyClashes } = findClashes(upcoming);
 
-  const [calToken, host] = await Promise.all([calendarToken(teams), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
+  const [calToken, host] = await Promise.all([calendarToken(teams, activities.length ? householdId : null), headers().then((h) => h.get("host") ?? "sidelnr.app")]);
+  // Who activities can be for: the children on this phone's teams, and anyone already in an activity.
+  const teamKids = (
+    await Promise.all(teams.map(async (t) => ((await canView(t)) ? (await currentChildren(t)).map((c) => firstName(playerName(t, c))) : [])))
+  ).flat();
+  const people = [...new Set([...teamKids, ...activities.map((a) => a.person)])].filter((p) => p !== "Me");
 
   // Upcoming games grouped by day.
   const days = new Map<string, Entry[]>();
@@ -165,38 +219,38 @@ export default async function MyPlayerPage() {
         <Link href="/" className="text-xs font-semibold tracking-tight opacity-60">
           Sidelnr<span className="text-accent">.</span>
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">My Player</h1>
-        <p className="mt-1 text-sm opacity-70">Every game for the teams on this phone: when, where and how to get there.</p>
+        <h1 className="mt-2 text-2xl font-semibold">My Activities</h1>
+        <p className="mt-1 text-sm opacity-70">Every game, training and activity for your family: when, where and how to get there.</p>
       </header>
 
       <main className="mt-4 space-y-5 px-4">
         {teams.length > 0 && <InstallPrompt name="Sidelnr" icon="/app-icon/192" />}
-        {teams.length === 0 && (
+        {teams.length === 0 && activities.length === 0 && (
           <div className="rounded-2xl border border-dashed border-zinc-300 p-5 text-center text-sm text-zinc-500">
-            No teams on this phone yet.{" "}
+            Nothing here yet.{" "}
             <Link href="/" className="font-medium text-zinc-900 underline">
               Join your team
             </Link>{" "}
-            with the code from your coach, and its games show up here.
+            with the code from your coach, or add an activity below (music, dance, school…), and it all shows up here.
           </div>
         )}
 
-        {teams.length > 0 && upcoming.length === 0 && <p className="text-center text-sm text-zinc-500">No games coming up.</p>}
+        {(teams.length > 0 || activities.length > 0) && upcoming.length === 0 && <p className="text-center text-sm text-zinc-500">Nothing coming up.</p>}
 
-        {calToken && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} label="Add all games to my calendar" />}
+        {calToken && <AddToCalendar host={host} path={`/cal/${calToken}.ics`} label="Add everything to my calendar" />}
 
         {(childClashes > 0 || familyClashes > 0) && (
           <div className={`rounded-2xl px-4 py-3 text-sm ${childClashes ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
             <div className="font-semibold">
               {childClashes > 0
-                ? `${childClashes} game clash${childClashes > 1 ? "es" : ""} coming up`
+                ? `${childClashes} clash${childClashes > 1 ? "es" : ""} coming up`
                 : `${familyClashes} busy moment${familyClashes > 1 ? "s" : ""} coming up`}
             </div>
             <p className="mt-0.5 text-xs opacity-80">
               {childClashes > 0
-                ? "A child is down for two games at the same time. Let one of the coaches know."
-                : "Two of your kids play at the same time at different venues."}
-              {childClashes > 0 && familyClashes > 0 && " Also: games at the same time at different venues."}
+                ? "Someone is down for two things at the same time."
+                : "Two of your family are busy at the same time in different places."}
+              {childClashes > 0 && familyClashes > 0 && " Also: things at the same time in different places."}
             </p>
           </div>
         )}
@@ -212,7 +266,7 @@ export default async function MyPlayerPage() {
                     <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">{formatWeekday(entries[0].game.kickoff, entries[0].tz)}</h2>
                     <ul className="space-y-2">
                       {entries.map((e) => (
-                        <GameCard key={`${e.team.id}-${e.game.id}`} e={e} />
+                        <GameCard key={`${e.team?.id ?? "activity"}-${e.game.id}`} e={e} />
                       ))}
                     </ul>
                   </section>
@@ -232,7 +286,7 @@ export default async function MyPlayerPage() {
               node: (
                 <ul className="space-y-2">
                   {entries.map((e) => (
-                    <GameCard key={`${e.team.id}-${e.game.id}`} e={e} />
+                    <GameCard key={`${e.team?.id ?? "activity"}-${e.game.id}`} e={e} />
                   ))}
                 </ul>
               ),
@@ -266,6 +320,45 @@ export default async function MyPlayerPage() {
             </ul>
           </section>
         )}
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Activities</h2>
+          <p className="mt-1 text-sm text-zinc-500">Music, dance, school, a sport that isn’t on Sidelnr: anything with a time and place.</p>
+          <div className="mt-2">
+            <ActivityList
+              rows={activities.map((a) => ({
+                id: a.id,
+                name: a.name,
+                person: a.person,
+                schedule: a.source_url
+                  ? `From ${(() => {
+                      try {
+                        return new URL(a.source_url).hostname.replace(/^www\./, "");
+                      } catch {
+                        return "a link";
+                      }
+                    })()} · ${a.extra.length} session${a.extra.length === 1 ? "" : "s"}${a.source_filter ? ` · “${a.source_filter}”` : ""}`
+                  : a.weekly.length
+                    ? `${weeklySummary(a)}${a.ends_on ? ` until ${a.ends_on.split("-").reverse().join("/")}` : ""}`
+                    : `Once${a.extra[0] ? `, ${formatWeekday(new Date(a.extra[0].at), a.tz)} ${formatTime(new Date(a.extra[0].at), a.tz)}` : ""}`,
+                imported: !!a.source_url,
+                error: a.source_error,
+              }))}
+            />
+          </div>
+          <details className="mt-3 border-t border-zinc-100 pt-3" open={activities.length === 0 && teams.length === 0}>
+            <summary className="cursor-pointer font-semibold">+ Add an activity</summary>
+            <div className="mt-3">
+              <ActivityForm people={people} />
+            </div>
+          </details>
+          <details className="mt-3 border-t border-zinc-100 pt-3 text-sm">
+            <summary className="cursor-pointer text-zinc-600">Share with another phone</summary>
+            <div className="mt-3">
+              <ShareActivities hasActivities={activities.length > 0} />
+            </div>
+          </details>
+        </section>
+
         {teams.length > 0 && <ForgetPhone />}
         <LegalLinks className="pt-2 text-zinc-400" />
       </main>
@@ -273,8 +366,47 @@ export default async function MyPlayerPage() {
   );
 }
 
+function ActivityCard({ e }: { e: Entry }) {
+  const a = e.activity!;
+  const who = e.kids[0]?.name ?? "";
+  return (
+    <li
+      data-kid={who ? kidKey(who) : undefined}
+      style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
+      className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.some((c) => c.kind === "child") ? "border-red-300" : e.clashes.length ? "border-amber-300" : "border-zinc-200"}`}
+    >
+      {e.clashes.map((c) => (
+        <p
+          key={c.text}
+          className={`mb-2 rounded-xl px-3 py-2 text-xs font-medium ${c.kind === "child" ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-900"}`}
+        >
+          {c.kind === "child" ? "Clash: " : "Heads-up: "}
+          {c.text}
+        </p>
+      ))}
+      <span className="block text-xs text-zinc-500">
+        <b data-kid={kidKey(who)} className="font-semibold" style={{ color: "var(--kid)" }}>
+          {who}
+        </b>
+        {a.kind && ` · ${a.kind}`}
+      </span>
+      <span className={`block font-semibold ${a.cancelled ? "text-zinc-400 line-through" : ""}`}>{a.name}</span>
+      <span className="mt-0.5 block text-sm text-zinc-700">
+        {a.cancelled ? "Not on this time" : a.minutes >= 24 * 60 ? "All day" : `${formatTime(e.game.kickoff, e.tz)} · ${a.minutes} min`}
+      </span>
+      {e.place && <span className="block text-xs text-zinc-500">{e.place}</span>}
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <SessionToggle activityId={a.id} start={a.start} cancelled={a.cancelled} />
+        {e.place && !a.cancelled && <Directions place={e.place} className="ml-auto bg-zinc-900 text-white" />}
+      </div>
+    </li>
+  );
+}
+
 function GameCard({ e }: { e: Entry }) {
-  const { team, game, tz } = e;
+  if (e.activity || !e.team) return <ActivityCard e={e} />;
+  const { game, tz } = e;
+  const team = e.team;
   const home = game.home === team.league_name;
   const meet = team.meet_minutes > 0 && !e.training ? meetingTime(game, team.meet_minutes, tz) : null;
   return (

@@ -9,7 +9,8 @@ export function ForgetPhone() {
     <div id="forget" className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm shadow-sm">
       <div className="font-medium">Forget this phone</div>
       <p className="mt-0.5 text-xs text-zinc-500">
-        Removes the teams this phone joined and the children it picked. You can join again any time with the team code.
+        Removes the teams this phone joined, the children it picked and its link to your activities. You can join again any
+        time with the team code. To delete activities everywhere, remove them under Activities first.
       </p>
       <button
         type="button"

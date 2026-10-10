@@ -17,7 +17,7 @@ export default function NotFound() {
           Back Home
         </Link>
         <Link href="/me" replace className="block rounded-xl border border-zinc-300 px-4 py-3 font-semibold text-zinc-800">
-          My Player
+          My Activities
         </Link>
       </div>
     </div>

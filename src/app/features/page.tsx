@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 // What Sidelnr does, in plain words. Linked quietly from the page footers.
 export default function FeaturesPage() {
   return (
-    <LegalPage title="Features & Functions" updated="8 October 2026">
+    <LegalPage title="Features & Functions" updated="10 October 2026">
       <p>
         Sidelnr is a team app for any team sport. Parents and players don’t need an account: the coach shares a team code,
         and the phone remembers you. Add it to your home screen and it works like any other app.
@@ -32,8 +32,14 @@ export default function FeaturesPage() {
           whole game.
         </li>
         <li>
-          <b>My Player:</b> every game, training and duty for all your children, across all their teams, in a list or a
-          calendar, each child in their own colour. Clashes between games are flagged.
+          <b>My Activities:</b> every game, training and duty for all your children, across all their teams, plus the family’s
+          own activities (music, dance, school, any other sport), in a list or a calendar, each person in their own colour.
+          Clashes are flagged.
+        </li>
+        <li>
+          <b>Your own activities:</b> for a child, yourself or anyone else. Add them every week (like training), just once, or
+          import the dates from a calendar or a web page. Mark a single session as not on, and share the family’s activities
+          with another phone using a code.
         </li>
         <li>
           <b>Board and chat:</b> messages from the coach (tap “Got it” so they know you’ve seen it), league announcements,

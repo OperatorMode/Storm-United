@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-// The family app: one Sidelnr icon that opens My Player (every team's games).
+// The family app: one Sidelnr icon for every team's games and the family's activities.
 // Each team's own link still installs as that team's app (see [team]/manifest).
 export default function manifest(): MetadataRoute.Manifest {
   const icon = (size: number, purpose: "any" | "maskable") => ({

@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Privacy · Sidelnr", description: "H
 export default function PrivacyPage() {
   const mail = <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>;
   return (
-    <LegalPage title="Privacy policy" updated="6 October 2026">
+    <LegalPage title="Privacy policy" updated="10 October 2026">
       <p>
         Sidelnr is a team app for junior sport: fixtures, attendance, MVP votes, a message board and team chat. Most of the
         people it’s about are children, so we keep what we collect to a minimum and never sell it or use it for advertising.
@@ -38,8 +38,16 @@ export default function PrivacyPage() {
         <li>
           <b>Fixtures and results</b> from the competition, which are usually public already.
         </li>
+        <li>
+          <b>Your family’s own activities</b>, if you add them in My Activities: who they’re for (a first name), what they are,
+          when, and an address if you add one. They’re linked to your phone (and any phone you share them with using a code),
+          not to an account, and only those phones can see them.
+        </li>
       </ul>
-      <p>We don’t collect dates of birth, photos of children, addresses, phone numbers or payment details.</p>
+      <p>
+        We don’t collect dates of birth, photos of children, phone numbers or payment details. The only addresses are the
+        places you choose to add to your own activities.
+      </p>
 
       <h2>Who can see it</h2>
       <ul>
@@ -68,8 +76,8 @@ export default function PrivacyPage() {
       <h2>Removing your child’s information</h2>
       <ul>
         <li>
-          <b>On your phone:</b> <Link href="/me#forget">Forget this phone</Link> (at the bottom of My Player) removes the
-          teams and children it remembers.
+          <b>On your phone:</b> <Link href="/me#forget">Forget this phone</Link> (at the bottom of My Activities) removes the
+          teams and children it remembers. Remove an activity in My Activities to delete it.
         </li>
         <li>
           <b>From a team:</b> ask the coach to remove your child from the squad.

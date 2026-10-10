@@ -8,10 +8,11 @@ import { LegalLinks } from "@/components/LegalPage";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
-import { chatAuthor, currentChildren, currentManager } from "@/lib/session";
+import { chatAuthor, currentChildren, currentHouseholdId, currentManager } from "@/lib/session";
 import { emailEnabled } from "@/lib/email";
 import { managedTeams } from "@/lib/accounts";
 import { managedLeagues } from "@/lib/my-leagues";
+import { listActivities } from "@/lib/activities";
 
 // Landing page. Parents join a team; My Team, My League and My Event sign in
 // (one account covers all three). There's deliberately no public list of
@@ -59,6 +60,8 @@ export default async function Landing() {
     Promise.all(ids.map((id) => getTeam(id))).then((ts) => ts.filter((t) => t !== null)),
     currentManager(),
   ]);
+  const household = await currentHouseholdId();
+  const hasActivities = household ? (await listActivities(household)).length > 0 : false;
   const signIn = (next: string) => (emailEnabled() ? `/login?next=${encodeURIComponent(next)}` : next);
   // What a signed-in manager runs, each one tap away.
   const runs: Record<(typeof DOORS)[number]["key"], Run[]> = { teams: [], leagues: [], events: [] };
@@ -115,12 +118,12 @@ export default async function Landing() {
           <p className="mt-1 text-sm font-medium opacity-80">Your team, on the sideline.</p>
         </div>
 
-        {known.length > 0 && (
+        {(known.length > 0 || hasActivities) && (
           <div className="space-y-2">
             <Link href="/me" className="flex items-center gap-3 rounded-2xl bg-accent p-4 text-on-accent shadow-lg">
               <span className="min-w-0 flex-1">
-                <span className="block font-semibold">My Player</span>
-                <span className="block text-xs opacity-80">All your games in one place: when, where and directions.</span>
+                <span className="block font-semibold">My Activities</span>
+                <span className="block text-xs opacity-80">Games, training and activities in one place: when, where and directions.</span>
               </span>
               <span aria-hidden>→</span>
             </Link>

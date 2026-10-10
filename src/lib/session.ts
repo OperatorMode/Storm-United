@@ -18,6 +18,14 @@ export const COOKIE_OPTS = { maxAge: YEAR, httpOnly: true, sameSite: "lax", secu
 export const voterCookie = (teamId: string) => `su_voter_${teamId}`;
 // Set when the phone belongs to a player themselves ("I am…"), not a parent.
 export const selfCookie = (teamId: string) => `su_self_${teamId}`;
+// The household this phone belongs to (My Activities); see activities.ts.
+export const HOUSEHOLD_COOKIE = "su_household";
+
+/** This phone's household id, if it has one. */
+export async function currentHouseholdId(): Promise<string | null> {
+  const v = (await cookies()).get(HOUSEHOLD_COOKIE)?.value ?? "";
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v) ? v : null;
+}
 export const joinCookie = (teamId: string) => `su_join_${teamId}`;
 export const adminCookie = (teamId: string) => `su_admin_${teamId}`;
 export const SUPER_COOKIE = "su_super";

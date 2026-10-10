@@ -12,7 +12,7 @@ export function LeaveTeam({ teamId, teamName, className = "" }: { teamId: string
       type="button"
       disabled={pending}
       onClick={() => {
-        if (!confirm(`Leave ${teamName} on this phone? It disappears from your home page and My Player, and its notifications stop. You can join again with the team code.`)) return;
+        if (!confirm(`Leave ${teamName} on this phone? It disappears from your home page and My Activities, and its notifications stop. You can join again with the team code.`)) return;
         start(async () => {
           let endpoint: string | null = null;
           try {

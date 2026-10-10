@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 export async function forgetThisPhone() {
   const store = await cookies();
   for (const c of store.getAll()) {
-    if (/^su_(voter|join)_/.test(c.name) || c.name === "su_voter") store.delete(c.name);
+    if (/^su_(voter|join|self)_/.test(c.name) || c.name === "su_voter" || c.name === "su_household") store.delete(c.name);
   }
   revalidatePath("/", "layout");
 }

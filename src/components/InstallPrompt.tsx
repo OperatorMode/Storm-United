@@ -59,7 +59,7 @@ export function InstallPrompt({ name, icon }: { name: string; icon: string }) {
         <div className="font-semibold">{name === "Sidelnr" ? "Get the Sidelnr app" : "Get the app"}</div>
         {mode === "android" ? (
           <p className="mt-0.5 text-sm text-zinc-500">
-            {name === "Sidelnr" ? "One icon for all your kids’ teams, straight to My Player." : `Add ${name} to your home screen.`}
+            {name === "Sidelnr" ? "One icon for all your kids’ teams and activities." : `Add ${name} to your home screen.`}
           </p>
         ) : (
           <p className="mt-0.5 text-sm text-zinc-500">

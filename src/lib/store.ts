@@ -69,6 +69,8 @@ export type LocalDb = {
   // Messaging (see messages.ts); optional so older local files still load.
   announcements?: { id: string; team_id: string; body: string; created_at: string; source?: string | null }[];
   league_claims?: import("./league-verify").LeagueClaim[];
+  households?: { id: string; share_code_hash: string | null; share_expires_at: string | null; created_at: string }[];
+  activities?: import("./activities").Activity[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];
   acks?: { announcement_id: string; player_id: string; created_at: string }[];
   chat?: { id: string; team_id: string; author_id: string; body: string; created_at: string }[];

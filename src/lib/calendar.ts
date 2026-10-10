@@ -4,6 +4,7 @@ import { canView, currentChildren, joinToken } from "./session";
 import { firstName, getTeam, playerName, type Team } from "./teams";
 import { listTraining } from "./training";
 import { listDutySignups } from "./duties";
+import { householdExists, listActivities, sessionsOf } from "./activities";
 
 // Calendar subscriptions (webcal / .ics). A phone gets a signed link listing
 // its teams (and children); calendar apps fetch it without cookies, so the
@@ -11,16 +12,16 @@ import { listDutySignups } from "./duties";
 // a join code the link also carries a fingerprint of that code: changing the
 // code switches old calendar links off.
 
-type Entry = { t: string; c: string[]; j?: string }; // team, children, join-code fingerprint
+type Entry = { t: string; c: string[]; j?: string; h?: string }; // team, children, join-code fingerprint; or a household (family activities)
 
 const secret = () =>
   process.env.SESSION_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.ADMIN_PIN ?? "local-dev";
 const sign = (payload: string) => createHmac("sha256", `calendar:${secret()}`).update(payload).digest("base64url").slice(0, 32);
 const fingerprint = (team: Team) => joinToken(team)?.slice(0, 12);
 
-/** A calendar token for these teams, for the phone making the request. */
-export async function calendarToken(teams: Team[]): Promise<string | null> {
-  const entries: Entry[] = [];
+/** A calendar token for these teams (and the family's activities), for the phone making the request. */
+export async function calendarToken(teams: Team[], householdId: string | null = null): Promise<string | null> {
+  const entries: Entry[] = householdId ? [{ t: "", c: [], h: householdId }] : [];
   for (const team of teams) {
     if (!(await canView(team))) continue;
     const j = fingerprint(team);
@@ -74,6 +75,34 @@ export async function calendarFor(token: string, origin: string): Promise<string
   const now = Date.now();
 
   for (const entry of entries) {
+    // The family's own activities.
+    if (entry.h) {
+      if (!(await householdExists(entry.h))) continue;
+      const activities = await listActivities(entry.h);
+      if (activities.length) teamNames.push("My Activities");
+      for (const a of activities) {
+        for (const ses of sessionsOf(a, new Date(now - PAST_DAYS), new Date(now + 365 * 86_400_000))) {
+          events.push(
+            [
+              "BEGIN:VEVENT",
+              `UID:act-${a.id}-${stamp(ses.start)}@sidelnr.app`,
+              `DTSTAMP:${stamp(new Date())}`,
+              `DTSTART:${stamp(ses.start)}`,
+              `DTEND:${stamp(new Date(ses.start.getTime() + ses.minutes * 60_000))}`,
+              `SUMMARY:${esc(`${ses.cancelled ? "CANCELLED: " : ""}${a.person === "Me" ? "" : `${a.person}: `}${ses.title}`)}`,
+              ses.place ? `LOCATION:${esc(ses.place)}` : null,
+              `DESCRIPTION:${esc([a.kind, `${origin}/me`].filter(Boolean).join("\n"))}`,
+              ses.cancelled ? "STATUS:CANCELLED" : "STATUS:CONFIRMED",
+              "END:VEVENT",
+            ]
+              .filter((l): l is string => l !== null)
+              .map(fold)
+              .join("\r\n"),
+          );
+        }
+      }
+      continue;
+    }
     const team = await getTeam(entry.t);
     if (!team) continue;
     if (fingerprint(team) && fingerprint(team) !== entry.j) continue; // join code changed
@@ -139,7 +168,7 @@ export async function calendarFor(token: string, origin: string): Promise<string
   }
   if (!teamNames.length) return null;
 
-  const name = teamNames.length === 1 ? `${teamNames[0]} (Sidelnr)` : "My Player (Sidelnr)";
+  const name = teamNames.length === 1 ? `${teamNames[0]} (Sidelnr)` : "My Activities (Sidelnr)";
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
