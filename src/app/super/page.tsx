@@ -5,7 +5,8 @@ import { SuperLogin } from "./SuperLogin";
 import { TeamForm } from "@/components/TeamForm";
 import { removeTeam, saveTeam } from "./actions";
 import { SampleDataButton } from "./SampleDataButton";
-import { decideLeagueReview, removeLeagueVerification, superLogout } from "./actions";
+import { decideLeagueReview, markFeedback, removeLeagueVerification, superLogout } from "./actions";
+import { FEEDBACK_KINDS, listFeedback, type Feedback } from "@/lib/feedback";
 import { pendingReviews } from "@/lib/league-verify";
 import { getManager } from "@/lib/accounts";
 import { listLeagues } from "@/lib/store";
@@ -37,7 +38,13 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const creating = params.new !== undefined;
   const saved = typeof params.saved === "string" ? params.saved : null;
 
-  const [teams, competitions, leagues, reviews] = await Promise.all([listTeams(), listCompetitions(), listLeagues(), pendingReviews()]);
+  const [teams, competitions, leagues, reviews, feedback] = await Promise.all([
+    listTeams(),
+    listCompetitions(),
+    listLeagues(),
+    pendingReviews(),
+    listFeedback(),
+  ]);
   // Who asked for each review (their sign-in email).
   const reviewers = Object.fromEntries(
     await Promise.all(reviews.map(async (r) => [r.manager_id, (await getManager(r.manager_id))?.email ?? null] as const)),
@@ -102,6 +109,25 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
       <h1 className="text-lg font-semibold">All teams</h1>
 
       {saved && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Saved /{saved}.</p>}
+
+      <Card title="Feedback" aside={feedback.open.length ? `${feedback.open.length} new` : undefined}>
+        <div className="space-y-3 text-sm">
+          {feedback.open.map((f) => (
+            <FeedbackItem key={f.id} f={f} />
+          ))}
+          {!feedback.open.length && <p className="text-zinc-500">Nothing new.</p>}
+          {feedback.done.length > 0 && (
+            <details>
+              <summary className="cursor-pointer text-xs text-zinc-500">Done ({feedback.done.length})</summary>
+              <div className="mt-2 space-y-3">
+                {feedback.done.map((f) => (
+                  <FeedbackItem key={f.id} f={f} />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      </Card>
 
       {/* Official leagues: review requests to approve, and verified leagues (can be revoked). */}
       {(() => {
@@ -186,6 +212,29 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+function FeedbackItem({ f }: { f: Feedback }) {
+  return (
+    <div className={`space-y-1 rounded-xl p-3 ${f.done ? "bg-zinc-50 text-zinc-500" : f.kind === "bug" ? "bg-red-50" : "bg-sky-50"}`}>
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="font-semibold uppercase tracking-wide">{FEEDBACK_KINDS[f.kind] ?? f.kind}</span>
+        <span className="text-zinc-500">{f.created_at.slice(0, 10)}</span>
+      </div>
+      <p className="whitespace-pre-wrap break-words">{f.message}</p>
+      <div className="text-xs text-zinc-500">{[f.page, f.device].filter(Boolean).join(" · ")}</div>
+      <div className="flex items-center gap-3 pt-1 text-xs">
+        {f.email && (
+          <a href={`mailto:${f.email}?subject=${encodeURIComponent("Re: your Sidelnr feedback")}`} className="underline">
+            Reply to {f.email}
+          </a>
+        )}
+        <form action={markFeedback.bind(null, f.id, !f.done)} className="ml-auto">
+          <button className="rounded-lg border border-zinc-300 px-2 py-1">{f.done ? "Open again" : "Mark done"}</button>
+        </form>
+      </div>
     </div>
   );
 }

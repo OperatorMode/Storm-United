@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { gameParts, partLabel, partPlural, roleInText, roleName, rolePlural, slotLabel } from "@/lib/role";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import Link from "next/link";
+import { FeedbackLink } from "@/components/FeedbackLink";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/Card";
 import { Section } from "@/components/Section";
@@ -558,6 +559,9 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           <button className="underline">Lock / sign out</button>
         </form>
       </div>
+      <p className="text-center text-sm text-zinc-500">
+        Missing something, or found a bug? <FeedbackLink />
+      </p>
       </main>
       <TabBar teamId={team.id} active="manager" {...tabs} />
     </div>

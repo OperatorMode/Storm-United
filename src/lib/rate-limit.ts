@@ -11,7 +11,7 @@ const MAX_FAILURES = 5;
 const WINDOW_MS = 15 * 60_000;
 const LOCK_MS = 15 * 60_000;
 
-export type LimitKind = "pin" | "join" | "super" | "share";
+export type LimitKind = "pin" | "join" | "super" | "share" | "feedback";
 type Row = { key: string; failures: number; window_start: string; locked_until: string | null };
 
 async function deviceKey(): Promise<string> {
@@ -46,7 +46,9 @@ export async function lockedMessage(kind: LimitKind, scope: string): Promise<str
   const until = row?.locked_until ? new Date(row.locked_until).getTime() : 0;
   if (until <= Date.now()) return null;
   const mins = Math.ceil((until - Date.now()) / 60_000);
-  return `Too many wrong tries. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`;
+  const wait = `${mins} minute${mins === 1 ? "" : "s"}`;
+  if (kind === "feedback") return `That's a lot of messages in a short time. Try again in ${wait}.`;
+  return `Too many wrong tries. Try again in ${wait}.`;
 }
 
 /** Records a wrong try. Returns true when this try locked the device out. */

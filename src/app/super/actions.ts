@@ -12,6 +12,7 @@ import { ackAnnouncement, addAnnouncement, addChat, listAnnouncements, listChat 
 import { getTeam } from "@/lib/teams";
 import { COOKIE_OPTS, SUPER_COOKIE, isSuperAdmin, superToken } from "@/lib/session";
 import { decideReview, unverifyLeague } from "@/lib/league-verify";
+import { setFeedbackDone } from "@/lib/feedback";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
 
@@ -153,4 +154,11 @@ export async function removeLeagueVerification(leagueId: string) {
   if (!(await isSuperAdmin())) return;
   await unverifyLeague(leagueId);
   revalidatePath("/", "layout");
+}
+
+/** Owner page: mark feedback as dealt with (or open it again). */
+export async function markFeedback(id: string, done: boolean) {
+  if (!(await isSuperAdmin())) return;
+  await setFeedbackDone(id, done);
+  revalidatePath("/super");
 }

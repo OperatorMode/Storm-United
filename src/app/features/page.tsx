@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CONTACT_EMAIL, LegalPage } from "@/components/LegalPage";
 
 export const metadata: Metadata = {
@@ -135,7 +136,8 @@ export default function FeaturesPage() {
         <li>No account needed for parents and players; coaches and organisers sign in with an email link.</li>
         <li>Players are shown by first name and last initial.</li>
         <li>
-          Ideas or problems? Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          Ideas or problems? <Link href="/feedback?from=/features">Send feedback</Link> or email{" "}
+          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
         </li>
       </ul>
     </LegalPage>

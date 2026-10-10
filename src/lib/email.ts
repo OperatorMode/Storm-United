@@ -83,3 +83,20 @@ export function ownerCodeEmail(code: string) {
 </div>`;
   return { subject: `${code} is your Sidelnr owner code`, text, html };
 }
+
+/** New feedback, to the owner. */
+export function feedbackEmail(kind: string, message: string, page: string | null, device: string | null, replyTo: string | null) {
+  const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const meta = [page && `Page: ${page}`, device && `Device: ${device}`, replyTo ? `Reply to: ${replyTo}` : "No reply email"]
+    .filter(Boolean)
+    .join("\n");
+  const text = `${kind}\n\n${message}\n\n${meta}\n\nSee all feedback on the owner page: https://sidelnr.app/super`;
+  const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#09090b">
+  <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
+  <p style="margin:0 0 16px;color:#52525b">New feedback: ${esc(kind)}</p>
+  <p style="white-space:pre-wrap;font-size:15px;line-height:1.5">${esc(message)}</p>
+  <p style="white-space:pre-wrap;font-size:13px;color:#71717a">${esc(meta)}</p>
+  <p style="font-size:13px"><a href="https://sidelnr.app/super">See all feedback on the owner page</a></p>
+</div>`;
+  return { subject: `Sidelnr feedback: ${kind}`, text, html };
+}

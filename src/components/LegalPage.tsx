@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SidelnrLink } from "./SidelnrLink";
+import { FeedbackLink } from "./FeedbackLink";
 
 export const CONTACT_EMAIL = "hello@sidelnr.app";
 
@@ -21,6 +22,8 @@ export function LegalPage({ title, updated, children }: { title: string; updated
 export function LegalLinks({ className = "" }: { className?: string }) {
   return (
     <p className={`text-center text-xs ${className}`}>
+      <FeedbackLink />{" "}
+      ·{" "}
       <Link href="/features" className="underline">
         Features &amp; Functions
       </Link>{" "}
