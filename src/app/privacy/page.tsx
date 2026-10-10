@@ -45,7 +45,7 @@ export default function PrivacyPage() {
         </li>
         <li>
           <b>Your family’s own activities</b>, if you add them in My Activities: who they’re for (a first name), what, when,
-          and an address if you add one. They belong to your phone (and any phone you share them with using a code), not to
+          an address if you add one, and who’s taking whom when things clash (for example “Dad”). They belong to your phone (and any phone you share them with using a code), not to
           an account.
         </li>
         <li>
