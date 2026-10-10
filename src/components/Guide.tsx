@@ -15,6 +15,37 @@ type Path = { id: string; label: string; steps: Step[] };
 
 const PATHS: Path[] = [
   {
+    id: "activities",
+    label: "My Activities",
+    steps: [
+      {
+        image: "/guide/act-1-week.webp",
+        title: "Your family’s week",
+        text: "My Activities on the home page shows every game and training from your kids’ teams, plus everything else, day by day. Each person has their own colour, and Sidelnr warns you when two things clash.",
+      },
+      {
+        image: "/guide/act-2-calendar.webp",
+        title: "The month at a glance",
+        text: "Switch to Calendar to see the whole month: a dot for each game or training, in each person’s colour, and a red ring for a clash. Tap a day to see what’s on.",
+      },
+      {
+        image: "/guide/act-3-add.webp",
+        title: "Add anything",
+        text: "Music, dance, swimming, school: add it every week, just once, or from a link to a club’s calendar or timetable. It works for the grown-ups too.",
+      },
+      {
+        image: "/guide/act-4-share.webp",
+        title: "Share with another phone",
+        text: "Tap Get a code to share all your activities, or just some, then type the code on the other phone. It works once, so nobody else can use it.",
+      },
+      {
+        image: "/guide/act-1-week.webp",
+        title: "Reminders and your calendar",
+        text: "Turn on Reminders at the top for a heads-up a day and an hour before. Add everything to my calendar puts it all in your phone’s calendar, and keeps it up to date.",
+      },
+    ],
+  },
+  {
     id: "join",
     label: "Join a team",
     steps: [
@@ -147,37 +178,7 @@ const PATHS: Path[] = [
       },
     ],
   },
-  {
-    id: "activities",
-    label: "Plan my family’s week",
-    steps: [
-      {
-        image: "/guide/act-1-week.webp",
-        title: "Your family’s week",
-        text: "My Activities on the home page shows every game and training from your kids’ teams, plus everything else, day by day. Each person has their own colour, and Sidelnr warns you when two things clash.",
-      },
-      {
-        image: "/guide/act-2-calendar.webp",
-        title: "The month at a glance",
-        text: "Switch to Calendar to see the whole month: a dot for each game or training, in each person’s colour, and a red ring for a clash. Tap a day to see what’s on.",
-      },
-      {
-        image: "/guide/act-3-add.webp",
-        title: "Add anything",
-        text: "Music, dance, swimming, school: add it every week, just once, or from a link to a club’s calendar or timetable. It works for the grown-ups too.",
-      },
-      {
-        image: "/guide/act-4-share.webp",
-        title: "Share with another phone",
-        text: "Tap Get a code to share all your activities, or just some, then type the code on the other phone. It works once, so nobody else can use it.",
-      },
-      {
-        image: "/guide/act-1-week.webp",
-        title: "Reminders and your calendar",
-        text: "Turn on Reminders at the top for a heads-up a day and an hour before. Add everything to my calendar puts it all in your phone’s calendar, and keeps it up to date.",
-      },
-    ],
-  },
+
 ];
 
 // Coming next: shown in the list, not ready yet.
