@@ -1,6 +1,8 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { createHmac, randomInt } from "crypto";
+import { ownerCodeEmail, sendEmail } from "@/lib/email";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { deleteTeam, setAttendance } from "@/lib/store";
@@ -13,20 +15,56 @@ import { decideReview, unverifyLeague } from "@/lib/league-verify";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
 
-export async function superLogin(_: unknown, formData: FormData) {
-  const pin = String(formData.get("pin") ?? "").trim();
+// The owner page takes two steps: the owner PIN, then a 6-digit code emailed
+// to OWNER_EMAIL (while that isn't set, the PIN alone, and the page says so).
+// The code waits in a short-lived signed cookie, never in the page.
+const PENDING_COOKIE = "su_super_pending";
+const CODE_MINUTES = 10;
+const sign = (v: string) => createHmac("sha256", `super:${superToken() ?? ""}`).update(v).digest("hex");
+
+export async function superLogin(_: unknown, formData: FormData): Promise<{ error?: string; ok?: boolean; codeSent?: string } | null> {
   const token = superToken();
   if (!token) return { error: "ADMIN_PIN isn't configured." };
   const locked = await lockedMessage("super", "owner");
   if (locked) return { error: locked };
+  const store = await cookies();
+  const ownerEmail = process.env.OWNER_EMAIL?.trim();
+
+  // Step 2: the emailed code.
+  const code = String(formData.get("code") ?? "").replace(/\D/g, "");
+  if (code) {
+    const [hash, expires] = (store.get(PENDING_COOKIE)?.value ?? "").split(".");
+    if (!hash || !expires || Number(expires) < Date.now()) return { error: "That code has expired. Enter the PIN again for a new one." };
+    if (sign(`${code}.${expires}`) !== hash) {
+      await recordFailure("super", "owner");
+      return { error: "That code isn’t right.", codeSent: "again" };
+    }
+    await recordSuccess("super", "owner");
+    store.delete(PENDING_COOKIE);
+    store.set(SUPER_COOKIE, token, COOKIE_OPTS);
+    revalidatePath("/super");
+    return { ok: true };
+  }
+
+  // Step 1: the PIN.
+  const pin = String(formData.get("pin") ?? "").trim();
   if (pin !== process.env.ADMIN_PIN?.trim()) {
     await recordFailure("super", "owner");
     return { error: "Wrong PIN." };
   }
-  await recordSuccess("super", "owner");
-  (await cookies()).set(SUPER_COOKIE, token, COOKIE_OPTS);
-  revalidatePath("/super");
-  return { ok: true };
+  if (!ownerEmail) {
+    await recordSuccess("super", "owner");
+    store.set(SUPER_COOKIE, token, COOKIE_OPTS);
+    revalidatePath("/super");
+    return { ok: true };
+  }
+  const fresh = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const expires = String(Date.now() + CODE_MINUTES * 60_000);
+  store.set(PENDING_COOKIE, `${sign(`${fresh}.${expires}`)}.${expires}`, { ...COOKIE_OPTS, maxAge: CODE_MINUTES * 60 });
+  const mail = ownerCodeEmail(fresh);
+  if (!(await sendEmail(ownerEmail, mail.subject, mail.text, mail.html))) return { error: "Couldn’t send the code email. Try again shortly." };
+  const [name, domain] = ownerEmail.split("@");
+  return { codeSent: `${name.slice(0, 2)}…@${domain}` };
 }
 
 export async function superLogout() {

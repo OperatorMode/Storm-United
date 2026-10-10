@@ -26,7 +26,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
     return (
       <div className="mx-auto max-w-md p-4 pt-10">
         <Card title="Super admin">
-          <SuperLogin />
+          <SuperLogin twoStep={!!process.env.OWNER_EMAIL?.trim()} />
         </Card>
       </div>
     );

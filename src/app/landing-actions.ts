@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifySecret } from "@/lib/teams";
 import { lookupTeam as lookup } from "@/lib/team-lookup";
-import { COOKIE_OPTS, SUPER_COOKIE, adminCookie, adminToken, joinCookie, joinToken, superToken } from "@/lib/session";
+import { COOKIE_OPTS, adminCookie, adminToken, joinCookie, joinToken } from "@/lib/session";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
 
 export async function joinTeam(_: unknown, formData: FormData) {
@@ -34,8 +34,7 @@ export async function managerSignIn(_: unknown, formData: FormData) {
 
   if (!input) {
     if (!isSuper) return { error: "Enter your team code or team name.", team: input };
-    store.set(SUPER_COOKIE, superToken()!, COOKIE_OPTS);
-    redirect("/super");
+    redirect("/super"); // the owner page asks for the PIN and its emailed code itself
   }
 
   const found = await lookup(input);

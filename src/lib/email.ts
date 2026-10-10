@@ -71,3 +71,15 @@ export function leagueCodeEmail(league: string, code: string) {
 </div>`;
   return { subject: `${code} is your Sidelnr league code`, text, html };
 }
+
+/** The second step into the owner page (/super). */
+export function ownerCodeEmail(code: string) {
+  const text = `Your Sidelnr owner code: ${code}\n\nIt expires in 10 minutes. If you didn't just enter the owner PIN, someone else did: change ADMIN_PIN in Vercel.`;
+  const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#09090b">
+  <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
+  <p style="margin:0 0 20px;color:#52525b">Owner page sign-in</p>
+  <p style="font-size:32px;font-weight:700;letter-spacing:6px;margin:8px 0 20px">${code}</p>
+  <p style="font-size:13px;color:#71717a">It expires in 10 minutes. If you didn’t just enter the owner PIN, someone else did: change ADMIN_PIN in Vercel.</p>
+</div>`;
+  return { subject: `${code} is your Sidelnr owner code`, text, html };
+}
