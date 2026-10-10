@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AddLeagueCallout } from "./AddLeagueCallout";
 
 // "How Sidelnr works": a short guide over the home page. It asks why you're
 // here, then shows the basics for that with real screens (made-up teams and
@@ -148,6 +147,37 @@ const PATHS: Path[] = [
       },
     ],
   },
+  {
+    id: "activities",
+    label: "Plan my family’s week",
+    steps: [
+      {
+        image: "/guide/act-1-week.webp",
+        title: "Your family’s week",
+        text: "My Activities on the home page shows every game and training from your kids’ teams, plus everything else, day by day. Each person has their own colour, and Sidelnr warns you when two things clash.",
+      },
+      {
+        image: "/guide/act-2-calendar.webp",
+        title: "The month at a glance",
+        text: "Switch to Calendar to see the whole month: a dot for each game or training, in each person’s colour, and a red ring for a clash. Tap a day to see what’s on.",
+      },
+      {
+        image: "/guide/act-3-add.webp",
+        title: "Add anything",
+        text: "Music, dance, swimming, school: add it every week, just once, or from a link to a club’s calendar or timetable. It works for the grown-ups too.",
+      },
+      {
+        image: "/guide/act-4-share.webp",
+        title: "Share with another phone",
+        text: "Tap Get a code to share all your activities, or just some, then type the code on the other phone. It works once, so nobody else can use it.",
+      },
+      {
+        image: "/guide/act-1-week.webp",
+        title: "Reminders and your calendar",
+        text: "Turn on Reminders at the top for a heads-up a day and an hour before. Add everything to my calendar puts it all in your phone’s calendar, and keeps it up to date.",
+      },
+    ],
+  },
 ];
 
 // Coming next: shown in the list, not ready yet.
@@ -234,45 +264,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
 
         {!path ? (
           <div className="max-h-[calc(100dvh-env(safe-area-inset-top)-4.5rem)] space-y-4 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-1">
-            {/* How it fits together: a league, its teams, their families. */}
-            <div>
-              <h2 className="text-lg font-semibold">How it fits together</h2>
-              <ol className="mt-2">
-                {[
-                  { n: 1, title: "League", text: "Fixtures, results and the ladder. The league adds it, or anyone adds it with a link to its website." },
-                  { n: 2, title: "Team", text: "A coach picks their team in the league’s draw." },
-                  { n: 3, title: "Families and players", text: "Join their team with its code." },
-                ].map((l, i) => (
-                  <li key={l.n}>
-                    {i > 0 && <div className="ml-[15px] h-3 w-0.5 bg-zinc-300" aria-hidden />}
-                    <div className="flex gap-3 rounded-2xl bg-zinc-100 p-3">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-zinc-900 text-sm font-semibold text-white">{l.n}</span>
-                      <span className="text-sm">
-                        <span className="block font-semibold">{l.title}</span>
-                        <span className="text-zinc-600">{l.text}</span>
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-            <AddLeagueCallout
-              learnHow={
-                PATHS.some((p) => p.id === "league") ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPath(PATHS.find((p) => p.id === "league")!);
-                      setStep(0);
-                    }}
-                    className="text-sm font-medium underline"
-                  >
-                    Learn how
-                  </button>
-                ) : undefined
-              }
-            />
-            <div className="space-y-2 border-t border-zinc-100 pt-4">
+            <div className="space-y-2">
               <h2 className="text-2xl font-semibold">Why are you here?</h2>
               <p className="text-sm text-zinc-600">Pick one and we’ll show you the basics in a few steps.</p>
               <select
@@ -300,6 +292,49 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* How it fits together: a league, its teams, their families; and the family's own week. */}
+            <div className="border-t border-zinc-100 pt-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">How it fits together</h3>
+              <ol className="mt-2 space-y-1.5 text-sm">
+                {[
+                  { n: 1, title: "League", text: "fixtures, results and the ladder. Added by the league, or by anyone with a link to its website." },
+                  { n: 2, title: "Team", text: "a coach picks their team in the league’s draw." },
+                  { n: 3, title: "Families and players", text: "join their team with its code." },
+                ].map((l) => (
+                  <li key={l.n} className="flex gap-2.5">
+                    <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-zinc-900 text-[11px] font-semibold text-white">{l.n}</span>
+                    <span className="text-zinc-600">
+                      <span className="font-semibold text-zinc-900">{l.title}:</span> {l.text}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-2.5 rounded-xl bg-zinc-100 px-3 py-2 text-sm text-zinc-600">
+                <span className="font-semibold text-zinc-900">My Activities</span> brings it all together for your family: every
+                team’s games and training, plus music, dance and anything else, in one calendar.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-zinc-200 p-3 text-sm">
+              <span className="font-semibold">Can’t find your team?</span>{" "}
+              <span className="text-zinc-600">Then your league isn’t on Sidelnr yet. Add it with a link to its website, and your team is in it.</span>
+              <div className="mt-2 flex items-center gap-4">
+                <Link href="/account/leagues/new" onClick={close} className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">
+                  Add your league
+                </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPath(PATHS.find((p) => p.id === "league")!);
+                      setStep(0);
+                    }}
+                    className="text-sm font-medium underline"
+                  >
+                    Learn how
+                  </button>
+              </div>
             </div>
             <button type="button" onClick={close} className="w-full py-2 text-sm text-zinc-500 underline">
               Skip, I’ll look around myself

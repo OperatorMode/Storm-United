@@ -169,6 +169,21 @@ for rnd, day, h, a in [(1, 17, "Sharks", "Dolphins"), (1, 17, "Stingrays", "Marl
     d["fixtures"].append({"id": f"demo-east-{rnd}-{h.lower()}", "competition_id": EASTC, "status": "scheduled", "round": rnd, "stage": None,
                           "kickoff": sat(day), "pitch": "Eastside Reserve", "home": h, "away": a, "home_score": None, "away_score": None})
 
+# Leo's Dad's family week (My Activities): Leo's piano, his sister Zara's swimming and dance.
+HOUSE = "22222222-2222-4222-8222-222222222222"
+d["households"] = [h for h in d.get("households", []) if h["id"] != HOUSE]
+d["households"].append({"id": HOUSE, "share_code_hash": None, "share_expires_at": None, "created_at": ago(400)})
+d["activities"] = [x for x in d.get("activities", []) if x["household_id"] != HOUSE]
+def activity(person, name, location, weekly=(), extra=()):
+    d["activities"].append({"id": str(uuid.uuid4()), "household_id": HOUSE, "person": person, "name": name, "kind": None,
+                            "location": location, "tz": "Australia/Perth", "weekly": list(weekly), "starts_on": None, "ends_on": None,
+                            "extra": list(extra), "cancelled": [], "source_url": None, "source_kind": None, "source_filter": None,
+                            "synced_at": None, "source_error": None, "created_at": ago(300),
+                            "created_by_device": "11111111-1111-4111-8111-111111111111"})
+activity("Leo", "Piano", "Riverside Music School", weekly=[{"d": 3, "t": "16:00", "m": 45}])
+activity("Zara", "Swimming", "Riverside Aquatic Centre", weekly=[{"d": 1, "t": "16:30", "m": 60}])
+activity("Zara", "Dance", "Studio 9, Main St", weekly=[{"d": 6, "t": "08:00", "m": 60}])
+
 # The coach: signed in as coach@example.test, owner of the team.
 d["managers"].append({"id": "demo-coach", "email": "coach@example.test", "name": None, "created_at": ago(500)})
 d["team_managers"].append({"team_id": TEAM, "manager_id": "demo-coach", "role": "owner", "created_at": ago(500)})

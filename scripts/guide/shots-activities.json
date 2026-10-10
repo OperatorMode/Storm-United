@@ -1,0 +1,42 @@
+[
+  {
+    "name": "act-1-week",
+    "url": "http://localhost:3100/me",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "localStorage.setItem('su_guide_seen','1'); [...document.querySelectorAll('div,section')].find(e=>e.firstElementChild&&e.textContent.trim().startsWith('Get the Sidelnr app')&&e.textContent.length<200)?.remove(); const h=[...document.querySelectorAll('div')].find(e=>e.textContent.trim()==='Add everything to my calendar'); window.scrollTo(0,0);"
+  },
+  {
+    "name": "act-2-calendar",
+    "url": "http://localhost:3100/me",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Calendar').click(); await new Promise(r=>setTimeout(r,600)); const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Calendar'); b.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
+  },
+  {
+    "name": "act-3-add",
+    "url": "http://localhost:3100/me",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "const d=[...document.querySelectorAll('details')].find(x=>x.querySelector('summary')?.textContent.includes('Add an activity')); d.open=true; await new Promise(r=>setTimeout(r,300)); const sec=d.closest('section'); sec.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
+  },
+  {
+    "name": "act-4-share",
+    "url": "http://localhost:3100/me",
+    "cookies": {
+      "su_voter_riverside-rockets": "leo",
+      "su_device": "11111111-1111-4111-8111-111111111111",
+      "su_household": "22222222-2222-4222-8222-222222222222"
+    },
+    "js": "const d=[...document.querySelectorAll('details')].find(x=>x.querySelector('summary')?.textContent.includes('Share with another phone')); d.open=true; await new Promise(r=>setTimeout(r,300)); d.previousElementSibling.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
+  }
+]
