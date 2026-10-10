@@ -34,6 +34,7 @@ import { memberLabel, openReports } from "@/lib/dms";
 import { ReportedMessages } from "./ReportedMessages";
 import { TeamPhones } from "./TeamPhones";
 import { listPhones } from "@/lib/phones";
+import { openChatReports } from "@/lib/messages";
 import { tally, winners } from "@/lib/mvp";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { now as clockNow } from "@/lib/clock";
@@ -104,7 +105,11 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     ? (await leagueMessagesFor(comp.league_id, comp.id)).filter((m) => clockNow().getTime() - new Date(m.created_at).getTime() < 60 * 24 * 60 * 60 * 1000)
     : [];
   // Private messages families reported to the managers, and the phones following each child.
-  const [reports, phones] = await Promise.all([openReports(team.id).catch(() => []), listPhones(team.id)]);
+  const [dmReports, chatReports, phones] = await Promise.all([openReports(team.id).catch(() => []), openChatReports(team.id), listPhones(team.id)]);
+  const reports = [
+    ...dmReports.map((r) => ({ id: r.id, kind: "dm" as const, author: r.message?.author ?? null, reporter: r.reporter, body: r.message?.body, at: r.message?.created_at })),
+    ...chatReports.map((r) => ({ id: r.id, kind: "chat" as const, author: r.message?.author_id ?? null, reporter: r.reporter, body: r.message?.body, at: r.message?.created_at })),
+  ];
   const [training, duties, dutySignups, rotations] = await Promise.all([
     listTraining(team.id),
     listDuties(team.id),
@@ -239,10 +244,11 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             teamId={team.id}
             reports={reports.map((r) => ({
               id: r.id,
-              from: r.message ? memberLabel(team, r.message.author) : "Unknown",
+              kind: r.kind,
+              from: r.author ? memberLabel(team, r.author) : "Unknown",
               reporter: memberLabel(team, r.reporter),
-              body: r.message?.body ?? "(message deleted)",
-              when: r.message ? formatDay(new Date(r.message.created_at), tz) : "",
+              body: r.body ?? "(message deleted)",
+              when: r.at ? formatDay(new Date(r.at), tz) : "",
             }))}
           />
         </Section>

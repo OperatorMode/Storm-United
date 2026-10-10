@@ -137,11 +137,56 @@ export async function deleteChat(teamId: string, id: string, authorId?: string):
     data.chat = (data.chat ?? []).filter(
       (m) => !(m.team_id === teamId && m.id === id && (!authorId || m.author_id === authorId)),
     );
+    data.chat_reports = (data.chat_reports ?? []).filter((r) => !(r.team_id === teamId && r.message_id === id));
     return writeLocal(data);
   }
   let q = s.from("chat_messages").delete().eq("team_id", teamId).eq("id", id);
   if (authorId) q = q.eq("author_id", authorId);
   check(await q);
+}
+
+// ---------- reporting a chat message to the managers ----------
+
+export type ChatReport = { id: string; team_id: string; message_id: string; reporter: string; handled: boolean; created_at: string };
+
+export async function reportChatMessage(teamId: string, messageId: string, reporter: string): Promise<void> {
+  const row: ChatReport = { id: randomUUID(), team_id: teamId, message_id: messageId, reporter, handled: false, created_at: new Date().toISOString() };
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    (d.chat_reports ??= []).push(row);
+    return writeLocal(d);
+  }
+  check(await s.from("chat_reports").insert(row));
+}
+
+/** Chat reports the managers haven't dealt with, with the messages. */
+export async function openChatReports(teamId: string): Promise<(ChatReport & { message: ChatMessage | null })[]> {
+  try {
+    const s = db();
+    const reports: ChatReport[] = s
+      ? (check(await s.from("chat_reports").select("*").eq("team_id", teamId).eq("handled", false).order("created_at")) as ChatReport[])
+      : ((await readLocal()).chat_reports ?? []).filter((r) => r.team_id === teamId && !r.handled);
+    if (!reports.length) return [];
+    const chat = await listChat(teamId);
+    return reports.map((r) => ({ ...r, message: chat.find((m) => m.id === r.message_id) ?? null }));
+  } catch {
+    return []; // e.g. before migration 026
+  }
+}
+
+/** A manager deals with a chat report: remove the message (and its reports), or keep it. */
+export async function handleChatReport(teamId: string, reportId: string, remove: boolean): Promise<void> {
+  const report = (await openChatReports(teamId)).find((r) => r.id === reportId);
+  if (!report) return;
+  if (remove) return deleteChat(teamId, report.message_id); // its reports go with it
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.chat_reports = (d.chat_reports ?? []).map((r) => (r.message_id === report.message_id ? { ...r, handled: true } : r));
+    return writeLocal(d);
+  }
+  check(await s.from("chat_reports").update({ handled: true }).eq("team_id", teamId).eq("message_id", report.message_id));
 }
 
 // ---------- push subscriptions ----------

@@ -13,9 +13,12 @@ import {
   deleteChat,
   deletePushSub,
   getPushSub,
+  handleChatReport,
+  listChat,
+  reportChatMessage,
   savePushSub,
 } from "@/lib/messages";
-import { notifyTeam, preview, pushEnabled, sendPush } from "@/lib/push";
+import { notifyManagers, notifyTeam, preview, pushEnabled, sendPush } from "@/lib/push";
 
 async function viewableTeam(teamId: string): Promise<Team | null> {
   const team = await getTeam(teamId);
@@ -96,6 +99,33 @@ export async function sendChat(teamId: string, body: string, fromEndpoint: strin
 }
 
 // Authors can delete their own messages; the coach can delete any.
+/** Report a team chat message: the managers see it in Manager's Corner and get a notification. */
+export async function reportChat(teamId: string, id: string) {
+  const team = await viewableTeam(teamId);
+  if (!team) return { error: "Team not found." };
+  const me = await chatAuthor(team);
+  if (!me) return { error: "Pick your child on Home first." };
+  if (!(await listChat(team.id)).some((m) => m.id === id)) return { error: "Message not found." };
+  await reportChatMessage(team.id, id, me);
+  after(() =>
+    notifyManagers(team.id, {
+      title: `${team.name}: a chat message was reported`,
+      body: "Open Manager’s Corner to see it.",
+      url: `/${team.id}/admin`,
+      icon: `/${team.id}/icon/192`,
+    }),
+  );
+  return { ok: true };
+}
+
+/** Manager's Corner: deal with a chat report (remove the message, or keep it). */
+export async function resolveChatReport(teamId: string, reportId: string, remove: boolean) {
+  const team = await viewableTeam(teamId);
+  if (!team || !(await isTeamAdmin(team))) return;
+  await handleChatReport(team.id, reportId, remove);
+  revalidatePath(`/${team.id}`, "layout");
+}
+
 export async function removeChat(teamId: string, id: string) {
   const team = await viewableTeam(teamId);
   if (!team) return;

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { removeChat, sendChat } from "../messaging-actions";
+import { removeChat, reportChat, sendChat } from "../messaging-actions";
 import { chatSeenKey } from "@/components/TabBar";
 import { pushEndpoint } from "@/lib/push-endpoint";
 import type { ChatMessage } from "@/lib/messages";
@@ -115,6 +115,21 @@ export function ChatThread({
                     {(mine || isCoach) && (
                       <button type="button" onClick={() => remove(m.id)} className="underline">
                         Delete
+                      </button>
+                    )}
+                    {!mine && me && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          confirm("Report this message to the team’s managers?") &&
+                          start(async () => {
+                            const res = await reportChat(teamId, m.id);
+                            setError("error" in res ? (res.error ?? null) : "Reported. The team’s managers will have a look.");
+                          })
+                        }
+                        className="underline"
+                      >
+                        Report
                       </button>
                     )}
                   </div>

@@ -81,6 +81,7 @@ export type LocalDb = {
   dm_reports?: import("./dms").DmReport[];
   rate_limits?: { key: string; failures: number; window_start: string; locked_until: string | null }[];
   team_phones?: import("./phones").TeamPhone[];
+  chat_reports?: import("./messages").ChatReport[];
   household_push?: import("./activity-reminders").HouseholdPush[];
   activity_reminder_log?: { household_id: string; key: string; sent_at: string }[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];
