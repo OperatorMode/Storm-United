@@ -204,7 +204,8 @@ const LOCAL_SEED: LocalDb = {
       goalie_enabled: true,
     },
   ],
-  players: ["Benjamin B.", "Brooklyn L.", "Erik J.", "Khushmeet G.", "Rayygan K.", "Ryan L.", "Viaan V.", "Zane B."].map(
+  // Made-up names: this seed is only used locally, without a database.
+  players: ["Alex B.", "Charlie D.", "Finn H.", "Jasper K.", "Milo N.", "Oscar P.", "Theo S.", "Will T."].map(
     (name, sort) => ({ team_id: "storm-united", id: name.split(" ")[0].toLowerCase(), name, sort, active: true }),
   ),
   attendance: [],

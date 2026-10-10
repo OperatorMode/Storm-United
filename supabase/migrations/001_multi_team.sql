@@ -31,14 +31,14 @@ values ('storm-united', 'Storm United', 'Storm United', 'U10', '/brand/crest.svg
 on conflict (id) do nothing;
 
 insert into players (team_id, id, name, sort) values
-  ('storm-united', 'benjamin',  'Benjamin B.',  0),
-  ('storm-united', 'brooklyn',  'Brooklyn L.',  1),
-  ('storm-united', 'erik',      'Erik J.',      2),
-  ('storm-united', 'khushmeet', 'Khushmeet G.', 3),
-  ('storm-united', 'rayygan',   'Rayygan K.',   4),
-  ('storm-united', 'ryan',      'Ryan L.',      5),
-  ('storm-united', 'viaan',     'Viaan V.',     6),
-  ('storm-united', 'zane',      'Zane B.',      7)
+  ('storm-united', 'alex',    'Alex B.',    0),
+  ('storm-united', 'charlie', 'Charlie D.', 1),
+  ('storm-united', 'finn',    'Finn H.',    2),
+  ('storm-united', 'jasper',  'Jasper K.',  3),
+  ('storm-united', 'milo',    'Milo N.',    4),
+  ('storm-united', 'oscar',   'Oscar P.',   5),
+  ('storm-united', 'theo',    'Theo S.',    6),
+  ('storm-united', 'will',    'Will T.',    7)
 on conflict do nothing;
 
 -- Existing rows all belong to Storm United.
