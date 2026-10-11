@@ -135,13 +135,15 @@ function findClashes(entries: Entry[]): { child: number; family: number } {
         count.child++;
         continue;
       }
-      // Solved by different people taking them.
-      if (a.taker && b.taker && a.taker.toLowerCase() !== b.taker.toLowerCase()) {
+      // Solved once someone is taking either of them (one answer is enough), unless the
+      // same person was picked for both: they can't be in two places.
+      const sameTaker = !!a.taker && !!b.taker && a.taker.toLowerCase() === b.taker.toLowerCase();
+      if ((a.taker || b.taker) && !sameTaker) {
         const takes = (e: Entry) => {
           const kids = going(e).map((k) => k.name).join(" & ");
           return kids.toLowerCase() === e.taker!.toLowerCase() ? `${kids} goes on their own` : `${e.taker} takes ${kids}`;
         };
-        resolve(a, b, `${takes(a)}, ${takes(b)}`);
+        resolve(a, b, [a, b].filter((e) => e.taker).map(takes).join(", "));
         continue;
       }
       a.clashes.push({ kind: "family", text: `Clash with ${label(b)}` });

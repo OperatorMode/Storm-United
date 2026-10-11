@@ -12,8 +12,8 @@ export type SkipTarget =
 
 // The clash solver on a card in My Activities: say the child isn't going (a
 // team game or training is marked "Can't make it", an activity skips that
-// time), or say who's taking them. Once two things at the same time have
-// different people taking them, they stop being a clash.
+// time), or say who's taking them. Once either of the two has someone taking
+// them (not the same person for both), it stops being a clash.
 export function ClashSolver({
   entryKey,
   clash,
