@@ -198,6 +198,11 @@ export async function decideReview(claimId: string, approve: boolean): Promise<v
   }
 }
 
+/** The Sidelnr owner makes a league official directly (e.g. after talking to the league). */
+export async function verifyLeagueByOwner(leagueId: string): Promise<void> {
+  await updateLeague(leagueId, { verified_at: new Date().toISOString(), verified_by: "owner" });
+}
+
 export async function unverifyLeague(leagueId: string): Promise<void> {
   await updateLeague(leagueId, { verified_at: null, verified_by: null });
 }

@@ -9,7 +9,7 @@ import { deleteManagerAccount, unlinkManager } from "@/lib/accounts";
 import { clearTeamPin, removeLeagueAdmin } from "@/lib/owner-tools";
 import { COOKIE_OPTS, OWNER_COOKIE, OWNER_SESSION_HOURS, SUPER_COOKIE, isSuperAdmin, ownerSessionValue, superToken } from "@/lib/session";
 import { isOwnerUser, ownerAuthClient } from "@/lib/owner-auth";
-import { decideReview, unverifyLeague } from "@/lib/league-verify";
+import { decideReview, unverifyLeague, verifyLeagueByOwner } from "@/lib/league-verify";
 import { setFeedbackDone } from "@/lib/feedback";
 import { cleanUp } from "@/lib/housekeeping";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
@@ -198,6 +198,13 @@ export async function decideLeagueReview(claimId: string, approve: boolean) {
   if (!(await isSuperAdmin())) return;
   await decideReview(claimId, approve);
   revalidatePath("/", "layout");
+}
+
+export async function makeLeagueOfficial(leagueId: string) {
+  if (!(await isSuperAdmin())) return { error: "Not authorised." };
+  await verifyLeagueByOwner(leagueId);
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 export async function removeLeagueVerification(leagueId: string) {

@@ -13,6 +13,7 @@ import {
   ownerRemoveLeagueAdmin,
   ownerRemoveManager,
   ownerResetPin,
+  makeLeagueOfficial,
   removeLeagueVerification,
   removeTeam,
   superLogout,
@@ -58,6 +59,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q.trim() : "";
   const email = typeof params.email === "string" ? params.email.trim() : "";
+  const lq = typeof params.league === "string" ? params.league.trim() : "";
 
   const [teams, competitions, leagues, reviews, feedback, usage, counts] = await Promise.all([
     listTeams(),
@@ -84,6 +86,11 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const found = q ? teams.filter((t) => t.name.toLowerCase().includes(needle) || t.id.includes(needle)).slice(0, 20) : [];
   const foundManagers = Object.fromEntries(await Promise.all(found.map(async (t) => [t.id, await withEmails(await teamManagerIds(t.id))] as const)));
   const official = leagues.filter((l) => l.verified_at);
+  // Any league, found by name: to make it official (or see that it already is).
+  const lneedle = lq.toLowerCase();
+  const foundLeagues = lq ? leagues.filter((l) => l.name.toLowerCase().includes(lneedle) || l.id.includes(lneedle)).slice(0, 10) : [];
+  const foundLeagueAdmins = Object.fromEntries(await Promise.all(foundLeagues.map(async (l) => [l.id, await withEmails(await leagueAdminIds(l.id))] as const)));
+  const verifiedLabel = (by?: string | null) => (by === "review" ? "Approved by review" : by === "owner" ? "Made official by you" : `Verified with ${by}`);
   const officialAdmins = Object.fromEntries(await Promise.all(official.map(async (l) => [l.id, await withEmails(await leagueAdminIds(l.id))] as const)));
   const account = email ? await managerByEmail(email) : null;
   const accountTeams = account ? await managedTeams(account.id) : [];
@@ -233,6 +240,43 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
       </Card>
 
       <Card title="Official leagues" aside={reviews.length ? `${reviews.length} to review` : undefined}>
+        <form className="mb-3 flex gap-2 text-sm">
+          <input
+            name="league"
+            defaultValue={lq}
+            placeholder="Find any league, e.g. WNBL"
+            className="min-w-0 flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-base"
+          />
+          <button className="rounded-xl bg-zinc-900 px-4 font-semibold text-white">Find</button>
+        </form>
+        {lq && (
+          <div className="mb-4 space-y-2 text-sm">
+            {foundLeagues.map((l) => (
+              <div key={l.id} className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 p-3">
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">
+                    {l.verified_at ? "✓ " : ""}
+                    {l.name}
+                  </span>
+                  <span className="block truncate text-xs text-zinc-500">
+                    {l.verified_at ? verifiedLabel(l.verified_by) : "Not official"} · Admins:{" "}
+                    {(foundLeagueAdmins[l.id] ?? []).map((a) => masked(a.email)).join(", ") || "none"}
+                  </span>
+                </span>
+                {l.verified_at ? (
+                  <OwnerButton label="Not official" question={`Take the official tick off ${l.name}?`} action={removeLeagueVerification.bind(null, l.id)} />
+                ) : (
+                  <OwnerButton
+                    label="Make official"
+                    question={`Make ${l.name} official? It gets the tick, and its admins can post to every team in it.`}
+                    action={makeLeagueOfficial.bind(null, l.id)}
+                  />
+                )}
+              </div>
+            ))}
+            {!foundLeagues.length && <p className="text-zinc-500">No league found for “{lq}”.</p>}
+          </div>
+        )}
         <div className="space-y-4 text-sm">
           {reviews.map((r) => (
             <div key={r.id} className="space-y-2 rounded-xl bg-amber-50 p-3">
@@ -257,7 +301,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
                 <span className="min-w-0">
                   <span className="block truncate font-medium">✓ {l.name}</span>
                   <span className="block truncate text-xs text-zinc-500">
-                    {l.verified_by === "review" ? "Approved by review" : `Verified with ${l.verified_by}`}
+                    {verifiedLabel(l.verified_by)}
                   </span>
                 </span>
                 <OwnerButton label="Not official" question={`Take the official tick off ${l.name}?`} action={removeLeagueVerification.bind(null, l.id)} />
