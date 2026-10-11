@@ -198,6 +198,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
   const [path, setPath] = useState<Path | null>(null);
   const [step, setStep] = useState(0);
   const [zoom, setZoom] = useState(false); // the picture, full size
+  const [first, setFirst] = useState(false); // opened by itself on a first visit: say welcome
   const touch = useRef<number | null>(null);
 
   const show = useCallback(() => {
@@ -215,7 +216,10 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
     } catch {}
     if (openNow) window.history.replaceState(null, "", window.location.pathname);
     if (!openNow && (!autoOpen || seen)) return;
-    const t = setTimeout(show, openNow ? 0 : 400); // first visit: let the page appear first
+    const t = setTimeout(() => {
+      setFirst(!openNow);
+      show();
+    }, openNow ? 0 : 400); // first visit: let the page appear first
     return () => clearTimeout(t);
   }, [autoOpen, openNow, show]);
 
@@ -226,6 +230,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
   }, [show]);
 
   const close = useCallback(() => {
+    setFirst(false);
     setOpen(false);
     try {
       localStorage.setItem(SEEN_KEY, "1");
@@ -272,8 +277,22 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
         {!path ? (
           <div className="max-h-[calc(100dvh-env(safe-area-inset-top)-4.5rem)] space-y-4 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-1">
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold">What brings you here?</h2>
-              <p className="text-sm text-zinc-600">Pick one for a few quick steps with real screens. It takes about a minute.</p>
+              {first ? (
+                <>
+                  <h2 className="text-2xl font-semibold">Welcome to Sidelnr</h2>
+                  <p className="text-sm text-zinc-600">Good to have you here. Pick a quick guide to get started, or just look around. You can come back to these any time.</p>
+                </>
+              ) : (
+                <h2 className="text-2xl font-semibold">Quick setup guides</h2>
+              )}
+              <div className="flex items-baseline justify-between gap-2 pt-2">
+                {first ? (
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Quick setup guides</h3>
+                ) : (
+                  <span />
+                )}
+                <span className="text-xs text-zinc-400">About a minute each</span>
+              </div>
               <div className="grid gap-2 pt-1">
                 {PATHS.map((p) => (
                   <button
@@ -340,6 +359,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
             <button type="button" onClick={close} className="w-full py-2 text-sm text-zinc-500 underline">
               Skip, I’ll look around myself
             </button>
+            <p className="-mt-2 text-center text-xs text-zinc-400">You can come back any time: How Sidelnr works, at the bottom of each page.</p>
             <p className="text-center text-xs text-zinc-400">
               Sidelnr is self-managed by its teams and families.{" "}
               <Link href="/what-we-see" onClick={close} className="underline">
