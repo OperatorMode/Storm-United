@@ -131,7 +131,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/manage-7-corner.webp",
         title: "Manager’s Corner",
-        text: "Everything for running the team, folded into sections: game rotation, goalies, training, duties, the MVP tally, backup scores and team settings. Tap the picture to see it all.",
+        text: "Everything for running the team, folded into sections: game rotation, your team’s special role (if you set one up, like goalie), training, duties, the MVP tally, backup scores and team settings. Tap the picture to see it all.",
       },
       {
         image: "/guide/manage-8-training.webp",

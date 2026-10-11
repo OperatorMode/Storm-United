@@ -37,7 +37,7 @@ export default function PrivacyPage() {
           messages, for example “Leo’s Dad” or “Tom (Leo’s Dad)”. A player using their own phone picks their own name.
         </li>
         <li>
-          <b>What you do in the app</b>: whether a child can play, duty and goalie sign-ups, MVP votes, “Got it” on coach
+          <b>What you do in the app</b>: whether a child can play, duty sign-ups and putting a hand up for the team’s special role (like goalie), MVP votes, “Got it” on coach
           posts, team chat, private messages, and any message you report.
         </li>
         <li>
