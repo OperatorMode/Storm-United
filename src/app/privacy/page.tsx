@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         </li>
         <li>
           <b>Who you are in a team</b>, as you tell us: the player you belong to and who you are to them (Mum, Dad, Friend or
-          anything you type), and your first name if you choose to add it. That’s how you show up in the chat and in private
+          anything you type), and your first name if you choose to add it (asked once as “Who are you?”, and used across your teams and events). That’s how you show up in the chat and in private
           messages, for example “Leo’s Dad” or “Tom (Leo’s Dad)”. A player using their own phone picks their own name.
         </li>
         <li>

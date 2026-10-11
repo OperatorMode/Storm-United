@@ -6,14 +6,16 @@ import { tabData } from "@/lib/tabs";
 import { listChat } from "@/lib/messages";
 import { LegalLinks } from "@/components/LegalPage";
 import { Guide } from "@/components/Guide";
+import { WhoAreYou } from "@/components/WhoAreYou";
+import { getDeviceName } from "@/lib/profile";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
-import { chatAuthor, currentChildren, currentManager } from "@/lib/session";
+import { chatAuthor, currentChildren, currentDeviceId, currentManager } from "@/lib/session";
 import { emailEnabled } from "@/lib/email";
 import { managedTeams } from "@/lib/accounts";
 import { managedLeagues } from "@/lib/my-leagues";
-import { isEvent } from "@/lib/my-events";
+import { isEvent, listRsvps } from "@/lib/my-events";
 import { DEFAULT_TZ, formatDay, formatTime } from "@/lib/time";
 import { CARNIVALS_ENABLED } from "@/lib/features";
 
@@ -48,6 +50,16 @@ const DOORS = [
 
 type Run = { href: string; title: string; detail: string; logo?: string; manager?: boolean };
 
+/** This phone's answer to an event, for its card ("Going · 2 adults, 1 kid"). */
+async function eventAnswer(eventId: string, guest: string | undefined): Promise<string[]> {
+  if (!guest) return [];
+  const a = (await listRsvps(eventId)).find((r) => r.guest_id === guest);
+  if (!a) return ["Not answered yet"];
+  if (a.status === "no") return ["Can’t come"];
+  const heads = [a.adults && `${a.adults} adult${a.adults === 1 ? "" : "s"}`, a.kids && `${a.kids} kid${a.kids === 1 ? "" : "s"}`].filter(Boolean).join(", ");
+  return [`${a.status === "yes" ? "Going" : "Maybe"}${heads ? ` · ${heads}` : ""}`];
+}
+
 /** "Sat, 7 Nov, 2:00 pm" for an event card. */
 function eventWhen(t: { event_starts_at?: string | null; event_tz?: string | null }): string {
   if (!t.event_starts_at) return "Event";
@@ -70,6 +82,7 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
   const openGuide = params.guide !== undefined;
   const accountDeleted = params["account-deleted"] !== undefined;
   const ids = await knownTeamIds();
+  const myName = await getDeviceName(await currentDeviceId());
   const [known, manager] = await Promise.all([
     Promise.all(ids.map((id) => getTeam(id))).then((ts) => ts.filter((t) => t !== null)),
     currentManager(),
@@ -116,7 +129,7 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
       return {
         team: t,
         league: isEvent(t) ? eventWhen(t) : competition ? competitionLabel(competition) : t.division,
-        kids: children.map((c) => (isEvent(t) ? playerName(t, c) : firstName(playerName(t, c)))),
+        kids: isEvent(t) ? await eventAnswer(t.id, children[0]) : children.map((c) => firstName(playerName(t, c))),
         boardUnread: tabs.boardUnread + tabs.messagesUnread, // unread board posts and private messages
         chatTimes: chat.filter((m) => m.author_id !== me).slice(-50).map((m) => m.created_at),
       };
@@ -132,6 +145,8 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
           </h1>
           <p className="mt-1 text-sm font-medium opacity-80">Your team, on the sideline.</p>
         </div>
+
+        <WhoAreYou name={myName} />
 
         {accountDeleted && (
           <p className="rounded-2xl bg-white/90 px-4 py-3 text-center text-sm text-zinc-900">Your account has been deleted. Thanks for using Sidelnr.</p>

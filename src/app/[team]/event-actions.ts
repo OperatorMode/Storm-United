@@ -10,6 +10,7 @@ import { ORGANISER, addGuest, createEvent, decideGuest, isEvent, setRsvp } from 
 import { ensureDeviceId } from "@/lib/device";
 import { recordPhone } from "@/lib/phones";
 import { linkManager } from "@/lib/accounts";
+import { NAME_MAX, getDeviceName, setDeviceName } from "@/lib/profile";
 import { notifyManagers } from "@/lib/push";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
@@ -114,6 +115,50 @@ export async function joinEvent(eventId: string, familyName: string) {
     );
   }
   revalidatePath(`/${event.id}`, "layout");
+  return { ok: true, pending: !!guest.pending };
+}
+
+/**
+ * Answering an invitation in one go: Going / Maybe / Can't (and how many).
+ * The guest is this phone's "Who are you?" name (asked once, here, if it
+ * hasn't got one). Invited by another guest: the answer waits with them for an
+ * organiser's OK.
+ */
+export async function answerInvitation(eventId: string, status: "yes" | "maybe" | "no", adults: number, kids: number, typedName: string | null) {
+  const event = await eventFor(eventId);
+  if (!event || !(await canView(event))) return { error: "This invitation isn’t open on this phone." };
+  if (!["yes", "maybe", "no"].includes(status)) return { error: "Invalid answer." };
+  if (status !== "no" && adults + kids < 1) return { error: "How many are coming?" };
+  const device = await ensureDeviceId();
+  let name = (await getDeviceName(device)) ?? "";
+  if (!name) {
+    name = clean(typedName, NAME_MAX);
+    if (name.length < 2) return { error: "Type your first name so the organiser knows who’s coming." };
+    await setDeviceName(device, name);
+  }
+  const by = (await isTeamAdmin(event)) ? ORGANISER : await invitedBy(event.id);
+  if (!by) return { error: "Open the invitation link again to answer." };
+  // Two guests with the same name: number them.
+  let label = name;
+  for (let n = 2; event.allPlayers.some((p) => p.name.toLowerCase() === label.toLowerCase()); n++) label = `${name} (${n})`;
+  const guest = await addGuest(event, label, by);
+  const store = await cookies();
+  store.set(voterCookie(event.id), guest.id, COOKIE_OPTS);
+  await recordPhone(event.id, device, [guest.id], false, (await headers()).get("user-agent"));
+  await setRsvp(event.id, guest.id, status, status === "no" ? 0 : adults, status === "no" ? 0 : kids);
+  if (guest.pending) {
+    after(() =>
+      notifyManagers(event.id, {
+        title: `${event.name}: ${label} would like to come`,
+        body: "Someone was invited by a guest. Open Organiser to let them in.",
+        url: `/${event.id}/admin`,
+        icon: `/${event.id}/icon/192`,
+      }),
+    );
+  }
+  revalidatePath(`/${event.id}`, "layout");
+  revalidatePath("/me");
+  revalidatePath("/");
   return { ok: true, pending: !!guest.pending };
 }
 

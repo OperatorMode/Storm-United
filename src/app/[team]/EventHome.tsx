@@ -5,7 +5,8 @@ import { Directions } from "@/components/Directions";
 import { GuideLink } from "@/components/Guide";
 import { FamilyRequests, type OtherPhone } from "@/components/FamilyPhones";
 import { NotificationSettings } from "@/components/NotificationSettings";
-import { AnswerEvent, InviteLink, JoinEvent } from "./EventClient";
+import { AnswerEvent, InviteLink, InvitationAnswer } from "./EventClient";
+import { getDeviceName } from "@/lib/profile";
 import { listRsvps } from "@/lib/my-events";
 import { approvedChildren, ids as idList, listPhones } from "@/lib/phones";
 import { tabData } from "@/lib/tabs";
@@ -17,7 +18,7 @@ import type { Team } from "@/lib/teams";
 
 // An event's home page: what, when, where, who's coming, and your answer.
 // Guests see each other's answers; organisers also see who hasn't answered yet.
-export async function EventHome({ event }: { event: Team }) {
+export async function EventHome({ event, joined = false }: { event: Team; joined?: boolean }) {
   const tz = event.event_tz ?? DEFAULT_TZ;
   const start = event.event_starts_at ? new Date(event.event_starts_at) : null;
   const end = event.event_ends_at ? new Date(event.event_ends_at) : null;
@@ -101,11 +102,35 @@ export async function EventHome({ event }: { event: Team }) {
               <Directions place={event.event_place} className="shrink-0 bg-zinc-900 text-white" />
             </div>
           )}
-          {event.event_details && <p className="whitespace-pre-wrap border-t border-zinc-100 pt-2 text-zinc-700">{event.event_details}</p>}
-          <a href={`/${event.id}/event.ics`} className="block border-t border-zinc-100 pt-2 font-medium underline">
-            Add to my calendar
-          </a>
+          {event.event_details && (
+            <div className="border-t border-zinc-100 pt-2">
+              <span className="block text-xs uppercase tracking-wide text-zinc-500">Details</span>
+              <p className="whitespace-pre-wrap text-zinc-700">{event.event_details}</p>
+            </div>
+          )}
+          {(me || admin) && (
+            <a href={`/${event.id}/event.ics`} className="block border-t border-zinc-100 pt-2 font-medium underline">
+              Add to my phone’s calendar
+            </a>
+          )}
         </section>
+
+        {joined && me && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+            <div className="font-semibold">You’re in, {me.name}!</div>
+            <p className="mt-1">
+              This event is now on your{" "}
+              <Link href="/" className="font-medium underline">
+                home page
+              </Link>{" "}
+              and in{" "}
+              <Link href="/me" className="font-medium underline">
+                My Activities
+              </Link>
+              . Change your answer below any time. Updates from the organisers are under News, and you can talk to everyone in Chat.
+            </p>
+          </div>
+        )}
 
         <FamilyRequests teamId={event.id} requests={requests} />
 
@@ -130,7 +155,12 @@ export async function EventHome({ event }: { event: Team }) {
             Waiting for your family to let this phone in. They’ve been sent a message.
           </p>
         ) : (
-          <JoinEvent eventId={event.id} families={guests.map((g) => ({ id: g.id, name: g.name }))} />
+          <InvitationAnswer
+            eventId={event.id}
+            needName={!(await getDeviceName(deviceId))}
+            rsvpBy={event.rsvp_by ? formatIsoDate(event.rsvp_by, tz) : null}
+            families={guests.map((g) => ({ id: g.id, name: g.name }))}
+          />
         )}
 
         {(me || admin) && (

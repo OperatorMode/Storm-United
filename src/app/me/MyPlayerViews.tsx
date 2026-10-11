@@ -72,6 +72,9 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
           <Months days={days} selected={selected} onPick={pick} />
           <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
             <span className="flex items-center gap-1">
+              <span className="font-bold text-accent underline decoration-2 underline-offset-2">Today</span>
+            </span>
+            <span className="flex items-center gap-1">
               <Marker state="going" /> Going
             </span>
             <span className="flex items-center gap-1">
@@ -107,6 +110,20 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
 
 function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: string | null; onPick: (d: string) => void }) {
   const byDate = new Map(days.map((d) => [d.date, d]));
+  // Today on this phone (set after loading, so the server's date can't differ).
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => {
+    const t = new Date().toLocaleDateString("en-CA");
+    queueMicrotask(() => setToday(t));
+  }, []);
+  const dayNumber = (date: string, n: number) =>
+    date === today ? (
+      <span className="text-accent underline decoration-2 underline-offset-2" aria-label={`Today, ${n}`}>
+        {n}
+      </span>
+    ) : (
+      n
+    );
   const [fy, fm] = days[0].date.split("-").map(Number);
   const [ly, lm] = days[days.length - 1].date.split("-").map(Number);
   const months: { y: number; m: number }[] = [];
@@ -135,8 +152,8 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                 const day = byDate.get(date);
                 if (!day) {
                   return (
-                    <div key={date} className="py-2 text-zinc-400">
-                      {i + 1}
+                    <div key={date} className={`py-2 ${date === today ? "font-bold" : "text-zinc-400"}`}>
+                      {dayNumber(date, i + 1)}
                     </div>
                   );
                 }
@@ -147,7 +164,7 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                     onClick={() => onPick(date)}
                     className={`relative rounded-lg ${day.kids.length && day.kids.every((k) => k.state === "possible") ? "border border-dashed border-zinc-300 bg-white text-zinc-500" : "bg-zinc-100 text-zinc-900"} ${day.kids.length > 3 ? "pb-5" : "pb-3"} pt-1.5 font-semibold ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
                   >
-                    {i + 1}
+                    {dayNumber(date, i + 1)}
                     {day.duty && <span className="absolute left-0.5 top-0 text-[9px] text-amber-500">★</span>}
                     <span className="absolute inset-x-0 bottom-1 mx-auto flex max-w-[2.6rem] flex-wrap justify-center gap-[3px]">
                       {day.kids.slice(0, 6).map((k, n) => (

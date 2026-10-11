@@ -82,7 +82,10 @@ export async function EventOrganiser({ event, created }: { event: Team; created:
         {created && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
             <div className="font-semibold">{event.name} is ready</div>
-            <p className="mt-1">Now invite your guests: share the invitation link in a message or your group chat.</p>
+            <p className="mt-1">
+              Now invite your guests: share the invitation link in a message or your group chat. You’ll find the event on your
+              home page under My Event, and in My Activities.
+            </p>
           </div>
         )}
 

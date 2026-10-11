@@ -2,44 +2,82 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { answerEvent, joinEvent, myInviteLink } from "./event-actions";
+import { answerEvent, answerInvitation, myInviteLink } from "./event-actions";
 import { setChildren } from "./actions";
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-base";
 
-/** Joining through an invitation: who's coming (a family or a name), or "we're already on the list". */
-export function JoinEvent({ eventId, families }: { eventId: string; families: { id: string; name: string }[] }) {
+/**
+ * The invitation: Going / Maybe / Can't come straight away (and how many). The
+ * name is this phone's "Who are you?" name, asked here only if it has none.
+ */
+export function InvitationAnswer({
+  eventId,
+  needName,
+  rsvpBy,
+  families,
+}: {
+  eventId: string;
+  needName: boolean;
+  rsvpBy: string | null;
+  families: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [status, setStatus] = useState<"yes" | "maybe" | "no" | null>(null);
+  const [adults, setAdults] = useState(1);
+  const [kids, setKids] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const send = (s: "yes" | "maybe" | "no") =>
+    start(async () => {
+      setError(null);
+      const res = await answerInvitation(eventId, s, adults, kids, needName ? name : null);
+      if (res.error) return setError(res.error);
+      router.replace(`/${eventId}?joined`, { scroll: true });
+    });
   return (
-    <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <section className="space-y-3 rounded-2xl border-2 border-zinc-900 bg-white p-4 shadow-sm">
       <div>
-        <h2 className="font-semibold">You’re invited</h2>
-        <p className="text-sm text-zinc-500">Tell the organiser who’s answering: your name, or your family’s.</p>
+        <h2 className="text-lg font-semibold">You’re invited. Are you coming?</h2>
+        {rsvpBy && <p className="text-sm font-medium text-accent">Please answer by {rsvpBy}.</p>}
       </div>
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setError(null);
-          start(async () => {
-            const res = await joinEvent(eventId, name);
-            if (res.error) return setError(res.error);
-            router.refresh();
-          });
-        }}
-      >
-        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="e.g. The Parkers, or Kate" className={`${field} min-w-0 flex-1`} />
-        <button disabled={pending || name.trim().length < 2} className="rounded-xl bg-zinc-900 px-4 font-semibold text-white disabled:opacity-30">
-          {pending ? "…" : "Join"}
-        </button>
-      </form>
+      {needName && (
+        <label className="block text-sm">
+          <span className="mb-1 block font-medium">Your first name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={24} autoComplete="given-name" placeholder="So the organiser knows who’s coming" className={field} />
+        </label>
+      )}
+      <div className="grid grid-cols-3 gap-2">
+        {STATUS.map((o) => (
+          <button
+            key={o.s}
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setStatus(o.s);
+              if (o.s === "no") send("no");
+            }}
+            aria-pressed={status === o.s}
+            className={`rounded-xl border px-2 py-3 text-sm font-semibold ${status === o.s ? o.on : "border-zinc-300 bg-white"}`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {status && status !== "no" && (
+        <div className="space-y-2 rounded-xl bg-zinc-50 p-3 text-sm">
+          <Stepper label="Adults" value={adults} set={setAdults} />
+          <Stepper label="Kids" value={kids} set={setKids} />
+          <button type="button" disabled={pending} onClick={() => send(status)} className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white">
+            {pending ? "Sending…" : "Send my answer"}
+          </button>
+        </div>
+      )}
       {error && <p className="text-sm text-accent">{error}</p>}
       {families.length > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer text-zinc-600">Already on the list (another phone in your family)?</summary>
+        <details className="text-xs text-zinc-500">
+          <summary className="cursor-pointer">Someone in your family already answered on their phone?</summary>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {families.map((f) => (
               <button
@@ -53,16 +91,33 @@ export function JoinEvent({ eventId, families }: { eventId: string; families: { 
                     router.refresh();
                   })
                 }
-                className="rounded-full border border-zinc-300 px-3 py-1"
+                className="rounded-full border border-zinc-300 px-3 py-1 text-sm text-zinc-800"
               >
                 {f.name}
               </button>
             ))}
           </div>
-          <p className="mt-1 text-xs text-zinc-500">Your family gets a message to let this phone in.</p>
+          <p className="mt-1">Pick them: they get a message to let this phone in.</p>
         </details>
       )}
     </section>
+  );
+}
+
+function Stepper({ label, value, set }: { label: string; value: number; set: (n: number) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span>{label}</span>
+      <span className="flex items-center gap-2">
+        <button type="button" onClick={() => set(Math.max(0, value - 1))} className="size-8 rounded-full border border-zinc-300 text-lg leading-none" aria-label={`Fewer ${label.toLowerCase()}`}>
+          −
+        </button>
+        <span className="w-6 text-center font-semibold tabular-nums">{value}</span>
+        <button type="button" onClick={() => set(Math.min(50, value + 1))} className="size-8 rounded-full border border-zinc-300 text-lg leading-none" aria-label={`More ${label.toLowerCase()}`}>
+          +
+        </button>
+      </span>
+    </div>
   );
 }
 

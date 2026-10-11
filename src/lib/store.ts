@@ -94,6 +94,7 @@ export type LocalDb = {
   feedback?: import("./feedback").Feedback[];
   clash_takers?: import("./takers").TakerRow[];
   event_rsvps?: import("./my-events").Rsvp[];
+  device_profiles?: { device_id: string; name: string; updated_at: string }[];
   household_push?: import("./activity-reminders").HouseholdPush[];
   activity_reminder_log?: { household_id: string; key: string; sent_at: string }[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];

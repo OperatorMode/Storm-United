@@ -54,10 +54,10 @@ import { adminAccess, canView, currentChildren, currentDeviceId, isPlayerSelf, p
 import { now as clockNow } from "@/lib/clock";
 import { PhoneCheckIn } from "@/components/PhoneCheckIn";
 
-export default async function TeamHome({ params }: PageProps<"/[team]">) {
+export default async function TeamHome({ params, searchParams }: PageProps<"/[team]">) {
   const team = await getTeam((await params).team);
   if (!team) notFound();
-  if (isEvent(team)) return <EventHome event={team} />; // My Event: its own home page
+  if (isEvent(team)) return <EventHome event={team} joined={(await searchParams).joined !== undefined} />; // My Event: its own home page
   if (!(await canView(team))) return <JoinGate team={team} />;
 
   const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle, ladderStyle, officialLadder }, attendance, ballots, children, tabs] = await Promise.all([

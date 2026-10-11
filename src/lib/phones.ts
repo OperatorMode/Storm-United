@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { randomUUID } from "crypto";
 import { check, db, readLocal, writeLocal } from "./store";
+import { getDeviceName } from "./profile";
 
 // Which phones follow which children in a team, so managers can see who's
 // connected ("Sam: 2 phones") and take a child off a phone that shouldn't have
@@ -115,7 +116,7 @@ export async function recordPhone(teamId: string, deviceId: string, children: st
     removed_children: prev?.removed_children ?? "",
     member_id: prev?.member_id ?? randomUUID(),
     relation: prev?.relation ?? null,
-    name: prev?.name ?? null,
+    name: prev?.name ?? (await getDeviceName(deviceId)), // the phone's "Who are you?" name, until a team gets its own
     created_at: prev?.created_at ?? now,
     pending: pending.join(","),
   });
