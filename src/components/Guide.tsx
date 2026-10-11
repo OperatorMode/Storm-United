@@ -110,8 +110,8 @@ const PATHS: Path[] = [
       },
       {
         image: "/guide/manage-3-create.webp",
-        title: "Create your team",
-        text: "Search for your competition and pick your team in its draw: fixtures, results and the ladder load by themselves. Can’t find your team? Add your league first with a link to its website (My League, Add a league), then come back.",
+        title: "Set up your team",
+        text: "A few quick questions: your team’s name, your league, or where you check your games. Sidelnr finds them, and fixtures, results and the ladder then load by themselves.",
       },
       {
         image: "/guide/manage-4-squad.webp",
@@ -188,48 +188,69 @@ const PATHS: Path[] = [
     ],
   },
   {
-    id: "league",
-    label: "Add your league",
-    who: "My league isn’t on Sidelnr yet",
+    id: "find",
+    label: "Find your games",
+    who: "My team’s league isn’t on Sidelnr yet",
     steps: [
       {
-        image: "/guide/league-1-add.webp",
-        title: "Add your league with a link",
-        text: "On the home page, tap My League and sign in with your email, then Add a league. Paste the link to the league’s website (a Google Sheet or a calendar link works too) and tap Find my league.",
+        image: "/guide/find-1-team.webp",
+        title: "Start with your team’s name",
+        text: "My Team, then Set up your team. Type your team’s name as it’s written in the draw. If Sidelnr already has its league, your team shows up: tap it and you’re nearly done.",
       },
       {
-        image: "/guide/league-2-done.webp",
-        title: "All done in a minute",
-        text: "Sidelnr reads the website and loads the competitions, teams and every game. If there are several age groups, pick yours. Then tap Create My Team, or tell your coaches it’s there.",
+        image: "/guide/find-2-league.webp",
+        title: "Or your league",
+        text: "Not there? Type your league’s name, in case it’s on Sidelnr under a different team name, and pick your competition.",
+      },
+      {
+        image: "/guide/find-3-link.webp",
+        title: "Paste where you check your games",
+        text: "Not on Sidelnr yet? Paste the website where you check your games: your club’s or association’s site, or the draw or ladder page. Sidelnr reads it and keeps it up to date by itself.",
+      },
+      {
+        image: "/guide/find-4-search.webp",
+        title: "No link? Let Sidelnr look",
+        text: "Type the league’s name and where it plays, and Sidelnr searches the web for its fixtures. Pick the right page from what it finds.",
+      },
+      {
+        image: "/guide/find-5-app.webp",
+        title: "An app, a spreadsheet or a file",
+        text: "Still nothing? Tell it which app you use (many show the draw on a web page too), paste a Google Sheet or calendar link, or set up the league yourself from a file or by typing the games in.",
+      },
+      {
+        image: "/guide/find-6-team.webp",
+        title: "Your team",
+        text: "Check your team in the draw, add your colours and players, and you’re done: fixtures, results and the ladder load by themselves.",
+      },
+    ],
+  },
+  {
+    id: "league",
+    label: "Run a league",
+    who: "A social or hobby comp I run myself",
+    steps: [
+      {
+        image: "/guide/league-6-manual.webp",
+        title: "Set it up yourself",
+        text: "My League, then Run a league. Add the teams, then the fixtures (typed in, uploaded from a file, from your own spreadsheet, or made for you).",
       },
       {
         image: "/guide/league-3-page.webp",
-        title: "It keeps itself up to date",
-        text: "Fixtures, results and the ladder come straight from the league’s website and are checked again around every game, so changes reach every team on their own. Tap the picture to see the whole page.",
-      },
-      {
-        image: "/guide/league-4-claim.webp",
-        title: "Run the league? Claim it",
-        text: "A league added with a link belongs to the league, not to whoever added it. If you run it, ask to claim it: tell us your role in the league, and we’ll set it up with you by email.",
-      },
-      {
-        image: "/guide/league-5-announce.webp",
-        title: "Send league announcements",
-        text: "Official leagues (with the tick) can post to every team’s Board at once, or to team managers only, and everyone gets a notification. Handy for washed-out rounds and pitch changes.",
+        title: "Results and the ladder",
+        text: "Enter the results after each round and the ladder works itself out. Tap the picture to see the whole page.",
       },
       {
         image: "/guide/manage-3-create.webp",
         title: "Teams join in",
-        text: "Coaches create their team by picking it in your league’s draw, and families join their team with its code. Every team then gets your fixtures, results and announcements.",
+        text: "Coaches set up their team by picking it in your league’s draw, and families join their team with its code. Every team then gets your fixtures and results.",
       },
       {
-        image: "/guide/league-6-manual.webp",
-        title: "No website?",
-        text: "Set it up by hand: add the teams, create the fixtures (typed in, uploaded or made for you) and enter the results. Every team in it gets them straight away.",
+        image: "/guide/league-5-announce.webp",
+        title: "An official league?",
+        text: "Leagues on a website or an app aren’t run in Sidelnr: they update by themselves. If you run an official league and want to post to every team at once, ask us by email and we’ll set it up with you.",
       },
     ],
   },
-
 ];
 
 const SEEN_KEY = "su_guide_seen";
@@ -381,15 +402,15 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
 
             <div className="rounded-xl border border-zinc-200 p-3 text-sm">
               <span className="font-semibold">Can’t find your team?</span>{" "}
-              <span className="text-zinc-600">Then your league isn’t on Sidelnr yet. Add it with a link to its website, and your team is in it.</span>
+              <span className="text-zinc-600">Set up your team: a few quick questions and Sidelnr finds your games, wherever you check them now.</span>
               <div className="mt-2 flex items-center gap-4">
-                <Link href="/account/leagues/new" onClick={close} className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">
-                  Add your league
+                <Link href="/account/new" onClick={close} className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent">
+                  Set up your team
                 </Link>
                   <button
                     type="button"
                     onClick={() => {
-                      setPath(PATHS.find((p) => p.id === "league")!);
+                      setPath(PATHS.find((p) => p.id === "find")!);
                       setStep(0);
                     }}
                     className="text-sm font-medium underline"

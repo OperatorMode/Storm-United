@@ -7,16 +7,17 @@ import { check, db, readLocal, writeLocal, type CompetitionRow, type FixtureRow,
 
 // ---------- leagues & competitions ----------
 
-export async function createLeague(league: LeagueRow, adminId: string): Promise<void> {
+/** A new league. With `adminId`, that manager runs it (My League); without, nobody does (read from its own website). */
+export async function createLeague(league: LeagueRow, adminId: string | null): Promise<void> {
   const s = db();
   if (!s) {
     const d = await readLocal();
     (d.leagues ??= []).push(league);
-    (d.league_admins ??= []).push({ league_id: league.id, manager_id: adminId, created_at: new Date().toISOString() });
+    if (adminId) (d.league_admins ??= []).push({ league_id: league.id, manager_id: adminId, created_at: new Date().toISOString() });
     return writeLocal(d);
   }
   check(await s.from("leagues").insert(league));
-  check(await s.from("league_admins").insert({ league_id: league.id, manager_id: adminId }));
+  if (adminId) check(await s.from("league_admins").insert({ league_id: league.id, manager_id: adminId }));
 }
 
 /** Makes this manager the league's only admin (an imported league, once claimed). */

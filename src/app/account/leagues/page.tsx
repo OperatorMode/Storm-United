@@ -4,7 +4,6 @@ import { CARNIVALS_ENABLED } from "@/lib/features";
 import { redirect } from "next/navigation";
 import { currentManager } from "@/lib/session";
 import { managedLeagues } from "@/lib/my-leagues";
-import { MagicImport, ManualLink } from "./MagicImport";
 import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "My leagues · Sidelnr", robots: { index: false } };
@@ -39,25 +38,29 @@ export default async function MyLeaguesPage() {
       <div>
         <h1 className="text-xl font-semibold">My leagues</h1>
         <p className="text-sm text-zinc-500">
-          Run a competition: add teams, fixtures (typed, uploaded or from a link) and results. Every Sidelnr team in it
-          gets them automatically.
+          Run your own league: a social or hobby comp, a club or school competition. You add the teams, fixtures (typed,
+          uploaded, from your own spreadsheet or made for you) and results, and every Sidelnr team in it gets them.
         </p>
       </div>
 
       {leagues.length > 0 && (
         <Link href="/account/leagues/new" className="block rounded-xl bg-accent px-4 py-3 text-center text-sm font-semibold text-on-accent">
-          + Add a league
+          + Run a league
         </Link>
       )}
 
       {leagues.length === 0 ? (
         <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <div>
-            <h2 className="font-semibold">Got a league website?</h2>
-            <p className="text-sm text-zinc-500">Let’s see what we can pull: competitions, teams and fixtures.</p>
-          </div>
-          <MagicImport />
-          <ManualLink />
+          <p className="text-sm text-zinc-600">
+            <b className="text-zinc-900">Your league is on a website or an app?</b> You don’t need to add it here.{" "}
+            <Link href="/account/new" className="font-medium text-zinc-900 underline">
+              Set up your team
+            </Link>{" "}
+            and Sidelnr finds its games and keeps them up to date by itself.
+          </p>
+          <Link href="/account/leagues/new" className="block rounded-xl bg-accent px-4 py-3 text-center text-sm font-semibold text-on-accent">
+            Run a league
+          </Link>
         </section>
       ) : (
         leagues.map((l) => (

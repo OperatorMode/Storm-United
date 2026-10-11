@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { importLeagueAction, scanLeagueAction } from "./actions";
 import { TimezoneSelect } from "./LeagueForms";
 import type { LeagueScan } from "@/lib/league-scan";
@@ -28,9 +27,20 @@ const IMPORTING = [
 
 // "Got a league website? Let's see what we can pull." Paste a link, we read
 // it, you pick the competition (if there are several), and we import it all.
-export function MagicImport() {
+// In team setup it's one step: `onImported` / `onAlready` carry on to picking
+// your team instead of opening the league; `initialUrl` (a link picked from a
+// web search) is read straight away.
+export function MagicImport({
+  onImported,
+  onAlready,
+  initialUrl = "",
+}: {
+  onImported?: (competitionId: string) => void;
+  onAlready?: (competitionId: string, label: string) => void;
+  initialUrl?: string;
+} = {}) {
   const router = useRouter();
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState(initialUrl);
   const [scan, setScan] = useState<LeagueScan | null>(null);
   const [existing, setExisting] = useState<Record<string, { id: string; label: string }>>({});
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +83,7 @@ export function MagicImport() {
       filter: scan.competitions.length > 1,
     }).catch(() => ({ competitionId: null, error: "Something went wrong. Try again." }));
     if (res.competitionId) {
+      if (onImported) return onImported(res.competitionId);
       router.push(`/account/competitions/${res.competitionId}?new=1`);
       return; // the overlay stays up until the new page shows
     }
@@ -81,6 +92,15 @@ export function MagicImport() {
   };
 
   const busy = stage === "scanning" || stage === "importing";
+  // A link picked from a web search: read it straight away (once).
+  const [autoStarted, setAutoStarted] = useState(false);
+  useEffect(() => {
+    if (!initialUrl || autoStarted) return;
+    queueMicrotask(() => {
+      setAutoStarted(true);
+      find();
+    });
+  }, [initialUrl, autoStarted]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <>
       {busy && <Working key={stage} messages={stage === "scanning" ? SCANNING : IMPORTING} />}
@@ -142,9 +162,15 @@ export function MagicImport() {
               <div className="space-y-2 rounded-xl bg-emerald-50 p-3 text-emerald-900">
                 <p className="font-semibold">This league is already on Sidelnr</p>
                 <p className="text-sm">{already.label} was imported before, so there’s no need to add it again. Create your team in it instead.</p>
-                <a href={`/account/new?competition=${encodeURIComponent(already.id)}`} className="block rounded-xl bg-zinc-900 px-4 py-2.5 text-center font-semibold text-white">
-                  Create My Team
-                </a>
+                {onAlready ? (
+                  <button type="button" onClick={() => onAlready(already.id, already.label)} className="block w-full rounded-xl bg-zinc-900 px-4 py-2.5 text-center font-semibold text-white">
+                    Pick my team in it
+                  </button>
+                ) : (
+                  <a href={`/account/new?competition=${encodeURIComponent(already.id)}`} className="block rounded-xl bg-zinc-900 px-4 py-2.5 text-center font-semibold text-white">
+                    Create My Team
+                  </a>
+                )}
                 <a href={`/account/competitions/${already.id}`} className="block text-center text-sm underline">
                   View the league
                 </a>
@@ -221,13 +247,5 @@ function Working({ messages }: { messages: string[] }) {
         <p className="text-sm text-white/70">This can take a few minutes, so please be patient and keep this page open.</p>
       </div>
     </div>
-  );
-}
-
-export function ManualLink() {
-  return (
-    <Link href="/account/leagues/new?manual=1" className="block text-center text-sm text-zinc-500 underline">
-      No link? Set it up by hand
-    </Link>
   );
 }

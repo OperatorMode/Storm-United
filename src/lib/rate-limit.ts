@@ -11,7 +11,7 @@ const MAX_FAILURES = 5;
 const WINDOW_MS = 15 * 60_000;
 const LOCK_MS = 15 * 60_000;
 
-export type LimitKind = "pin" | "join" | "super" | "share" | "feedback";
+export type LimitKind = "pin" | "join" | "super" | "share" | "feedback" | "search";
 type Row = { key: string; failures: number; window_start: string; locked_until: string | null };
 
 async function deviceKey(): Promise<string> {

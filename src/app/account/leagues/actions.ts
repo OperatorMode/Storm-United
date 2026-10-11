@@ -666,7 +666,9 @@ export async function importLeagueAction(input: {
       timezone: isTimezone(input.timezone) ? input.timezone : "UTC",
       created_by: managerId,
     },
-    managerId,
+    // From the league's own website: it's the league's, nobody runs it in Sidelnr (it updates by itself).
+    // From your own sheet or calendar: you run it (My League).
+    input.feedType === "web" ? null : managerId,
   );
   const comp: CompetitionRow = {
     id: competitionId,

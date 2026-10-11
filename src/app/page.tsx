@@ -37,8 +37,8 @@ const DOORS = [
     key: "leagues",
     href: "/account/leagues",
     title: "My League",
-    text: "For league organisers: teams, fixtures, results and the ladder.",
-    add: { href: "/account/leagues/new", label: "Add a league" },
+    text: "Run your own league: for social and hobby comps, you add the teams, fixtures and results.",
+    add: { href: "/account/leagues/new", label: "Run a league" },
   },
   {
     key: "events",

@@ -79,8 +79,8 @@ export function CompetitionPicker({
           {query.trim().length >= 2 && !shown.length && (
             <p className="mt-1 text-xs text-zinc-500">
               No matches. Try fewer words, or{" "}
-              <Link href="/account/leagues/new" className="font-semibold text-zinc-900 underline">
-                add your league with a link
+              <Link href="/account/new" className="font-semibold text-zinc-900 underline">
+                find your games step by step
               </Link>
               .
             </p>

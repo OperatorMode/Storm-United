@@ -1,0 +1,38 @@
+[
+  {
+    "name": "find-1-team",
+    "url": "http://localhost:3100/account/new",
+    "manager": "demo-coach",
+    "js": "localStorage.setItem('su_guide_seen','1');\nconst wait=(ms)=>new Promise(r=>setTimeout(r,ms));\nconst b=(t)=>[...document.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(t));\nconst typ=(ph,v)=>{const i=[...document.querySelectorAll('input')].find(x=>(x.placeholder||'').startsWith(ph)); const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; d.call(i,v); i.dispatchEvent(new Event('input',{bubbles:true}));};\ntyp('Team name','Riverside Hawks'); await wait(200); b('Find').click(); await wait(2000);"
+  },
+  {
+    "name": "find-2-league",
+    "url": "http://localhost:3100/account/new",
+    "manager": "demo-coach",
+    "js": "localStorage.setItem('su_guide_seen','1');\nconst wait=(ms)=>new Promise(r=>setTimeout(r,ms));\nconst b=(t)=>[...document.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(t));\nconst typ=(ph,v)=>{const i=[...document.querySelectorAll('input')].find(x=>(x.placeholder||'').startsWith(ph)); const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; d.call(i,v); i.dispatchEvent(new Event('input',{bubbles:true}));};\ntyp('Team name','Hawks'); await wait(200); b('Find').click(); await wait(1500); b('None of these')?.click(); b('Not found')?.click(); await wait(300);typ('League name','Riverside'); await wait(200); b('Find').click(); await wait(1500);"
+  },
+  {
+    "name": "find-3-link",
+    "url": "http://localhost:3100/account/new",
+    "manager": "demo-coach",
+    "js": "localStorage.setItem('su_guide_seen','1');\nconst wait=(ms)=>new Promise(r=>setTimeout(r,ms));\nconst b=(t)=>[...document.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(t));\nconst typ=(ph,v)=>{const i=[...document.querySelectorAll('input')].find(x=>(x.placeholder||'').startsWith(ph)); const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; d.call(i,v); i.dispatchEvent(new Event('input',{bubbles:true}));};\ntyp('Team name','Hawks'); await wait(200); b('Find').click(); await wait(1500); b('None of these')?.click(); b('Not found')?.click(); await wait(300);b('It\u2019s not on Sidelnr yet').click(); await wait(300);"
+  },
+  {
+    "name": "find-4-search",
+    "url": "http://localhost:3100/account/new",
+    "manager": "demo-coach",
+    "js": "localStorage.setItem('su_guide_seen','1');\nconst wait=(ms)=>new Promise(r=>setTimeout(r,ms));\nconst b=(t)=>[...document.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(t));\nconst typ=(ph,v)=>{const i=[...document.querySelectorAll('input')].find(x=>(x.placeholder||'').startsWith(ph)); const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; d.call(i,v); i.dispatchEvent(new Event('input',{bubbles:true}));};\ntyp('Team name','Hawks'); await wait(200); b('Find').click(); await wait(1500); b('None of these')?.click(); b('Not found')?.click(); await wait(300);b('It\u2019s not on Sidelnr yet').click(); await wait(300);b('I don\u2019t have a link').click(); await wait(300);typ('League name','Football South Coast'); typ('Where','Wollongong NSW'); await wait(200);"
+  },
+  {
+    "name": "find-5-app",
+    "url": "http://localhost:3100/account/new",
+    "manager": "demo-coach",
+    "js": "localStorage.setItem('su_guide_seen','1');\nconst wait=(ms)=>new Promise(r=>setTimeout(r,ms));\nconst b=(t)=>[...document.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(t));\nconst typ=(ph,v)=>{const i=[...document.querySelectorAll('input')].find(x=>(x.placeholder||'').startsWith(ph)); const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; d.call(i,v); i.dispatchEvent(new Event('input',{bubbles:true}));};\ntyp('Team name','Hawks'); await wait(200); b('Find').click(); await wait(1500); b('None of these')?.click(); b('Not found')?.click(); await wait(300);b('It\u2019s not on Sidelnr yet').click(); await wait(300);b('I don\u2019t have a link').click(); await wait(300);b('Skip: we use an app').click(); await wait(300);b('PlayHQ').click(); await wait(300);"
+  },
+  {
+    "name": "find-6-team",
+    "url": "http://localhost:3100/account/new",
+    "manager": "demo-coach",
+    "js": "localStorage.setItem('su_guide_seen','1');\nconst wait=(ms)=>new Promise(r=>setTimeout(r,ms));\nconst b=(t)=>[...document.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(t));\nconst typ=(ph,v)=>{const i=[...document.querySelectorAll('input')].find(x=>(x.placeholder||'').startsWith(ph)); const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; d.call(i,v); i.dispatchEvent(new Event('input',{bubbles:true}));};\ntyp('Team name','Hawks'); await wait(200); b('Find').click(); await wait(2000); b('Hawks').click(); await wait(2000);"
+  }
+]
