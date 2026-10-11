@@ -26,6 +26,11 @@ export function joinNames(names: string[]): string {
 }
 
 function baseLabel(team: Team, phone: TeamPhone): string {
+  // An event: each guest family is who they said they are ("The Parkers").
+  if (team.kind === "event") {
+    const fam = approvedChildren(phone).map((c) => team.allPlayers.find((p) => p.id === c)?.name).filter(Boolean)[0];
+    return fam ? (phone.name ? `${phone.name} (${fam})` : fam) : (phone.name ?? "A former guest");
+  }
   const kids = approvedChildren(phone).map((c) => firstName(team.allPlayers.find((p) => p.id === c)?.name ?? "")).filter(Boolean);
   if (phone.is_self) return kids[0] ?? phone.name ?? "A player";
   const rel = phone.relation?.trim() || "family";
@@ -38,7 +43,7 @@ function baseLabel(team: Team, phone: TeamPhone): string {
 export const teamLabels = cache(async (teamId: string): Promise<Record<string, string>> => {
   const team = await getTeam(teamId);
   if (!team) return {};
-  const out: Record<string, string> = { [COACH_ID]: "Coach" };
+  const out: Record<string, string> = { [COACH_ID]: team.kind === "event" ? "Organiser" : "Coach" };
   for (const p of team.allPlayers) out[p.id] = `${firstName(p.name)}’s parent`;
   const phones = (await listPhones(team.id))
     .filter((p) => p.member_id)

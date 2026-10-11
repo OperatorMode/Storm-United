@@ -14,6 +14,8 @@ import { GoalieAssign } from "./GoalieAssign";
 import { TeamSettings } from "./TeamSettings";
 import { MergePlayers } from "./MergePlayers";
 import { SeasonRollover } from "./SeasonRollover";
+import { EventOrganiser } from "./EventOrganiser";
+import { isEvent } from "@/lib/my-events";
 import { TrainingAdmin } from "./TrainingAdmin";
 import { DutyAdmin } from "./DutyAdmin";
 import { RotationAdmin } from "./RotationAdmin";
@@ -46,7 +48,7 @@ export const maxDuration = 300;
 
 export async function generateMetadata({ params }: PageProps<"/[team]/admin">): Promise<Metadata> {
   const team = await getTeam((await params).team);
-  return { title: `${team?.name ?? "Team"} · Manager’s Corner`, robots: { index: false } };
+  return { title: `${team?.name ?? "Team"} · ${team && isEvent(team) ? "Organiser" : "Manager’s Corner"}`, robots: { index: false } };
 }
 
 export default async function AdminPage({ params, searchParams }: PageProps<"/[team]/admin">) {
@@ -62,6 +64,9 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
       <h1 className="mt-1 text-2xl font-semibold">Manager’s Corner</h1>
     </header>
   );
+
+  // An event: its Organiser page instead of Manager's Corner.
+  if (isEvent(team)) return <EventOrganiser event={team} created={created} />;
 
   const access = await adminAccess(team);
   if (!access) {

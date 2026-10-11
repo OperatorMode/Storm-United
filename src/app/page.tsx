@@ -13,7 +13,9 @@ import { chatAuthor, currentChildren, currentManager } from "@/lib/session";
 import { emailEnabled } from "@/lib/email";
 import { managedTeams } from "@/lib/accounts";
 import { managedLeagues } from "@/lib/my-leagues";
-import { EVENTS_ENABLED } from "@/lib/features";
+import { isEvent } from "@/lib/my-events";
+import { DEFAULT_TZ, formatDay, formatTime } from "@/lib/time";
+import { CARNIVALS_ENABLED } from "@/lib/features";
 
 // Landing page. Parents join a team; My Team, My League and My Event sign in
 // (one account covers all three). There's deliberately no public list of
@@ -37,14 +39,22 @@ const DOORS = [
   },
   {
     key: "events",
-    href: "/account/events",
+    href: "/event/new",
     title: "My Event",
-    text: "For carnivals and gala days: pools, finals and live results.",
-    add: { href: "/account/events", label: "Add an event" },
+    text: "Parties, team breakups and gala days: invite people and see who’s coming.",
+    add: { href: "/event/new", label: "Create an event" },
   },
 ] as const;
 
 type Run = { href: string; title: string; detail: string; logo?: string; manager?: boolean };
+
+/** "Sat, 7 Nov, 2:00 pm" for an event card. */
+function eventWhen(t: { event_starts_at?: string | null; event_tz?: string | null }): string {
+  if (!t.event_starts_at) return "Event";
+  const d = new Date(t.event_starts_at);
+  const tz = t.event_tz ?? DEFAULT_TZ;
+  return `${formatDay(d, tz)}, ${formatTime(d, tz)}`;
+}
 
 // The Manager badge: always in the card's top right corner.
 function ManagerBadge() {
@@ -72,7 +82,9 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
     const [mine, leagues] = await Promise.all([managedTeams(manager.id), managedLeagues(manager.id)]);
     for (const m of mine) managing.add(m.team_id);
     // Teams already listed above (as a parent) show once there, with a Manager badge.
-    const teams = (await Promise.all(mine.filter((m) => !ids.includes(m.team_id)).map((m) => getTeam(m.team_id)))).filter((t) => t !== null);
+    const all = (await Promise.all(mine.filter((m) => !ids.includes(m.team_id)).map((m) => getTeam(m.team_id)))).filter((t) => t !== null);
+    const teams = all.filter((t) => !isEvent(t));
+    runs.events = all.filter(isEvent).map((t) => ({ href: `/${t.id}`, title: t.name, detail: eventWhen(t), logo: logoSrc(t), manager: true }));
     runs.teams = await Promise.all(
       teams.map(async (t) => {
         const c = t.competition_id ? await getCompetition(t.competition_id) : null;
@@ -87,10 +99,10 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
         detail: names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2} more` : names.join(", "),
       };
       if (!l.isEvent) runs.leagues.push(run);
-      else if (EVENTS_ENABLED) runs.events.push(run);
+      else if (CARNIVALS_ENABLED) runs.events.push(run);
     }
   }
-  const has = { teams: managing.size > 0, leagues: runs.leagues.length > 0, events: runs.events.length > 0 };
+  const has = { teams: runs.teams.length > 0 || [...managing].some((id) => known.some((t) => t.id === id && !isEvent(t))), leagues: runs.leagues.length > 0, events: runs.events.length > 0 };
   // Each team: its competition, which of this phone's kids play in it, and what's new.
   const rows = await Promise.all(
     known.map(async (t) => {
@@ -103,8 +115,8 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
       ]);
       return {
         team: t,
-        league: competition ? competitionLabel(competition) : t.division,
-        kids: children.map((c) => firstName(playerName(t, c))),
+        league: isEvent(t) ? eventWhen(t) : competition ? competitionLabel(competition) : t.division,
+        kids: children.map((c) => (isEvent(t) ? playerName(t, c) : firstName(playerName(t, c)))),
         boardUnread: tabs.boardUnread + tabs.messagesUnread, // unread board posts and private messages
         chatTimes: chat.filter((m) => m.author_id !== me).slice(-50).map((m) => m.created_at),
       };
@@ -198,19 +210,10 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
               <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">Managers</h2>
               {manager && <span className="text-xs opacity-60">Signed in as {manager.email}</span>}
             </div>
-            {DOORS.filter((d) => !has[d.key]).map((d) =>
-              d.key === "events" && !EVENTS_ENABLED ? (
-                <div key={d.href} className="flex items-center gap-3 rounded-2xl bg-white/60 p-4 text-zinc-950 shadow-lg" aria-disabled>
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-zinc-500">{d.title}</span>
-                    <span className="block text-xs text-zinc-500">{d.text}</span>
-                  </span>
-                  <span className="shrink-0 rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">Coming soon</span>
-                </div>
-              ) : (
+            {DOORS.filter((d) => !has[d.key]).map((d) => (
               <Link
                 key={d.href}
-                href={manager ? d.href : signIn(d.href)}
+                href={manager || d.key === "events" ? d.href : signIn(d.href)}
                 className="flex items-center gap-3 rounded-2xl bg-white/95 p-4 text-zinc-950 shadow-lg"
               >
                 <span className="min-w-0 flex-1">
@@ -219,8 +222,7 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
                 </span>
                 <span className="text-zinc-400">→</span>
               </Link>
-              ),
-            )}
+            ))}
             {!manager && (
               <details className="rounded-2xl bg-white/90 px-4 py-3 text-sm text-zinc-950 shadow-lg">
                 <summary className="cursor-pointer text-zinc-600">Team manager with a team PIN?</summary>

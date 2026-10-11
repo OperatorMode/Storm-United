@@ -6,6 +6,7 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 import { ChatThread } from "./ChatThread";
 import { getTeam } from "@/lib/teams";
 import { teamLabels } from "@/lib/people";
+import { isEvent } from "@/lib/my-events";
 import { canView, chatAuthor, isTeamAdmin } from "@/lib/session";
 import { listChat } from "@/lib/messages";
 import { tabData } from "@/lib/tabs";
@@ -33,14 +34,14 @@ export default async function ChatPage({ params }: PageProps<"/[team]/chat">) {
       <header className="jersey sticky top-0 z-10 px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
         <SidelnrLink />
         <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
-        <h1 className="mt-0.5 text-xl font-semibold">Team chat</h1>
+        <h1 className="mt-0.5 text-xl font-semibold">{isEvent(team) ? "Chat" : "Team chat"}</h1>
       </header>
 
       <div className="px-4 pt-3">
         <NotificationSettings teamId={team.id} vapidKey={pushPublicKey()} />
       </div>
 
-      <ChatThread teamId={team.id} me={me} isCoach={coach} names={names} initial={messages} tz={tz} />
+      <ChatThread teamId={team.id} me={me} isCoach={coach} names={names} initial={messages} tz={tz} event={isEvent(team)} />
 
       <TabBar teamId={team.id} active="chat" {...tabs} />
     </div>

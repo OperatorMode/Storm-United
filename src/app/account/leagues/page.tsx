@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EVENTS_ENABLED } from "@/lib/features";
+import { CARNIVALS_ENABLED } from "@/lib/features";
 import { redirect } from "next/navigation";
 import { currentManager } from "@/lib/session";
 import { managedLeagues } from "@/lib/my-leagues";
@@ -25,7 +25,7 @@ export default async function MyLeaguesPage() {
           <Link href="/account" className="underline">
             My teams
           </Link>
-          {EVENTS_ENABLED && (
+          {CARNIVALS_ENABLED && (
             <>
               {" "}
               ·{" "}

@@ -8,6 +8,8 @@ import { FamilyFollowers, FamilyRequests, type OtherPhone } from "@/components/F
 import { personId, teamLabels } from "@/lib/people";
 import { LeaveTeam } from "@/components/LeaveTeam";
 import { GuideLink } from "@/components/Guide";
+import { EventHome } from "./EventHome";
+import { isEvent } from "@/lib/my-events";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { pushPublicKey } from "@/lib/push";
@@ -55,6 +57,7 @@ import { PhoneCheckIn } from "@/components/PhoneCheckIn";
 export default async function TeamHome({ params }: PageProps<"/[team]">) {
   const team = await getTeam((await params).team);
   if (!team) notFound();
+  if (isEvent(team)) return <EventHome event={team} />; // My Event: its own home page
   if (!(await canView(team))) return <JoinGate team={team} />;
 
   const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle, ladderStyle, officialLadder }, attendance, ballots, children, tabs] = await Promise.all([

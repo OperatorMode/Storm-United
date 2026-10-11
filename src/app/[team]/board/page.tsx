@@ -7,6 +7,7 @@ import { AckButton, AnnouncementComposer, DeleteAnnouncement } from "./BoardCont
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { canView, currentVoter, isTeamAdmin } from "@/lib/session";
 import { listAnnouncements } from "@/lib/messages";
+import { isEvent } from "@/lib/my-events";
 import { formatWhen, tabData } from "@/lib/tabs";
 import { pushPublicKey } from "@/lib/push";
 import { teamTz } from "@/lib/league";
@@ -24,18 +25,21 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
     teamTz(team),
   ]);
   const families = team.players.length;
+  const event = isEvent(team);
 
   return (
     <div className="mx-auto max-w-md pb-24">
       <header className="jersey px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         <SidelnrLink />
         <div className="text-xs uppercase tracking-widest text-on-team/50">{team.name}</div>
-        <h1 className="mt-1 text-2xl font-semibold">Message board</h1>
-        <p className="mt-1 text-sm text-on-team/60">Updates from the coach. Tap “Got it” so they know you’ve seen it.</p>
+        <h1 className="mt-1 text-2xl font-semibold">{event ? "Announcements" : "Message board"}</h1>
+        <p className="mt-1 text-sm text-on-team/60">
+          Updates from the {event ? "organisers" : "coach"}. Tap “Got it” so they know you’ve seen it.
+        </p>
       </header>
 
       <main className="mt-4 space-y-4 px-4">
-        {coach && <AnnouncementComposer teamId={team.id} />}
+        {coach && <AnnouncementComposer teamId={team.id} audience={event ? "all guests" : "all families"} />}
 
         {!voter && !coach && announcements.length > 0 && (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">Pick your child on the Home tab to tap “Got it”.</p>
@@ -54,7 +58,7 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
           return (
             <article key={a.id} className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
               <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
-                <span className="font-medium text-zinc-700">{a.source ? `From ${a.source} ✓` : "Coach"}</span>
+                <span className="font-medium text-zinc-700">{a.source ? `From ${a.source} ✓` : event ? "Organiser" : "Coach"}</span>
                 <span>{formatWhen(a.created_at, tz)}</span>
               </div>
               <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{a.body}</p>

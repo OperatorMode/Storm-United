@@ -30,6 +30,8 @@ import { ActivityList, SessionToggle } from "./ActivitiesManage";
 import { ActivityReminders } from "./ActivityReminders";
 import { ClashSolver, type SkipTarget } from "./ClashSolver";
 import { QuickAnswer } from "./QuickAnswer";
+import { isEvent, listRsvps } from "@/lib/my-events";
+import { DEFAULT_TZ } from "@/lib/time";
 import { zonedTime } from "@/lib/fixtures";
 import { listTakers } from "@/lib/takers";
 import { pushPublicKey } from "@/lib/push";
@@ -66,6 +68,7 @@ type Entry = {
   key: string; // for the clash solver: "<team>:<game or training>", or the activity session's id
   taker?: string | null; // who's taking them (clash solver)
   possible?: { note: string | null }; // might happen (finals, if the team makes it): shown faded, never a clash
+  event?: { host: string | null; ends: Date | null; adults: number; kids: number }; // a My Event the family is invited to
   training?: { cancelled: boolean; minutes: number; note: string | null };
   duties?: string[]; // jobs this family is on for the game (oranges, snacks…)
 };
@@ -76,6 +79,7 @@ const BUSY_AFTER_MS = 60 * 60 * 1000; // a game keeps you busy until ~1h after k
 const busy = (e: Entry): [number, number] => {
   const k = e.game.kickoff.getTime();
   if (e.activity) return [k, k + e.activity.minutes * 60_000];
+  if (e.event) return [k, e.event.ends ? e.event.ends.getTime() : k + 3 * 60 * 60_000];
   if (e.training) return [k, k + e.training.minutes * 60_000];
   return [k - (e.team?.meet_minutes ?? 0) * 60_000, k + BUSY_AFTER_MS];
 };
@@ -93,7 +97,9 @@ function findClashes(entries: Entry[]): { child: number; family: number } {
   // child who isn't going still does, as a solved clash.
   const live = entries.filter((e) => !e.possible && e.kids.length > 0 && (e.game.time !== "Postponed" || e.activity?.cancelled));
   const what = (y: Entry) =>
-    y.activity
+    y.event
+      ? y.team?.name ?? "event"
+      : y.activity
       ? y.activity.name
       : y.training
         ? "training"
@@ -153,8 +159,44 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
   const now = clockNow().getTime();
 
   const perTeam = await Promise.all(
-    teams.map(async (team) => {
+    teams.map(async (team): Promise<Entry[]> => {
       if (!(await canView(team))) return [];
+      // A My Event the family joined: one entry, for the whole family, with their answer.
+      if (isEvent(team)) {
+        const guest = (await currentChildren(team))[0];
+        if (!guest || !team.event_starts_at) return [];
+        const answer = (await listRsvps(team.id)).find((r) => r.guest_id === guest);
+        const tz = team.event_tz ?? DEFAULT_TZ;
+        const start = new Date(team.event_starts_at);
+        return [
+          {
+            team,
+            game: {
+              id: "event",
+              round: null,
+              time: formatTime(start, tz),
+              pitch: null,
+              stage: "Event",
+              home: team.league_name,
+              away: "",
+              kickoff: start,
+              score: null,
+              scoreSource: null,
+            },
+            tz,
+            place: team.event_place ?? null,
+            clashes: [],
+            key: `${team.id}:event`,
+            kids: [{ name: "Family", status: answer?.status ?? null }],
+            event: {
+              host: team.event_host ?? null,
+              ends: team.event_ends_at ? new Date(team.event_ends_at) : null,
+              adults: answer?.adults ?? 0,
+              kids: answer?.kids ?? 0,
+            },
+          },
+        ];
+      }
       const [{ competition, tz, ourGames }, children, attendance, dutySignups] = await Promise.all([
         getLeagueData(team),
         currentChildren(team),
@@ -487,6 +529,48 @@ function dayMarkers(entries: Entry[]): { key: string; state: "going" | "some" | 
   return [...real, ...[...maybe].filter((k) => !per.has(k)).map((key) => ({ key, state: "possible" as const }))];
 }
 
+/** A My Event the family is invited to: when, where, and their answer (answered on the event page). */
+function EventCard({ e, options }: { e: Entry; options: string[] }) {
+  const team = e.team!;
+  const ev = e.event!;
+  const status = e.kids[0]?.status ?? null;
+  const label = status === "yes" ? "Going" : status === "maybe" ? "Maybe" : status === "no" ? "Can’t come" : null;
+  const heads = [ev.adults && `${ev.adults} adult${ev.adults === 1 ? "" : "s"}`, ev.kids && `${ev.kids} kid${ev.kids === 1 ? "" : "s"}`].filter(Boolean).join(", ");
+  return (
+    <li
+      data-kid={kidKey("Family")}
+      style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
+      className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.length ? "border-amber-300" : e.resolved?.length ? "border-emerald-300" : "border-zinc-200"}`}
+    >
+      <Solver e={e} options={options} />
+      <Link href={`/${team.id}`} className="block">
+        <span className="block text-xs text-zinc-500">
+          Event{ev.host ? ` · hosted by ${ev.host}` : ""}
+        </span>
+        <span className="block font-semibold">{team.name}</span>
+        <span className="mt-0.5 block text-sm text-zinc-700">
+          {formatTime(e.game.kickoff, e.tz)}
+          {ev.ends ? ` to ${formatTime(ev.ends, e.tz)}` : ""}
+        </span>
+        {e.place && <span className="block text-xs text-zinc-500">{e.place}</span>}
+      </Link>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {label ? (
+          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${status === "yes" ? "bg-emerald-50 text-emerald-800" : status === "maybe" ? "bg-amber-50 text-amber-800" : "bg-zinc-100 text-zinc-500"}`}>
+            {label}
+            {status !== "no" && heads ? ` · ${heads}` : ""}
+          </span>
+        ) : (
+          <Link href={`/${team.id}`} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
+            Are you coming? Tap to answer
+          </Link>
+        )}
+        {e.place && <Directions place={e.place} className="ml-auto bg-zinc-900 text-white" />}
+      </div>
+    </li>
+  );
+}
+
 /** A day the team might play (finals): faded, until the real fixture is in the draw. */
 function PossibleCard({ e }: { e: Entry }) {
   const team = e.team!;
@@ -519,7 +603,9 @@ function Solver({ e, options }: { e: Entry; options: string[] }) {
   const future = e.game.kickoff.getTime() > clockNow().getTime();
   const skip: SkipTarget | null = !future
     ? null
-    : e.activity
+    : e.event
+      ? null
+      : e.activity
       ? { type: "activity", activityId: e.activity.id, start: e.activity.start }
       : e.team && going.some((k) => k.id)
         ? { type: e.training ? "training" : "game", teamId: e.team.id, id: e.game.id, kidIds: going.flatMap((k) => (k.id ? [k.id] : [])) }
@@ -573,6 +659,7 @@ function ActivityCard({ e, options }: { e: Entry; options: string[] }) {
 function GameCard({ e, options }: { e: Entry; options: string[] }) {
   if (e.activity || !e.team) return <ActivityCard e={e} options={options} />;
   if (e.possible) return <PossibleCard e={e} />;
+  if (e.event) return <EventCard e={e} options={options} />;
   const { game, tz } = e;
   const team = e.team;
   const future = game.kickoff.getTime() > clockNow().getTime() && game.time !== "Postponed";

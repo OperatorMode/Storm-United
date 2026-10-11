@@ -6,7 +6,7 @@ import { managedLeagues } from "@/lib/my-leagues";
 import { formatIsoDate } from "@/lib/time";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { ComingSoonPage } from "@/components/ComingSoon";
-import { EVENTS_ENABLED } from "@/lib/features";
+import { CARNIVALS_ENABLED } from "@/lib/features";
 import { isSuperAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "My events · Sidelnr", robots: { index: false } };
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "My events · Sidelnr", robots: { ind
 const isIsoDate = (s: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 export default async function MyEventsPage() {
-  if (!EVENTS_ENABLED && !(await isSuperAdmin())) return <ComingSoonPage title="My Event" text="Carnivals and gala days with pools, finals and live results. We’re finishing it off." />;
+  if (!CARNIVALS_ENABLED && !(await isSuperAdmin())) return <ComingSoonPage title="My Event" text="Carnivals and gala days with pools, finals and live results. We’re finishing it off." />;
   const manager = await currentManager();
   if (!manager) redirect("/login?next=/account/events");
   const events = (await managedLeagues(manager.id)).filter((l) => l.isEvent);

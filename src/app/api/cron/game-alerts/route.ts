@@ -5,6 +5,7 @@ import { pushEnabled } from "@/lib/push";
 import { sendActivityReminders } from "@/lib/activity-reminders";
 import { sendSeasonEndReminder } from "@/lib/season-end";
 import { cleanUp } from "@/lib/housekeeping";
+import { sendEventReminders } from "@/lib/event-reminders";
 
 // Runs every 15 minutes (vercel.json "crons"). Vercel calls it with
 // "Authorization: Bearer $CRON_SECRET"; anyone else is turned away.
@@ -52,5 +53,13 @@ export async function GET(request: Request) {
     console.error("activity reminders failed", err);
     activityReminders = err instanceof Error ? err.message : "failed";
   }
-  return Response.json({ ok: true, seasonReminders, cleaned, results, activityReminders });
+  // My Event: reply-by and day-before reminders.
+  let eventReminders: number | string = 0;
+  try {
+    eventReminders = await sendEventReminders();
+  } catch (err) {
+    console.error("event reminders failed", err);
+    eventReminders = err instanceof Error ? err.message : "failed";
+  }
+  return Response.json({ ok: true, seasonReminders, cleaned, results, activityReminders, eventReminders });
 }

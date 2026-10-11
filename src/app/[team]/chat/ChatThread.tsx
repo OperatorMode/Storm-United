@@ -18,6 +18,7 @@ export function ChatThread({
   names,
   initial,
   tz,
+  event = false,
 }: {
   teamId: string;
   me: string | null;
@@ -25,6 +26,7 @@ export function ChatThread({
   names: Record<string, string>;
   initial: ChatMessage[];
   tz: string;
+  event?: boolean; // a My Event: "Message everyone"
 }) {
   const [messages, setMessages] = useState(initial);
   const [draft, setDraft] = useState("");
@@ -156,7 +158,7 @@ export function ChatThread({
                 onChange={(e) => setDraft(e.target.value)}
                 rows={1}
                 maxLength={1000}
-                placeholder={isCoach ? "Message the team as Coach…" : "Message the team…"}
+                placeholder={event ? (isCoach ? "Message everyone as Organiser…" : "Message everyone…") : isCoach ? "Message the team as Coach…" : "Message the team…"}
                 className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-base"
               />
               <button

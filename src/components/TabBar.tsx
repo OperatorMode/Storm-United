@@ -15,12 +15,14 @@ export function TabBar({
   boardUnread,
   latestChatAt,
   messagesUnread = 0,
+  kind = "team",
 }: {
   teamId: string;
   active: "home" | "board" | "chat" | "messages" | "manager";
   boardUnread: number;
   latestChatAt: string | null;
   messagesUnread?: number; // private messages not read yet
+  kind?: "team" | "event"; // an event: Announcements and Organiser instead of Board and Manager
 }) {
   const [chatUnread, setChatUnread] = useState(false);
   useEffect(() => {
@@ -35,10 +37,10 @@ export function TabBar({
 
   const tabs = [
     { key: "home", href: `/${teamId}`, label: "Home", icon: HomeIcon, badge: 0 },
-    { key: "board", href: `/${teamId}/board`, label: "Board", icon: BoardIcon, badge: boardUnread },
+    { key: "board", href: `/${teamId}/board`, label: kind === "event" ? "News" : "Board", icon: BoardIcon, badge: boardUnread },
     { key: "chat", href: `/${teamId}/chat`, label: "Chat", icon: ChatIcon, badge: chatUnread ? -1 : 0 },
     { key: "messages", href: `/${teamId}/messages`, label: "Private", icon: MessagesIcon, badge: messagesUnread },
-    { key: "manager", href: `/${teamId}/admin`, label: "Manager", icon: WhistleIcon, badge: 0 },
+    { key: "manager", href: `/${teamId}/admin`, label: kind === "event" ? "Organiser" : "Manager", icon: WhistleIcon, badge: 0 },
   ] as const;
 
   return (

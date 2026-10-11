@@ -82,6 +82,11 @@ function sessionSecret(): string {
 }
 const sign = (payload: string) => createHmac("sha256", sessionSecret()).update(payload).digest("base64url");
 
+// My Event invitation links carry who invited ("org" = an organiser, or a
+// guest's id), signed so nobody can turn a guest's link into an organiser's.
+export const inviteSignature = (eventId: string, by: string) => sign(`invite:${eventId}:${by}`).slice(0, 22);
+export const inviteCookie = (eventId: string) => `su_invite_${eventId}`;
+
 // Cookie value for a signed-in manager: "<id>.<expiry ms>.<signature>".
 export function managerSessionValue(managerId: string): string {
   const payload = `${managerId}.${Date.now() + YEAR * 1000}`;

@@ -40,7 +40,7 @@ export default async function MessagesPage({ params }: PageProps<"/[team]/messag
   const when = (iso: string) => (isoDateIn(iso, tz) === today ? formatTime(new Date(iso), tz) : formatWeekday(new Date(iso), tz).split(" ").slice(0, 3).join(" "));
   // People to message: everyone in the team except this phone (and anyone it blocked), plus the coach.
   const families = [
-    ...(ids?.includes(COACH) ? [] : [{ id: COACH, label: "Coach" }]),
+    ...(ids?.includes(COACH) ? [] : [{ id: COACH, label: labels[COACH] ?? "Coach" }]),
     ...people.filter((p) => !ids?.includes(p.id) && !blocked.includes(p.id)),
   ];
 

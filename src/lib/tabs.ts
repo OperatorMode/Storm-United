@@ -16,10 +16,11 @@ export async function tabData(team: Team) {
       boardUnread: voter ? announcements.filter((a) => !a.acks.includes(voter)).length : 0,
       latestChatAt: chatAt,
       messagesUnread: await messagesUnread(team),
+      kind: team.kind ?? "team",
     };
   } catch (err) {
     console.error("tab badges unavailable", err);
-    return { boardUnread: 0, latestChatAt: null, messagesUnread: 0 };
+    return { boardUnread: 0, latestChatAt: null, messagesUnread: 0, kind: team.kind ?? "team" };
   }
 }
 

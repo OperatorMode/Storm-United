@@ -46,8 +46,17 @@ export type TeamRow = {
   game_parts?: number | null; // how a game is split: 2 halves, 4 quarters, 9 innings... Migration 014.
   part_name?: string | null; // "Half", "Quarter", "Period", "Inning", "Set", "Game"
   mute_league?: boolean; // the team turned off its league's announcements. Migration 017.
+  // My Event (migration 032): an event is a small team. Its guests are families (players).
+  kind?: "team" | "event";
+  event_starts_at?: string | null;
+  event_ends_at?: string | null;
+  event_place?: string | null;
+  event_details?: string | null;
+  event_host?: string | null;
+  rsvp_by?: string | null; // yyyy-mm-dd
+  event_tz?: string | null; // migration 033
 };
-export type PlayerRow = { id: string; name: string; sort: number; active: boolean };
+export type PlayerRow = { id: string; name: string; sort: number; active: boolean; pending?: boolean; invited_by?: string | null };
 
 type Scoped<T> = T & { team_id: string };
 export type LocalDb = {
@@ -84,6 +93,7 @@ export type LocalDb = {
   chat_reports?: import("./messages").ChatReport[];
   feedback?: import("./feedback").Feedback[];
   clash_takers?: import("./takers").TakerRow[];
+  event_rsvps?: import("./my-events").Rsvp[];
   household_push?: import("./activity-reminders").HouseholdPush[];
   activity_reminder_log?: { household_id: string; key: string; sent_at: string }[];
   league_messages?: { id: string; league_id: string; competition_id: string | null; audience: "all" | "managers"; body: string; teams: number; created_at: string }[];
@@ -260,7 +270,7 @@ const strip = <T extends { team_id: string }>({ team_id: _, ...rest }: T) => res
 // ---------- teams & players ----------
 
 const TEAM_COLS =
-  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled, role_name, game_parts, part_name, mute_league";
+  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled, role_name, game_parts, part_name, mute_league, kind, event_starts_at, event_ends_at, event_place, event_details, event_host, rsvp_by, event_tz";
 
 export async function listTeams(): Promise<TeamRow[]> {
   const s = db();
@@ -324,7 +334,7 @@ export async function deleteTeam(id: string): Promise<void> {
 export async function getPlayers(teamId: string): Promise<PlayerRow[]> {
   const s = db();
   const rows = s
-    ? check(await s.from("players").select("id, name, sort, active").eq("team_id", teamId))
+    ? check(await s.from("players").select("id, name, sort, active, pending, invited_by").eq("team_id", teamId))
     : (await readLocal()).players.filter((p) => p.team_id === teamId).map(strip);
   return rows.sort((a, b) => a.sort - b.sort);
 }
