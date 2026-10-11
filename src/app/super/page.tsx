@@ -14,6 +14,7 @@ import {
   ownerRemoveManager,
   ownerResetPin,
   makeLeagueOfficial,
+  ownerRefreshLeague,
   removeLeagueVerification,
   removeTeam,
   superLogout,
@@ -28,6 +29,9 @@ import { competitionLabel, listCompetitions } from "@/lib/league";
 import { SidelnrLink } from "@/components/SidelnrLink";
 
 export const metadata: Metadata = { title: "Developer · Sidelnr", robots: { index: false } };
+
+// Refreshing a league re-reads its website, which can take a minute or two.
+export const maxDuration = 300;
 
 // The Sidelnr app developer's page ("owner" in the code; teams belong to their managers and families): the bare minimum. Teams and events are run by their
 // families and coaches, so nothing here shows what's inside them (players,
@@ -263,6 +267,11 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
                     {(foundLeagueAdmins[l.id] ?? []).map((a) => masked(a.email)).join(", ") || "none"}
                   </span>
                 </span>
+                <OwnerButton
+                  label="Refresh now"
+                  question={`Read ${l.name}’s fixtures and ladder from its website again now? It can take a minute or two.`}
+                  action={ownerRefreshLeague.bind(null, l.id)}
+                />
                 {l.verified_at ? (
                   <OwnerButton label="Not official" question={`Take the official tick off ${l.name}?`} action={removeLeagueVerification.bind(null, l.id)} />
                 ) : (

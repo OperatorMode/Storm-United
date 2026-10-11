@@ -20,6 +20,30 @@ export function BallotForm({
   const [picks, setPicks] = useState<string[]>(existing ?? []);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
+  // Voted: folded to a one-line summary, with Change to open it again.
+  const [open, setOpen] = useState(!existing);
+  const nameOf = (id: string) => candidates.find((c) => c.id === id)?.name ?? "A player";
+
+  if (!open) {
+    return (
+      <div className="flex items-start justify-between gap-3 text-sm">
+        <span>
+          <span className="block font-medium text-emerald-700">{message?.ok ? message.text : "You’ve voted"}</span>
+          <span className="block text-zinc-600">{picks.map((id, i) => `${nameOf(id)} (${POINTS[i]})`).join(" · ")}</span>
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            setMessage(null);
+            setOpen(true);
+          }}
+          className="shrink-0 text-zinc-500 underline"
+        >
+          Change
+        </button>
+      </div>
+    );
+  }
 
   function toggle(id: string) {
     setMessage(null);
@@ -60,6 +84,7 @@ export function BallotForm({
           start(async () => {
             const res = await submitBallot(teamId, gameId, picks);
             setMessage(res.error ? { ok: false, text: res.error } : { ok: true, text: "Votes saved, thanks!" });
+            if (!res.error) setOpen(false);
           })
         }
         className="mt-3 w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-on-accent disabled:opacity-40"

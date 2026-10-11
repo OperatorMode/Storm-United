@@ -61,7 +61,7 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
   if (isEvent(team)) return <EventHome event={team} joined={(await searchParams).joined !== undefined} />; // My Event: its own home page
   if (!(await canView(team))) return <JoinGate team={team} />;
 
-  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle, ladderStyle, officialLadder }, attendance, ballots, children, tabs] = await Promise.all([
+  const [{ competition, tz, ourGames, byeRounds, ladder, ladderTitle, ladderStyle, officialLadder, ladderLink }, attendance, ballots, children, tabs] = await Promise.all([
     getLeagueData(team),
     getAttendance(team.id),
     getBallots(team.id),
@@ -344,6 +344,15 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
         {officialLadder ? (
           <Card title="Ladder" aside={competition?.name}>
             <OfficialLadderTable ladder={officialLadder} us={us} ourName={team.name} tz={tz} />
+          </Card>
+        ) : ladderLink ? (
+          <Card title="Ladder" aside={competition?.name}>
+            <p className="text-sm text-zinc-600">
+              The ladder comes from the league’s website and shows here once Sidelnr has read it.{" "}
+              <a href={ladderLink} target="_blank" rel="noreferrer" className="font-medium text-zinc-900 underline">
+                See it on {new URL(ladderLink).hostname.replace(/^www\./, "")}
+              </a>
+            </p>
           </Card>
         ) : (
         <Card title={ladderTitle ?? "Ladder"} aside={competition?.name}>

@@ -42,7 +42,11 @@ export function OfficialLadderTable({ ladder, us, ourName, tz }: { ladder: Offic
         </table>
       </div>
       <p className="mt-3 text-xs text-zinc-500">
-        Official ladder from {ladder.source}, updated {formatDay(synced, tz)}, {formatTime(synced, tz)}.
+        Updates by itself from{" "}
+        <a href={`https://${ladder.source}`} target="_blank" rel="noreferrer" className="underline">
+          {ladder.source}
+        </a>
+        . Last changed {formatDay(synced, tz)}, {formatTime(synced, tz)}.
       </p>
     </>
   );

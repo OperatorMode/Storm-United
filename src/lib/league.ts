@@ -96,6 +96,7 @@ export type LeagueData = {
   ladderStyle: "points" | "wins";
   // A linked league's ladder as its own website shows it (preferred over `ladder`).
   officialLadder: OfficialLadder | null;
+  ladderLink: string | null; // read from a website, its ladder not in yet: link to it instead
 };
 
 // `team.league_name` is the team as named in its competition's fixtures.
@@ -152,6 +153,7 @@ export async function getLeagueData(team: {
       ladderTitle: pool,
       ladderStyle: "points",
       officialLadder: null,
+      ladderLink: null,
     };
   }
 
@@ -165,6 +167,12 @@ export async function getLeagueData(team: {
     ladderTitle: null,
     ladderStyle: competition?.ladder_style === "wins" ? "wins" : "points",
     officialLadder: competition?.feed_url && competition.ladder_table?.rows?.length ? competition.ladder_table : null,
+    // Read from a league's website but its own ladder isn't in (yet): link to it rather than work one out
+    // from results Sidelnr may only partly have (e.g. a draw that started being read mid-season).
+    ladderLink:
+      competition?.feed_type === "web" && !competition.ladder_table?.rows?.length
+        ? (competition.ladder_url ?? competition.league.website ?? competition.feed_url ?? null)
+        : null,
   };
 }
 

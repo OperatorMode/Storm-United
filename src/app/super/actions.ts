@@ -5,6 +5,8 @@ import { createHmac, randomInt } from "crypto";
 import { ownerCodeEmail, sendEmail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 import { deleteTeam } from "@/lib/store";
+import { listCompetitions } from "@/lib/league";
+import { syncCompetitionFeed } from "@/lib/feeds";
 import { deleteManagerAccount, unlinkManager } from "@/lib/accounts";
 import { clearTeamPin, removeLeagueAdmin } from "@/lib/owner-tools";
 import { COOKIE_OPTS, OWNER_COOKIE, OWNER_SESSION_HOURS, SUPER_COOKIE, isSuperAdmin, ownerSessionValue, superToken } from "@/lib/session";
@@ -205,6 +207,17 @@ export async function makeLeagueOfficial(leagueId: string) {
   await verifyLeagueByOwner(leagueId);
   revalidatePath("/", "layout");
   return { ok: true };
+}
+
+/** Re-reads a league's fixtures and ladder from its source now. */
+export async function ownerRefreshLeague(leagueId: string) {
+  if (!(await isSuperAdmin())) return { error: "Not authorised." };
+  const comps = (await listCompetitions()).filter((c) => c.league_id === leagueId && c.feed_url);
+  if (!comps.length) return { error: "This league isn’t read from a link." };
+  let games = 0;
+  for (const c of comps) games += (await syncCompetitionFeed(c.id, true)).count;
+  revalidatePath("/", "layout");
+  return { ok: true, games };
 }
 
 export async function removeLeagueVerification(leagueId: string) {
