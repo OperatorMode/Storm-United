@@ -290,24 +290,44 @@ export function embeddedPlatformUrl(html: string, pageUrl: string): string | nul
   return null;
 }
 
-/** The page's HTML after its JavaScript has run. */
-/** The page's HTML once a real browser has run its JavaScript. `settleMs`
- *  waits a little longer for pages that keep loading after they look done. */
+// Some sites draw tables inside a "shadow DOM" (e.g. nbl.com.au's ladder, a
+// Webflow code component), which a page's HTML leaves out. This runs in the
+// page while it's open: it copies what's inside every shadow DOM into the page,
+// and again every half second, so tables that load late are included too.
+const COPY_SHADOW_DOM = `(function(){
+  function copy(){
+    document.querySelectorAll('[data-shadow-copy]').forEach(function(d){d.remove();});
+    (function walk(n){n.querySelectorAll('*').forEach(function(e){
+      if(!e.shadowRoot)return;
+      var d=document.createElement('div');d.setAttribute('data-shadow-copy','');d.innerHTML=e.shadowRoot.innerHTML;
+      document.body.appendChild(d);walk(e.shadowRoot);
+    });})(document);
+  }
+  copy();var n=0;var t=setInterval(function(){copy();if(++n>=20)clearInterval(t);},500);
+})();`;
+
+/** The page's HTML once a real browser has run its JavaScript (including what's
+ *  inside shadow DOMs). `settleMs` waits a little longer for pages that keep
+ *  loading after they look done. */
 export async function renderPage(url: string, settleMs = 0): Promise<string> {
   const token = process.env.BROWSERLESS_TOKEN;
   if (!token) throw new Error("Page rendering isn’t switched on.");
   const base = process.env.BROWSERLESS_URL ?? "https://production-sfo.browserless.io";
-  const res = await fetch(`${base}/content?token=${encodeURIComponent(token)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      url,
-      gotoOptions: { waitUntil: "networkidle2", timeout: 40_000 },
-      ...(settleMs ? { waitForTimeout: settleMs } : {}),
-      bestAttempt: true,
-    }),
-    signal: AbortSignal.timeout(55_000 + settleMs),
-  });
+  const open = (withShadowCopy: boolean) =>
+    fetch(`${base}/content?token=${encodeURIComponent(token)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url,
+        gotoOptions: { waitUntil: "networkidle2", timeout: 40_000 },
+        ...(withShadowCopy ? { addScriptTag: [{ content: COPY_SHADOW_DOM }], waitForTimeout: Math.max(settleMs, 600) } : settleMs ? { waitForTimeout: settleMs } : {}),
+        bestAttempt: true,
+      }),
+      signal: AbortSignal.timeout(55_000 + settleMs),
+    });
+  let res = await open(true);
+  // If the shadow-DOM copy is ever refused, read the page the plain way rather than not at all.
+  if (res.status === 400) res = await open(false);
   if (!res.ok) throw new Error(`The page couldn’t be opened for reading (${res.status}). Try again later.`);
   return res.text();
 }
@@ -460,7 +480,7 @@ async function readOfficialLadder(
   const html = await fetchText(url);
   const embedded = embeddedPlatformUrl(html, url);
   let text = htmlToText(embedded ? await fetchText(embedded) : html);
-  if (canRenderPages()) text = htmlToText(await renderPage(embedded ?? url)); // ladders are usually built with JavaScript
+  if (canRenderPages()) text = htmlToText(await renderPage(embedded ?? url, 4_000)); // ladders are usually built with JavaScript, often a few seconds late
   const hash = createHash("sha256").update(`${filter ?? ""}|${text}`).digest("hex");
   if (hash === previousHash) return { ladder: null, hash, unchanged: true };
   const client = new Anthropic();
