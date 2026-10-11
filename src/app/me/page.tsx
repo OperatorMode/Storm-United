@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTeam, firstName, playerName, type Team } from "@/lib/teams";
 import { canView, currentChildren } from "@/lib/session";
 import { knownTeamIds } from "@/lib/known-teams";
-import { gamePlace, getLeagueData, meetingTime, opponent, ourScore, pitchLabel, roundLabel, type Game } from "@/lib/league";
+import { gamePlace, getLeagueData, meetingTime, opponent, pitchLabel, roundLabel, type Game } from "@/lib/league";
 import { getAttendance, type AttendanceStatus } from "@/lib/store";
 import { formatTime, formatWeekday, isoDateIn, minutesOfDay } from "@/lib/time";
 import { logoSrc } from "@/lib/brand";
@@ -323,10 +323,6 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
   );
   const all = [...perTeam.flat(), ...activityEntries];
   const upcoming = all.filter((e) => e.game.kickoff.getTime() + GAME_WINDOW_MS > now).sort((a, b) => a.game.kickoff.getTime() - b.game.kickoff.getTime());
-  const results = all
-    .filter((e): e is Entry & { team: Team } => !!e.team && e.game.kickoff.getTime() + GAME_WINDOW_MS <= now && !!e.game.score)
-    .sort((a, b) => b.game.kickoff.getTime() - a.game.kickoff.getTime())
-    .slice(0, 6);
 
   // Who's taking whom (clash solver), then the clashes still to solve.
   const takers = householdId ? await listTakers(householdId) : {};
@@ -445,32 +441,6 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           />
         )}
 
-        {results.length > 0 && (
-          <section>
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-zinc-500">Recent results</h2>
-            <ul className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white px-4 shadow-sm">
-              {results.map((e) => {
-                const s = ourScore(e.game, e.team.league_name)!;
-                const res = s.us > s.them ? "W" : s.us < s.them ? "L" : "D";
-                return (
-                  <li key={`${e.team.id}-${e.game.id}`} className="flex items-center gap-3 py-2.5 text-sm">
-                    <span
-                      className={`grid size-6 shrink-0 place-items-center rounded text-xs font-semibold ${res === "W" ? "bg-emerald-500 text-white" : res === "L" ? "bg-zinc-900 text-white" : "bg-zinc-200 text-zinc-700"}`}
-                    >
-                      {res}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {e.team.name} vs {opponent(e.game, e.team.league_name)}
-                    </span>
-                    <span className="font-semibold tabular-nums">
-                      {s.us}–{s.them}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
         {activities.length > 0 && (
           <details className="group rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
