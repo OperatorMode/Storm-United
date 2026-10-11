@@ -401,7 +401,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           </details>
         )}
 
-        {teams.length > 0 && <ForgetPhone />}
+        {(teams.length > 0 || activities.length > 0) && <ForgetPhone />}
         <LegalLinks className="pt-2 text-zinc-400" />
       </main>
     </div>
@@ -495,7 +495,7 @@ function ActivityCard({ e, options }: { e: Entry; options: string[] }) {
       </span>
       <span className={`block font-semibold ${a.cancelled ? "text-zinc-400 line-through" : ""}`}>{a.name}</span>
       <span className="mt-0.5 block text-sm text-zinc-700">
-        {a.cancelled ? "Not on this time" : a.minutes >= 24 * 60 ? "All day" : `${formatTime(e.game.kickoff, e.tz)} · ${a.minutes} min`}
+        {a.cancelled ? "Skipped this time" : a.minutes >= 24 * 60 ? "All day" : `${formatTime(e.game.kickoff, e.tz)} · ${a.minutes} min`}
       </span>
       {e.place && <span className="block text-xs text-zinc-500">{e.place}</span>}
       <div className="mt-2 flex flex-wrap items-center gap-3">

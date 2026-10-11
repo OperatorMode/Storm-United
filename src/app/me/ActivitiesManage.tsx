@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { joinActivities, reimportActivity, removeActivity, shareActivities, toggleSession } from "./activity-actions";
 import { kidKey } from "@/lib/kid-key";
 import { ActivityForm, type ActivityInitial } from "./ActivityForm";
@@ -118,7 +119,7 @@ export function SessionToggle({ activityId, start: at, cancelled }: { activityId
   const [pending, start] = useTransition();
   return (
     <button type="button" disabled={pending} onClick={() => start(() => toggleSession(activityId, at))} className="text-xs text-zinc-500 underline">
-      {cancelled ? "Undo cancel" : "Not on this time"}
+      {cancelled ? "Undo" : "Skip this time"}
     </button>
   );
 }
@@ -139,7 +140,7 @@ export function ShareActivities({ activities }: { activities: { id: string; labe
 
   const invitation = (c: string) =>
     `I’ve shared our activities with you on Sidelnr. Tap to add them: ${window.location.origin}/me?join=${c}\n\n` +
-    `Or open Sidelnr, go to My Activities and enter the code ${c} under “Got a code?”. It works once, within 24 hours.`;
+    `Or open Sidelnr, go to My Activities, tap Share and enter the code ${c}. It works once, within 24 hours.`;
   const copy = async (text: string, done: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -239,6 +240,7 @@ export function JoinCode({ initial = "", highlight = false }: { initial?: string
     const c = v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
     return c.length > 4 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
   };
+  const router = useRouter();
   const [entered, setEntered] = useState(format(initial));
   const [msg, setMsg] = useState<{ error?: string; ok?: string } | null>(null);
   const [pending, start] = useTransition();
@@ -264,6 +266,8 @@ export function JoinCode({ initial = "", highlight = false }: { initial?: string
           onClick={() =>
             start(async () => {
               const res = await joinActivities(entered);
+              // The code is used up: take it out of the address (an invitation link), so it isn't offered again.
+              if (!("error" in res) && initial) router.replace("/me", { scroll: false });
               setMsg(
                 "error" in res
                   ? { error: res.error }

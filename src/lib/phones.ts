@@ -149,6 +149,17 @@ export async function selfTakenBy(teamId: string, childId: string, exceptDevice:
   );
 }
 
+/** "Forget this phone": it no longer follows anyone, in any team. */
+export async function forgetDevice(deviceId: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.team_phones = (d.team_phones ?? []).filter((p) => p.device_id !== deviceId);
+    return writeLocal(d);
+  }
+  check(await s.from("team_phones").delete().eq("device_id", deviceId));
+}
+
 /** A manager takes a child off one phone. */
 export async function removeChildFromPhone(teamId: string, deviceId: string, childId: string): Promise<void> {
   const prev = await getPhone(teamId, deviceId);
