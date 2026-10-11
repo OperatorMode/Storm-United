@@ -21,7 +21,7 @@ export default async function NewTeamPage({ searchParams }: PageProps<"/account/
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
       <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-        <SidelnrLink className="text-zinc-900" />
+        <SidelnrLink className="" />
         <Link href="/account">← My teams</Link>
       </div>
       <div>

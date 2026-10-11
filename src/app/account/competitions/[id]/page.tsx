@@ -179,7 +179,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
     return (
       <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
         <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-          <SidelnrLink className="text-zinc-900" />
+          <SidelnrLink className="" />
           <Link href="/account/leagues">← My leagues</Link>
         </div>
         <div>
@@ -321,7 +321,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
       <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-        <SidelnrLink className="text-zinc-900" />
+        <SidelnrLink className="" />
         <span className="flex gap-3">
           <Link href={event ? "/account/events" : "/account/leagues"}>← {event ? "My events" : "My leagues"}</Link>
           {event && (

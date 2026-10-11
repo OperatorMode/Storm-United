@@ -11,7 +11,7 @@ export default async function NewEventPage() {
   const manager = await currentManager();
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <SidelnrLink className="text-zinc-900" />
+      <SidelnrLink className="" />
       <div>
         <h1 className="text-xl font-semibold">Create an event</h1>
         <p className="mt-1 text-sm text-zinc-500">

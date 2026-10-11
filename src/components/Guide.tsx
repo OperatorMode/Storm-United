@@ -87,7 +87,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/join-6-notify.webp",
         title: "Turn on notifications",
-        text: "Choose what your phone tells you: game changes, reminders, the Board, Chat and Private. On iPhone, add Sidelnr to your home screen first (Share, then Add to Home Screen).",
+        text: "On your team’s Home page, choose what your phone tells you: game changes, reminders, the Board, Chat and Private. On iPhone, add Sidelnr to your home screen first (Share, then Add to Home Screen).",
       },
     ],
   },

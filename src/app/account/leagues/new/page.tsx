@@ -19,7 +19,7 @@ export default async function NewLeaguePage({ searchParams }: PageProps<"/accoun
     return (
       <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
         <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-          <SidelnrLink className="text-zinc-900" />
+          <SidelnrLink className="" />
           <Link href="/account/leagues">← My leagues</Link>
         </div>
         <div>
@@ -40,7 +40,7 @@ export default async function NewLeaguePage({ searchParams }: PageProps<"/accoun
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
       <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-        <SidelnrLink className="text-zinc-900" />
+        <SidelnrLink className="" />
         <Link href="/account/leagues/new">← Import from a link instead</Link>
       </div>
       <div>
