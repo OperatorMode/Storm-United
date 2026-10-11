@@ -206,33 +206,55 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
                 ))}
               </div>
             )}
-            {rows.filter((r) => !isEvent(r.team)).map(({ team: t, league, kids, boardUnread, chatTimes }) => (
-              <Link key={t.id} href={`/${t.id}`} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
-                {managing.has(t.id) && <ManagerBadge />}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoSrc(t)} alt="" className="size-10 shrink-0 object-contain" />
-                <span className="min-w-0 flex-1">
-                  <span className={`block truncate font-semibold ${managing.has(t.id) ? "pr-16" : ""}`}>{t.name}</span>
-                  <span className="block truncate text-xs text-zinc-500">{league}</span>
-                  {kids.length > 0 && <span className="block truncate text-xs font-medium text-zinc-700">{kids.join(" & ")}</span>}
-                </span>
-                <TeamBadge teamId={t.id} boardUnread={boardUnread} chatTimes={chatTimes} />
-                <span className="text-zinc-400" aria-hidden>
-                  →
-                </span>
-              </Link>
-            ))}
-            {has.teams && !runs.teams.length && (
-              <div className="px-1 text-right">
-                <Link href="/account/new" className="text-xs font-medium underline opacity-80">
-                  + Add a team
-                </Link>
+            {/* My Team: every team on this phone, followed as a family or managed (Manager badge). */}
+            {(rows.some((r) => !isEvent(r.team)) || runs.teams.length > 0) && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-baseline justify-between px-1">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">My Team</h2>
+                  {has.teams && (
+                    <Link href="/account/new" className="text-xs font-medium underline opacity-80">
+                      + Add a team
+                    </Link>
+                  )}
+                </div>
+                {rows
+                  .filter((r) => !isEvent(r.team))
+                  .map(({ team: t, league, kids, boardUnread, chatTimes }) => (
+                    <Link key={t.id} href={`/${t.id}`} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+                      {managing.has(t.id) && <ManagerBadge />}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logoSrc(t)} alt="" className="size-10 shrink-0 object-contain" />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate font-semibold ${managing.has(t.id) ? "pr-16" : ""}`}>{t.name}</span>
+                        <span className="block truncate text-xs text-zinc-500">{league}</span>
+                        {kids.length > 0 && <span className="block truncate text-xs font-medium text-zinc-700">{kids.join(" & ")}</span>}
+                      </span>
+                      <TeamBadge teamId={t.id} boardUnread={boardUnread} chatTimes={chatTimes} />
+                      <span className="text-zinc-400" aria-hidden>
+                        →
+                      </span>
+                    </Link>
+                  ))}
+                {runs.teams.map((r) => (
+                  <Link key={r.href} href={r.href} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+                    <ManagerBadge />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {r.logo && <img src={r.logo} alt="" className="size-10 shrink-0 object-contain" />}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate pr-16 font-semibold">{r.title}</span>
+                      <span className="block truncate text-xs text-zinc-500">{r.detail}</span>
+                    </span>
+                    <span className="text-zinc-400" aria-hidden>
+                      →
+                    </span>
+                  </Link>
+                ))}
               </div>
             )}
           </div>
         )}
 
-        {DOORS.filter((d) => d.key !== "events" && runs[d.key].length > 0).map((d) => (
+        {DOORS.filter((d) => d.key === "leagues" && runs[d.key].length > 0).map((d) => (
           <section key={d.key} className="space-y-2">
             <div className="flex items-baseline justify-between px-1">
               <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">{d.title}</h2>
