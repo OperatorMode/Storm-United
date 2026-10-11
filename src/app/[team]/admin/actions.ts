@@ -1,5 +1,6 @@
 "use server";
 
+import { cleanLink } from "@/lib/league-scan";
 import { deleteFutureTraining } from "@/lib/training";
 import { clearBoardAndChat } from "@/lib/messages";
 
@@ -104,6 +105,8 @@ export async function saveTeamSettings(teamId: string, _: unknown, formData: For
     meet_minutes: meet,
     goalie_enabled: formData.get("goalie_enabled") === "on",
     mvp_enabled: formData.get("mvp_enabled") === "on",
+    // The roster link box, when it was on the form: its link (tidied), or none if emptied.
+    roster_url: formData.has("roster_url") ? (String(formData.get("roster_url")).trim() ? cleanLink(String(formData.get("roster_url"))) : null) : (team.roster_url ?? null),
     role_name: String(formData.get("role_name") ?? "").trim().slice(0, 30) || null,
     mute_league: team.competition_id ? formData.get("league_news") !== "on" : !!team.mute_league,
     game_parts: Math.min(12, Math.max(1, Number(formData.get("game_parts")) || 2)),

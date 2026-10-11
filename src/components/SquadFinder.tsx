@@ -62,10 +62,12 @@ export function SquadStatus({
   finder,
   onFind,
   fromLink,
+  rosterUrl = "",
 }: {
   finder: ReturnType<typeof useSquadFinder>;
   onFind?: () => void; // shows a "Find players" button when given
   fromLink: (url: string) => Promise<SquadResult>;
+  rosterUrl?: string; // the team's saved roster link
 }) {
   const { state } = finder;
   if (state.stage === "searching") {
@@ -98,7 +100,7 @@ export function SquadStatus({
     return (
       <div className="space-y-3 rounded-xl bg-zinc-50 px-3 py-3 text-zinc-700" aria-live="polite">
         <p>{state.note ?? "No squad list found."}</p>
-        <OtherWays finder={finder} fromLink={fromLink} />
+        <OtherWays finder={finder} fromLink={fromLink} rosterUrl={rosterUrl} />
         <p className="text-xs text-zinc-500">Or type the players in below.</p>
       </div>
     );
@@ -110,26 +112,36 @@ export function SquadStatus({
           Find players on the league website
         </button>
       )}
-      <details className="text-sm">
-        <summary className="cursor-pointer font-medium text-zinc-700 underline">Add players from a link or a file</summary>
+      <details className="text-sm" open={!!rosterUrl}>
+        <summary className="cursor-pointer font-medium text-zinc-700 underline">Roster link or a file</summary>
         <div className="mt-2 rounded-xl bg-zinc-50 px-3 py-3">
-          <OtherWays finder={finder} fromLink={fromLink} />
+          <OtherWays finder={finder} fromLink={fromLink} rosterUrl={rosterUrl} />
         </div>
       </details>
     </div>
   );
 }
 
-// Paste a link to a squad page, or upload a CSV / text file of names.
-function OtherWays({ finder, fromLink }: { finder: ReturnType<typeof useSquadFinder>; fromLink: (url: string) => Promise<SquadResult> }) {
-  const [url, setUrl] = useState("");
+// The team's roster link (its squad page: saved with the team, read on request),
+// or a CSV / text file of names.
+function OtherWays({
+  finder,
+  fromLink,
+  rosterUrl = "",
+}: {
+  finder: ReturnType<typeof useSquadFinder>;
+  fromLink: (url: string) => Promise<SquadResult>;
+  rosterUrl?: string;
+}) {
+  const [url, setUrl] = useState(rosterUrl);
   const read = () => url.trim() && finder.find(() => fromLink(url.trim()), "Reading that page. This can take a minute.");
   return (
     <div className="space-y-3">
       <div>
-        <span className="mb-1 block text-xs font-medium text-zinc-600">From a link (your club’s squad or roster page)</span>
+        <span className="mb-1 block text-xs font-medium text-zinc-600">Roster link (your club’s squad or roster page, saved with the team)</span>
         <div className="flex gap-2">
           <input
+            name="roster_url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={(e) => {

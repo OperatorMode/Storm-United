@@ -13,6 +13,7 @@ export function TeamSettings({
   meetMinutes,
   goalieEnabled,
   mvpEnabled,
+  rosterUrl,
   roleName,
   gameParts,
   partName,
@@ -24,6 +25,7 @@ export function TeamSettings({
   meetMinutes: number;
   goalieEnabled: boolean;
   mvpEnabled: boolean;
+  rosterUrl: string | null;
   roleName: string | null;
   gameParts: number;
   partName: string;
@@ -49,6 +51,7 @@ export function TeamSettings({
             finder={squad}
             onFind={() => squad.find(() => findTeamSquad(teamId))}
             fromLink={(url) => teamSquadFromLink(teamId, url)}
+            rosterUrl={rosterUrl ?? ""}
           />
         </div>
         <textarea

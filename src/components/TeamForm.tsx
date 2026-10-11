@@ -23,6 +23,7 @@ export type TeamFormValues = {
   role_name: string | null;
   game_parts: number;
   part_name: string;
+  roster_url?: string | null;
 };
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
@@ -172,6 +173,7 @@ export function TeamForm({
               finder={squad}
               onFind={initial?.competition_id ? () => squad.find(() => findSquadAction(initial.competition_id, initial.league_name)) : undefined}
               fromLink={(url) => squadFromLinkAction(competitionId, leagueName || name, url)}
+              rosterUrl={initial?.roster_url ?? ""}
             />
           </div>
         )}

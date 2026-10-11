@@ -78,7 +78,7 @@ export function MagicImport({
       venue: scan.venue,
       timezone: String(form.get("timezone") ?? ""),
       ladderStyle: scan.ladderStyle,
-      ladderUrl: scan.ladderUrl,
+      ladderUrl: String(form.get("ladder") ?? "").trim() || null, // its own link: often a different page from the fixtures
       competition,
       filter: scan.competitions.length > 1,
     }).catch(() => ({ competitionId: null, error: "Something went wrong. Try again." }));
@@ -157,7 +157,26 @@ export function MagicImport({
               <TimezoneSelect initial={scan.timezone ?? undefined} />
               <span className="mt-1 block text-xs text-zinc-500">Game times are shown in this timezone.</span>
             </label>
-            <p className="truncate text-xs text-zinc-500">From {scan.feedUrl}</p>
+            <div className="space-y-1">
+              <span className="block font-medium">Fixtures</span>
+              <p className="truncate text-xs text-zinc-500">From {scan.feedUrl}</p>
+            </div>
+            <label className="block">
+              <span className="mb-1 block font-medium">Ladder link (optional)</span>
+              <input
+                name="ladder"
+                defaultValue={scan.ladderUrl ?? ""}
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="The page with the league’s ladder or standings"
+                className={field}
+              />
+              <span className="mt-1 block text-xs text-zinc-500">
+                {scan.ladderUrl ? "Found on the site. Change it if the ladder is on another page." : "Paste it if the ladder is on its own page. Without one, Sidelnr links to the league’s site."}
+              </span>
+            </label>
             {already ? (
               <div className="space-y-2 rounded-xl bg-emerald-50 p-3 text-emerald-900">
                 <p className="font-semibold">This league is already on Sidelnr</p>

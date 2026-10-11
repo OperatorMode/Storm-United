@@ -3,6 +3,7 @@ import { competitionTeams, getCompetition } from "./league";
 import { getTeam, hashSecret, joinCodeFields, mergePlayers, slugify } from "./teams";
 import { isHexColor } from "./theme";
 import { PART_PRESETS } from "./role";
+import { cleanLink } from "./league-scan";
 
 // Saving a team from the team form, shared by the super admin (/super) and
 // managers (self-serve). Permission checks happen in the calling action.
@@ -80,6 +81,7 @@ export async function applyTeamForm(formData: FormData, opts: TeamFormOptions): 
     role_name: get("role_name").slice(0, 30) || null,
     game_parts: Math.min(12, Math.max(1, Number(formData.get("game_parts")) || 2)),
     part_name: PART_PRESETS.some((p) => p.name === formData.get("part_name")) ? String(formData.get("part_name")) : "Half",
+    roster_url: formData.has("roster_url") ? (get("roster_url") ? cleanLink(get("roster_url")) : null) : (existing?.roster_url ?? null),
   };
   await upsertTeam(row);
   await savePlayers(id, players);

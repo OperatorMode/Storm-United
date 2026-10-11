@@ -1,5 +1,6 @@
 "use server";
 
+import { cleanLink } from "@/lib/league-scan";
 import { redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { currentManagerId } from "@/lib/session";
@@ -683,7 +684,7 @@ export async function importLeagueAction(input: {
     finals_date: null,
     finals_note: null,
     ladder_style: input.ladderStyle === "wins" ? "wins" : "points",
-    ladder_url: input.ladderUrl && /^https?:\/\//i.test(input.ladderUrl) ? input.ladderUrl : null,
+    ladder_url: input.ladderUrl ? cleanLink(input.ladderUrl) : null, // a pasted link, tidied (https:// added if missing)
   };
   await upsertCompetition(comp);
   await saveFeedSettings(comp, { type: input.feedType, url: input.feedUrl, filter: input.filter ? compName : null, team: null });

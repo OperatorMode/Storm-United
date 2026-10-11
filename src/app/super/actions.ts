@@ -6,7 +6,8 @@ import { ownerCodeEmail, sendEmail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 import { deleteTeam } from "@/lib/store";
 import { listCompetitions } from "@/lib/league";
-import { syncCompetitionFeed } from "@/lib/feeds";
+import { setCompetitionLinks, syncCompetitionFeed } from "@/lib/feeds";
+import { cleanLink } from "@/lib/league-scan";
 import { deleteManagerAccount, unlinkManager } from "@/lib/accounts";
 import { clearTeamPin, removeLeagueAdmin } from "@/lib/owner-tools";
 import { COOKIE_OPTS, OWNER_COOKIE, OWNER_SESSION_HOURS, SUPER_COOKIE, isSuperAdmin, ownerSessionValue, superToken } from "@/lib/session";
@@ -218,6 +219,15 @@ export async function ownerRefreshLeague(leagueId: string) {
   for (const c of comps) games += (await syncCompetitionFeed(c.id, true)).count;
   revalidatePath("/", "layout");
   return { ok: true, games };
+}
+
+/** A league's fixtures and ladder links (separate pages), then read again. */
+export async function ownerSetLinks(competitionId: string, fixtures: string, ladder: string) {
+  if (!(await isSuperAdmin())) return { error: "Not authorised." };
+  if (!fixtures.trim()) return { error: "The fixtures link can’t be empty." };
+  const res = await setCompetitionLinks(competitionId, cleanLink(fixtures), ladder.trim() ? cleanLink(ladder) : null);
+  revalidatePath("/", "layout");
+  return res.errors.length && !res.count ? { error: res.errors[0] } : { ok: true, games: res.count };
 }
 
 export async function removeLeagueVerification(leagueId: string) {

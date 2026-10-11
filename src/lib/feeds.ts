@@ -18,7 +18,7 @@ import {
   zonedTime,
   type ImportedFixture,
 } from "./fixtures";
-import { check, db, listLeagues, readLocal, writeLocal, type CompetitionRow } from "./store";
+import { check, db, listLeagues, listTeams, readLocal, upsertTeam, writeLocal, type CompetitionRow, type TeamRow } from "./store";
 import { DEFAULT_TZ } from "./time";
 
 // Fixtures from a link, synced into the fixtures table:
@@ -533,6 +533,8 @@ async function syncFixtures(competitionId: string, force: boolean): Promise<{ co
       return { count: 0, errors: [] };
     }
     if (!res.fixtures.length) throw new Error(res.errors[0] ?? "No fixtures found at that link.");
+    // Sidelnr teams in this competition must still be in the draw, or they'd show a bye every round.
+    await keepTeamsMatched(competitionId, res.fixtures.flatMap((f) => [f.home, f.away]));
     const existing = await listFixtures(competitionId);
     const merged = mergeImported(competitionId, existing, res.fixtures);
     await saveFixtures(merged);
@@ -550,6 +552,40 @@ async function syncFixtures(competitionId: string, force: boolean): Promise<{ co
     await markSynced(competitionId, { feed_synced_at: now, feed_error: message });
     return { count: 0, errors: [message] };
   }
+}
+
+const plain = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+/**
+ * Before new games replace the old ones: every Sidelnr team in the competition
+ * must still be in the draw under its name. A source that names teams
+ * differently (e.g. "PER" before, "Perth Wildcats" now) is matched up when
+ * there's exactly one clear match; otherwise nothing is changed and the read
+ * fails with a message, instead of the team silently showing byes.
+ */
+async function keepTeamsMatched(competitionId: string, names: string[]): Promise<void> {
+  const draw = [...new Set(names)];
+  const ours = (await listTeams()).filter((t) => t.competition_id === competitionId && t.kind !== "event");
+  const renames: [TeamRow, string][] = [];
+  const lost: string[] = [];
+  for (const t of ours) {
+    if (draw.includes(t.league_name)) continue;
+    const old = plain(t.league_name);
+    // Same name written differently, a name that starts with the old one, or a short code
+    // ("PER") that's the start of exactly one name ("Perth Wildcats").
+    const candidates = draw.filter((n) => {
+      const p = plain(n);
+      return p === old || (old.length >= 3 && p.startsWith(old)) || (old.length >= 4 && p.includes(old));
+    });
+    if (candidates.length === 1 && !ours.some((o) => o.league_name === candidates[0])) renames.push([t, candidates[0]]);
+    else lost.push(t.league_name);
+  }
+  if (lost.length) {
+    throw new Error(
+      `The page names teams differently: ${lost.map((n) => `“${n}”`).join(", ")} isn’t in its draw, so nothing was changed. Check the link, or tell us which team it is now.`,
+    );
+  }
+  for (const [t, name] of renames) await upsertTeam({ ...t, league_name: name });
 }
 
 // Called while rendering team pages: refresh a stale spreadsheet or calendar
@@ -577,4 +613,14 @@ export async function saveFeedSettings(competition: CompetitionRow, feed: FeedSe
     feed_error: null,
     feed_synced_at: null,
   });
+}
+
+/**
+ * A league's separate links: where its fixtures are (the feed) and its ladder.
+ * Changing them reads both again straight away (the team-name check above keeps
+ * teams from losing their games if the new page names them differently).
+ */
+export async function setCompetitionLinks(id: string, feedUrl: string, ladderUrl: string | null): Promise<{ count: number; errors: string[] }> {
+  await markSynced(id, { feed_url: feedUrl, ladder_url: ladderUrl, feed_hash: null, ladder_hash: null, feed_error: null });
+  return syncCompetitionFeed(id, true);
 }

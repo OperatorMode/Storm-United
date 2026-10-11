@@ -533,6 +533,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           meetMinutes={team.meet_minutes}
           goalieEnabled={team.goalie_enabled}
           mvpEnabled={team.mvp_enabled !== false}
+          rosterUrl={team.roster_url ?? null}
           roleName={team.role_name ?? null}
           gameParts={gp.count}
           partName={gp.name}

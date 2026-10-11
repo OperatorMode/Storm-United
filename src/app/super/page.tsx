@@ -3,6 +3,7 @@ import { Card } from "@/components/Card";
 import { SuperLogin } from "./SuperLogin";
 import { Housekeeping } from "./Housekeeping";
 import { OwnerButton } from "./OwnerButton";
+import { LeagueLinks } from "./LeagueLinks";
 import { cleanupCounts, databaseUsage } from "@/lib/housekeeping";
 import { OwnerLogin } from "./OwnerLogin";
 import { ownerLoginAvailable } from "@/lib/owner-auth";
@@ -92,7 +93,9 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   const official = leagues.filter((l) => l.verified_at);
   // Any league, found by name: to make it official (or see that it already is).
   const lneedle = lq.toLowerCase();
-  const foundLeagues = lq ? leagues.filter((l) => l.name.toLowerCase().includes(lneedle) || l.id.includes(lneedle)).slice(0, 10) : [];
+  const foundLeagues = lq
+    ? leagues.filter((l) => [l.name, l.short_name, l.id, l.website].some((v) => v?.toLowerCase().includes(lneedle))).slice(0, 10)
+    : []; // by name, short name ("NBL") or website
   const foundLeagueAdmins = Object.fromEntries(await Promise.all(foundLeagues.map(async (l) => [l.id, await withEmails(await leagueAdminIds(l.id))] as const)));
   const verifiedLabel = (by?: string | null) => (by === "review" ? "Approved by review" : by === "owner" ? "Made official by you" : `Verified with ${by}`);
   const officialAdmins = Object.fromEntries(await Promise.all(official.map(async (l) => [l.id, await withEmails(await leagueAdminIds(l.id))] as const)));
@@ -256,7 +259,8 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
         {lq && (
           <div className="mb-4 space-y-2 text-sm">
             {foundLeagues.map((l) => (
-              <div key={l.id} className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 p-3">
+              <div key={l.id} className="space-y-2 rounded-xl border border-zinc-200 p-3">
+              <div className="flex items-center justify-between gap-2">
                 <span className="min-w-0">
                   <span className="block truncate font-medium">
                     {l.verified_at ? "✓ " : ""}
@@ -281,6 +285,14 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
                     action={makeLeagueOfficial.bind(null, l.id)}
                   />
                 )}
+              </div>
+              {competitions.some((c) => c.league_id === l.id && c.feed_url) && (
+                <LeagueLinks
+                  competitions={competitions
+                    .filter((c) => c.league_id === l.id && c.feed_url)
+                    .map((c) => ({ id: c.id, name: c.name, feedUrl: c.feed_url ?? "", ladderUrl: c.ladder_url ?? "" }))}
+                />
+              )}
               </div>
             ))}
             {!foundLeagues.length && <p className="text-zinc-500">No league found for “{lq}”.</p>}
