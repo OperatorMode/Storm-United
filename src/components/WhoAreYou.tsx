@@ -7,7 +7,7 @@ import { setMyName } from "@/app/profile-actions";
 const SKIP_KEY = "su_name_skipped";
 
 // "Who are you?" on the home page: the name used across the app (your answer
-// to events, and "Tobi (Brooklyn's Dad)" in your teams). Once set: "Hi, Tobi".
+// to events, and "John (Leo's Dad)" in your teams). Once set: "Hi, John".
 export function WhoAreYou({ name }: { name: string | null }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -49,7 +49,7 @@ export function WhoAreYou({ name }: { name: string | null }) {
     <section className="rounded-2xl bg-white p-4 text-zinc-950 shadow-lg">
       <h2 className="font-semibold">{name ? "Your name" : "Who are you?"}</h2>
       <p className="mt-0.5 text-sm text-zinc-500">
-        Your first name, so your teams and events know who’s who, e.g. “Tobi (Leo’s Dad)”.
+        Your first name, so your teams and events know who’s who, e.g. “John (Leo’s Dad)”.
       </p>
       <form
         className="mt-3 flex gap-2"

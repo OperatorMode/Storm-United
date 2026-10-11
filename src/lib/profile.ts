@@ -1,9 +1,9 @@
 import { cache } from "react";
 import { check, db, readLocal, writeLocal } from "./store";
 
-// "Who are you?": the name this phone's user chose (e.g. "Tobi"), used across
+// "Who are you?": the name this phone's user chose (e.g. "John"), used across
 // the app: as their answer to an event, and in every team next to who they are
-// to the player ("Tobi (Brooklyn's Dad)").
+// to the player ("John (Leo's Dad)").
 
 export const NAME_MAX = 24;
 type Row = { device_id: string; name: string; updated_at: string };
