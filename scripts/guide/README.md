@@ -8,6 +8,6 @@ The pictures in `public/guide/` come from the local app with made-up data
 3. `node scripts/guide/capture.mjs scripts/guide/shots-join.json public/guide`
    takes phone-sized screenshots (390x844 at 2x) in a throwaway headless Edge.
 
-The owner pictures (`shots-owner.json`, for the "What Sidelnr's owner sees" page)
+The developer pictures (`shots-developer.json`, for the "What the Sidelnr app developer can see" page)
 need the local server started with `ADMIN_PIN=guide-owner-pin` (the shots carry
-the matching owner cookie). They only show the made-up demo data.
+the matching developer cookie). They only show the made-up demo data.

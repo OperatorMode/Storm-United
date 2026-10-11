@@ -20,8 +20,8 @@ export default function PrivacyPage() {
         <p className="font-semibold">Sidelnr is a self-managed app.</p>
         <p className="mt-1">
           Each team is run by its coaches and families, and each event by its organisers: they decide who’s in, what’s posted
-          and who sees it. Sidelnr’s owner can’t open a team or event in the app or see what’s in it.{" "}
-          <Link href="/what-we-see">See exactly what the owner sees</Link>, with screenshots.
+          and who sees it. Teams belong to their managers and families: the Sidelnr app developer can’t open a team or event in the app or see what’s in it.{" "}
+          <Link href="/what-we-see">See exactly what the developer can see</Link>, and how it’s protected.
         </p>
       </div>
 
@@ -114,7 +114,7 @@ export default function PrivacyPage() {
           Official access is set up by us, by request, after we’ve confirmed who’s asking.
         </li>
         <li>
-          <b>Teams and events run themselves.</b> The Sidelnr owner’s page in the app can’t open a team or event or show
+          <b>Teams and events run themselves.</b> The Sidelnr app developer’s page in the app can’t open a team or event or show
           what’s in it (players, guests, answers, chat, messages). It can only step in when asked or needed: delete a team,
           event or account, take a manager off, or reset a team PIN. It’s protected by a password and a code from an
           authenticator app. <Link href="/what-we-see">Here’s what it looks like</Link>.

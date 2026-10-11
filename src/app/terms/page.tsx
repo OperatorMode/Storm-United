@@ -20,8 +20,8 @@ export default function TermsPage() {
           which phones follow their child.
         </li>
         <li>
-          Sidelnr’s owner doesn’t moderate or look into teams or events, and can’t see inside them in the app.{" "}
-          <Link href="/what-we-see">Here’s exactly what the owner sees</Link>. Problems in a team are for its managers first:
+          Teams belong to their managers and families. The Sidelnr app developer doesn’t moderate or look into teams or events, and can’t see inside them in the app.{" "}
+          <Link href="/what-we-see">Here’s exactly what the developer can see</Link>. Problems in a team are for its managers first:
           report a message in the chat, or talk to the coach or organiser.
         </li>
         <li>

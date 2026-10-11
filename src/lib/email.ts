@@ -74,14 +74,14 @@ export function leagueCodeEmail(league: string, code: string) {
 
 /** The second step into the owner page (/super). */
 export function ownerCodeEmail(code: string) {
-  const text = `Your Sidelnr owner code: ${code}\n\nIt expires in 10 minutes. If you didn't just enter the owner PIN, someone else did: change ADMIN_PIN in Vercel.`;
+  const text = `Your Sidelnr developer code: ${code}\n\nIt expires in 10 minutes. If you didn't just enter the developer PIN, someone else did: change ADMIN_PIN in Vercel.`;
   const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:420px;margin:0 auto;padding:24px;color:#09090b">
   <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
-  <p style="margin:0 0 20px;color:#52525b">Owner page sign-in</p>
+  <p style="margin:0 0 20px;color:#52525b">Developer page sign-in</p>
   <p style="font-size:32px;font-weight:700;letter-spacing:6px;margin:8px 0 20px">${code}</p>
-  <p style="font-size:13px;color:#71717a">It expires in 10 minutes. If you didn’t just enter the owner PIN, someone else did: change ADMIN_PIN in Vercel.</p>
+  <p style="font-size:13px;color:#71717a">It expires in 10 minutes. If you didn’t just enter the developer PIN, someone else did: change ADMIN_PIN in Vercel.</p>
 </div>`;
-  return { subject: `${code} is your Sidelnr owner code`, text, html };
+  return { subject: `${code} is your Sidelnr developer code`, text, html };
 }
 
 /** New feedback, to the owner. */
@@ -90,13 +90,13 @@ export function feedbackEmail(kind: string, message: string, page: string | null
   const meta = [page && `Page: ${page}`, device && `Device: ${device}`, replyTo ? `Reply to: ${replyTo}` : "No reply email"]
     .filter(Boolean)
     .join("\n");
-  const text = `${kind}\n\n${message}\n\n${meta}\n\nSee all feedback on the owner page: https://sidelnr.app/super`;
+  const text = `${kind}\n\n${message}\n\n${meta}\n\nSee all feedback on the developer page: https://sidelnr.app/super`;
   const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#09090b">
   <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
   <p style="margin:0 0 16px;color:#52525b">New feedback: ${esc(kind)}</p>
   <p style="white-space:pre-wrap;font-size:15px;line-height:1.5">${esc(message)}</p>
   <p style="white-space:pre-wrap;font-size:13px;color:#71717a">${esc(meta)}</p>
-  <p style="font-size:13px"><a href="https://sidelnr.app/super">See all feedback on the owner page</a></p>
+  <p style="font-size:13px"><a href="https://sidelnr.app/super">See all feedback on the developer page</a></p>
 </div>`;
   return { subject: `Sidelnr feedback: ${kind}`, text, html };
 }
@@ -104,14 +104,14 @@ export function feedbackEmail(kind: string, message: string, page: string | null
 /** A league asks for official access (or to claim an imported league): to the owner, who replies by email. */
 export function leagueRequestEmail(league: string, competition: string, from: string, note: string, link: string | null) {
   const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const text = `${league} (${competition}) asks for official access.\n\nFrom: ${from}\n${link ? `Website: ${link}\n` : ""}\n${note}\n\nReply to ${from} with your terms, then Approve or Decline on the owner page: https://sidelnr.app/super`;
+  const text = `${league} (${competition}) asks for official access.\n\nFrom: ${from}\n${link ? `Website: ${link}\n` : ""}\n${note}\n\nReply to ${from} with your terms, then Approve or Decline on the developer page: https://sidelnr.app/super`;
   const html = `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#09090b">
   <h1 style="font-size:22px;margin:0 0 4px">Sidelnr<span style="color:#e5334b">.</span></h1>
   <p style="margin:0 0 16px;color:#52525b">Official league request</p>
   <p style="font-size:16px;font-weight:600;margin:0">${esc(league)} <span style="font-weight:400;color:#52525b">(${esc(competition)})</span></p>
   <p style="font-size:14px;margin:8px 0">From: <a href="mailto:${esc(from)}">${esc(from)}</a>${link ? `<br>Website: ${esc(link)}` : ""}</p>
   <p style="white-space:pre-wrap;font-size:15px;line-height:1.5;background:#f4f4f5;border-radius:12px;padding:12px">${esc(note)}</p>
-  <p style="font-size:13px;color:#71717a">Reply to them with your terms, then Approve or Decline on the <a href="https://sidelnr.app/super">owner page</a>.</p>
+  <p style="font-size:13px;color:#71717a">Reply to them with your terms, then Approve or Decline on the <a href="https://sidelnr.app/super">developer page</a>.</p>
 </div>`;
   return { subject: `Official league request: ${league}`, text, html };
 }

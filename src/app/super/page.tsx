@@ -27,23 +27,23 @@ import { isSuperAdmin } from "@/lib/session";
 import { competitionLabel, listCompetitions } from "@/lib/league";
 import { SidelnrLink } from "@/components/SidelnrLink";
 
-export const metadata: Metadata = { title: "Owner · Sidelnr", robots: { index: false } };
+export const metadata: Metadata = { title: "Developer · Sidelnr", robots: { index: false } };
 
-// The Sidelnr owner's page: the bare minimum. Teams and events are run by their
+// The Sidelnr app developer's page ("owner" in the code; teams belong to their managers and families): the bare minimum. Teams and events are run by their
 // families and coaches, so nothing here shows what's inside them (players,
-// guests, answers, chat, messages), and the owner has no way into them. It can
+// guests, answers, chat, messages), and the developer has no way into them. It can
 // only step in: delete a team, event or manager account, take a manager or
 // league admin off, reset a team PIN. Everything else stays on the server.
 export default async function SuperPage({ searchParams }: PageProps<"/super">) {
   if (!(await isSuperAdmin())) {
     return (
       <div className="mx-auto max-w-md p-4 pt-10">
-        <Card title="Owner sign-in">
+        <Card title="Developer sign-in">
           {ownerLoginAvailable() && <OwnerLogin />}
           {process.env.ADMIN_PIN?.trim() &&
             (ownerLoginAvailable() ? (
               <details className="mt-5 border-t border-zinc-100 pt-3">
-                <summary className="cursor-pointer text-xs text-zinc-500">Use the owner PIN instead</summary>
+                <summary className="cursor-pointer text-xs text-zinc-500">Use the developer PIN instead</summary>
                 <div className="mt-3">
                   <SuperLogin twoStep={!!process.env.OWNER_EMAIL?.trim()} />
                 </div>
@@ -106,7 +106,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
         </form>
       </div>
       <div>
-        <h1 className="text-lg font-semibold">Owner</h1>
+        <h1 className="text-lg font-semibold">Developer</h1>
         <p className="text-sm text-zinc-500">
           Teams and events belong to their families and coaches, so you can’t see inside them. Here you can only step in: delete,
           take a manager off, or reset a PIN.

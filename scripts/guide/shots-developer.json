@@ -1,6 +1,6 @@
 [
   {
-    "name": "owner-1-page",
+    "name": "developer-1-page",
     "url": "http://localhost:3100/super",
     "cookies": {
       "su_super": "51b89cb8bcfb617e1523981f79ae087800a86e704327402faf6a9170047af430"
@@ -9,7 +9,7 @@
     "full": true
   },
   {
-    "name": "owner-2-team",
+    "name": "developer-2-team",
     "url": "http://localhost:3100/super?q=riverside-rockets",
     "cookies": {
       "su_super": "51b89cb8bcfb617e1523981f79ae087800a86e704327402faf6a9170047af430"
@@ -17,7 +17,7 @@
     "js": "const e=[...document.querySelectorAll('h2,div')].find(x=>x.textContent.trim()==='Teams and events'); e.closest('section,div.rounded-2xl')?.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
   },
   {
-    "name": "owner-3-manager",
+    "name": "developer-3-manager",
     "url": "http://localhost:3100/super?email=coach@example.test",
     "cookies": {
       "su_super": "51b89cb8bcfb617e1523981f79ae087800a86e704327402faf6a9170047af430"
@@ -25,7 +25,7 @@
     "js": "const e=[...document.querySelectorAll('h2,div')].find(x=>x.textContent.trim()==='Manager accounts'); e.closest('section,div.rounded-2xl')?.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
   },
   {
-    "name": "owner-4-league",
+    "name": "developer-4-league",
     "url": "http://localhost:3100/super?league=riverside",
     "cookies": {
       "su_super": "51b89cb8bcfb617e1523981f79ae087800a86e704327402faf6a9170047af430"
@@ -33,7 +33,7 @@
     "js": "const e=[...document.querySelectorAll('h2,div')].find(x=>x.textContent.trim()==='Official leagues'); e.closest('section,div.rounded-2xl')?.scrollIntoView({block:'start'}); window.scrollBy(0,-12);"
   },
   {
-    "name": "owner-5-closed",
+    "name": "developer-5-closed",
     "url": "http://localhost:3100/riverside-rockets/admin",
     "cookies": {
       "su_super": "51b89cb8bcfb617e1523981f79ae087800a86e704327402faf6a9170047af430"

@@ -26,7 +26,7 @@ const WRONG_LOGIN = "Wrong email or password.";
 
 export async function ownerSignIn(input: { email?: string; password?: string; code?: string }): Promise<OwnerState> {
   const client = ownerAuthClient();
-  if (!client) return { error: "Owner sign-in isn't set up here." };
+  if (!client) return { error: "Developer sign-in isn't set up here." };
   const locked = await lockedMessage("super", "owner");
   if (locked) return { error: locked };
   const store = await cookies();
@@ -46,7 +46,7 @@ export async function ownerSignIn(input: { email?: string; password?: string; co
       await recordFailure("super", "owner");
       return { error: "That code isn’t right. Use the newest code in your authenticator app." };
     }
-    if (!isOwnerUser(data.user)) return { error: "This account isn’t the Sidelnr owner." };
+    if (!isOwnerUser(data.user)) return { error: "This account isn’t the Sidelnr developer’s." };
     await recordSuccess("super", "owner");
     store.delete(OWNER_PENDING);
     store.set(OWNER_COOKIE, ownerSessionValue(data.user.id), { ...COOKIE_OPTS, maxAge: OWNER_SESSION_HOURS * 3600 });
@@ -67,7 +67,7 @@ export async function ownerSignIn(input: { email?: string; password?: string; co
   if (!isOwnerUser(data.user)) {
     await client.auth.signOut({ scope: "local" }).catch(() => {});
     await recordFailure("super", "owner");
-    return { error: "This account isn’t the Sidelnr owner." };
+    return { error: "This account isn’t the Sidelnr developer’s." };
   }
 
   // Already set up: ask for the code. First time: show a QR code to add Sidelnr to the app.

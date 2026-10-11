@@ -363,7 +363,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
             <p className="text-center text-xs text-zinc-400">
               Sidelnr is self-managed by its teams and families.{" "}
               <Link href="/what-we-see" onClick={close} className="underline">
-                What Sidelnr’s owner sees
+                What the app developer can see
               </Link>
             </p>
           </div>

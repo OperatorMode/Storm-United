@@ -11,7 +11,7 @@ import { ownerStillValid } from "./owner-auth";
 //  - which child this phone belongs to (voter),
 //  - that the join code was entered (if the team has one),
 //  - that the team admin PIN was entered.
-// The owner (super admin, signed in with Supabase; see owner-auth.ts) can see and manage every team.
+// The app developer ("owner", signed in with Supabase; see owner-auth.ts) has no way into teams: see /super.
 // Cookie values are hashes derived from the stored secret, so changing a PIN
 // or join code logs everyone out of that team.
 
