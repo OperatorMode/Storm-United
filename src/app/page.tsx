@@ -11,7 +11,7 @@ import { getDeviceName } from "@/lib/profile";
 import { JoinTeamForm, ManagerSignInForm } from "./LandingForms";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { logoSrc } from "@/lib/brand";
-import { chatAuthor, currentChildren, currentDeviceId, currentManager } from "@/lib/session";
+import { chatAuthor, currentChildren, currentDeviceId, currentManager, isTeamAdmin } from "@/lib/session";
 import { emailEnabled } from "@/lib/email";
 import { managedTeams } from "@/lib/accounts";
 import { managedLeagues } from "@/lib/my-leagues";
@@ -69,10 +69,10 @@ function eventWhen(t: { event_starts_at?: string | null; event_tz?: string | nul
 }
 
 // The Manager badge: always in the card's top right corner.
-function ManagerBadge() {
+function ManagerBadge({ label = "Manager" }: { label?: string }) {
   return (
     <span className="absolute right-3 top-2 rounded-full bg-zinc-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-      Manager
+      {label}
     </span>
   );
 }
@@ -131,6 +131,7 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
         league: isEvent(t) ? eventWhen(t) : competition ? competitionLabel(competition) : t.division,
         kids: isEvent(t) ? await eventAnswer(t.id, children[0]) : children.map((c) => firstName(playerName(t, c))),
         boardUnread: tabs.boardUnread + tabs.messagesUnread, // unread board posts and private messages
+        organiser: isEvent(t) && (managing.has(t.id) || (await isTeamAdmin(t))), // an event this phone runs
         chatTimes: chat.filter((m) => m.author_id !== me).slice(-50).map((m) => m.created_at),
       };
     }),
@@ -162,7 +163,50 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
               </span>
               <span aria-hidden>→</span>
             </Link>
-            {rows.map(({ team: t, league, kids, boardUnread, chatTimes }) => (
+            {/* My Event: events you organise or were invited to, right under My Activities. */}
+            {(rows.some((r) => isEvent(r.team)) || runs.events.length > 0) && (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-baseline justify-between px-1">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">My Event</h2>
+                  <Link href="/event/new" className="text-xs font-medium underline opacity-80">
+                    + Create an event
+                  </Link>
+                </div>
+                {rows
+                  .filter((r) => isEvent(r.team))
+                  .map(({ team: t, league, kids, boardUnread, chatTimes, organiser }) => (
+                    <Link key={t.id} href={`/${t.id}`} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+                      {organiser && <ManagerBadge label="Organiser" />}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logoSrc(t)} alt="" className="size-10 shrink-0 object-contain" />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate font-semibold ${organiser ? "pr-20" : ""}`}>{t.name}</span>
+                        <span className="block truncate text-xs text-zinc-500">{league}</span>
+                        {kids.length > 0 && <span className="block truncate text-xs font-medium text-zinc-700">{kids.join(" & ")}</span>}
+                      </span>
+                      <TeamBadge teamId={t.id} boardUnread={boardUnread} chatTimes={chatTimes} />
+                      <span className="text-zinc-400" aria-hidden>
+                        →
+                      </span>
+                    </Link>
+                  ))}
+                {runs.events.map((r) => (
+                  <Link key={r.href} href={r.href} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
+                    <ManagerBadge label="Organiser" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {r.logo && <img src={r.logo} alt="" className="size-10 shrink-0 object-contain" />}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate pr-20 font-semibold">{r.title}</span>
+                      <span className="block truncate text-xs text-zinc-500">{r.detail}</span>
+                    </span>
+                    <span className="text-zinc-400" aria-hidden>
+                      →
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            {rows.filter((r) => !isEvent(r.team)).map(({ team: t, league, kids, boardUnread, chatTimes }) => (
               <Link key={t.id} href={`/${t.id}`} className="relative flex items-center gap-3 rounded-2xl bg-white p-3 text-zinc-950 shadow-lg">
                 {managing.has(t.id) && <ManagerBadge />}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -188,7 +232,7 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
           </div>
         )}
 
-        {DOORS.filter((d) => runs[d.key].length > 0).map((d) => (
+        {DOORS.filter((d) => d.key !== "events" && runs[d.key].length > 0).map((d) => (
           <section key={d.key} className="space-y-2">
             <div className="flex items-baseline justify-between px-1">
               <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">{d.title}</h2>
@@ -219,13 +263,13 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
           <JoinTeamForm />
         </section>
 
-        {DOORS.some((d) => !has[d.key]) && (
+        {DOORS.some((d) => d.key !== "events" && !has[d.key]) && (
           <section className="space-y-2">
             <div className="flex items-baseline justify-between px-1">
               <h2 className="text-sm font-semibold uppercase tracking-wide opacity-70">Managers</h2>
               {manager && <span className="text-xs opacity-60">Signed in as {manager.email}</span>}
             </div>
-            {DOORS.filter((d) => !has[d.key]).map((d) => (
+            {DOORS.filter((d) => d.key !== "events" && !has[d.key]).map((d) => (
               <Link
                 key={d.href}
                 href={manager || d.key === "events" ? d.href : signIn(d.href)}

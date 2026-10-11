@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ActivityForm } from "./ActivityForm";
 import { JoinCode, ShareActivities } from "./ActivitiesManage";
@@ -29,8 +30,11 @@ export function MeActions({
   );
   return (
     <div className="mt-4">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {button("add", "+ Add activity")}
+        <Link href="/event/new" className="rounded-full border border-current/30 bg-current/10 px-4 py-2 text-sm font-semibold">
+          Create event
+        </Link>
         {button("share", "Share")}
       </div>
       {open && (

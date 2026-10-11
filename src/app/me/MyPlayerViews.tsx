@@ -72,7 +72,7 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
           <Months days={days} selected={selected} onPick={pick} />
           <div className="flex flex-wrap gap-3 text-[11px] text-zinc-500">
             <span className="flex items-center gap-1">
-              <span className="font-bold text-accent underline decoration-2 underline-offset-2">Today</span>
+              <span className="size-3 rounded bg-zinc-300" /> Today
             </span>
             <span className="flex items-center gap-1">
               <Marker state="going" /> Going
@@ -116,14 +116,7 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
     const t = new Date().toLocaleDateString("en-CA");
     queueMicrotask(() => setToday(t));
   }, []);
-  const dayNumber = (date: string, n: number) =>
-    date === today ? (
-      <span className="text-accent underline decoration-2 underline-offset-2" aria-label={`Today, ${n}`}>
-        {n}
-      </span>
-    ) : (
-      n
-    );
+  const dayNumber = (date: string, n: number) => (date === today ? <span aria-label={`Today, ${n}`}>{n}</span> : n);
   const [fy, fm] = days[0].date.split("-").map(Number);
   const [ly, lm] = days[days.length - 1].date.split("-").map(Number);
   const months: { y: number; m: number }[] = [];
@@ -152,7 +145,7 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                 const day = byDate.get(date);
                 if (!day) {
                   return (
-                    <div key={date} className={`py-2 ${date === today ? "font-bold" : "text-zinc-400"}`}>
+                    <div key={date} className={`py-2 ${date === today ? "rounded-lg bg-zinc-200 font-semibold text-zinc-700" : "text-zinc-400"}`}>
                       {dayNumber(date, i + 1)}
                     </div>
                   );
@@ -162,7 +155,7 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                     key={date}
                     type="button"
                     onClick={() => onPick(date)}
-                    className={`relative rounded-lg ${day.kids.length && day.kids.every((k) => k.state === "possible") ? "border border-dashed border-zinc-300 bg-white text-zinc-500" : "bg-zinc-100 text-zinc-900"} ${day.kids.length > 3 ? "pb-5" : "pb-3"} pt-1.5 font-semibold ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
+                    className={`relative rounded-lg ${day.kids.length && day.kids.every((k) => k.state === "possible") ? "border border-dashed border-zinc-300 bg-white text-zinc-500" : date === today ? "bg-zinc-300 text-zinc-900" : "bg-zinc-100 text-zinc-900"} ${day.kids.length > 3 ? "pb-5" : "pb-3"} pt-1.5 font-semibold ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
                   >
                     {dayNumber(date, i + 1)}
                     {day.duty && <span className="absolute left-0.5 top-0 text-[9px] text-amber-500">★</span>}
