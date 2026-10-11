@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { fetchText, htmlToText } from "./feeds";
+import { canRenderPages, fetchText, htmlToText } from "./feeds";
 import { cleanLink, readPage } from "./league-scan";
 import type { Competition } from "./league";
 import { squadNames } from "./player-names";
@@ -63,8 +63,8 @@ async function ask<T extends z.ZodType>(schema: T, prompt: string): Promise<z.in
 }
 
 
-async function readSquad(url: string, team: string, league: string) {
-  const page = await readPage(url).catch(() => null);
+async function readSquad(url: string, team: string, league: string, render = false) {
+  const page = await readPage(url, render).catch(() => null);
   if (!page) return null;
   const links = anchors(page.html, page.url).slice(0, MAX_LINKS);
   const read = await ask(
@@ -144,6 +144,11 @@ export async function squadFromLink(rawUrl: string, team: string, league: string
   if (read && read.players.length < 3 && read.rosterUrl && read.rosterUrl !== url) {
     source = read.rosterUrl;
     read = await readSquad(source, team, league);
+  }
+  // Many club sites fill in their roster with JavaScript after the page loads: open it in a real browser and look again.
+  if (!read?.players.length && canRenderPages()) {
+    source = url;
+    read = await readSquad(url, team, league, true);
   }
   if (!read?.players.length) return { players: [], source: null, note: "Couldn’t find player names on that page." };
   return { players: squadNames(read.players), source, note: null };
