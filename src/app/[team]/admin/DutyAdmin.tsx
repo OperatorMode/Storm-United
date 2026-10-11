@@ -12,12 +12,14 @@ export function DutyAdmin({
   suggestions,
   games,
   families,
+  intro = "One per line. Parents see them under each game and tap “I’ll do it”.",
 }: {
   teamId: string;
   duties: string[];
   suggestions: string[];
   games: GameDuties[];
   families: { id: string; label: string }[];
+  intro?: string;
 }) {
   const [state, action, pending] = useActionState(saveDutyList.bind(null, teamId), null);
   const [text, setText] = useState(duties.join("\n"));
@@ -59,7 +61,7 @@ export function DutyAdmin({
       <details className="rounded-xl border border-zinc-200 p-3" open={duties.length === 0}>
         <summary className="cursor-pointer font-medium">{duties.length ? "Change the duties" : "Set up duties"}</summary>
         <form action={action} className="mt-3 space-y-2">
-          <p className="text-xs text-zinc-500">One per line. Parents see them under each game and tap “I’ll do it”.</p>
+          <p className="text-xs text-zinc-500">{intro}</p>
           <textarea name="duties" value={text} onChange={(e) => setText(e.target.value)} rows={4} className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base" />
           {missing.length > 0 && (
             <div className="flex flex-wrap gap-1.5">

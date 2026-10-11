@@ -279,7 +279,7 @@ export async function removeTraining(teamId: string, id: string, laterInSeries: 
 export async function saveDutyList(teamId: string, _: unknown, formData: FormData) {
   const team = await adminTeam(teamId);
   if (!team) return { error: "Not authorised." };
-  const names = [...new Set(String(formData.get("duties") ?? "").split(/\r?\n/).map((n) => n.trim().slice(0, 40)).filter(Boolean))].slice(0, 12);
+  const names = [...new Set(String(formData.get("duties") ?? "").split(/\r?\n/).map((n) => n.trim().slice(0, 40)).filter(Boolean))].slice(0, 20);
   await saveDuties(team.id, names);
   refresh(team.id);
   return { ok: true, count: names.length };

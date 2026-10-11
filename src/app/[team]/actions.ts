@@ -5,7 +5,8 @@ import { redirect, RedirectType } from "next/navigation";
 import { gameParts, isSlot, slotFrom, slotParts } from "@/lib/role";
 import { deletePushSub, getPushSubs } from "@/lib/messages";
 import { listTraining } from "@/lib/training";
-import { listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
+import { EVENT_DUTY_GAME, listDuties, listDutySignups, releaseDuty, takeDuty } from "@/lib/duties";
+import { isEvent } from "@/lib/my-events";
 
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -283,8 +284,14 @@ export async function volunteerForDuty(teamId: string, gameId: string, duty: str
   const children = await currentChildren(team);
   if (!children.length) return { error: "Pick your child first." };
   if (!(await listDuties(team.id)).includes(duty)) return { error: "That duty doesn’t exist." };
-  const game = await findGame(team, gameId);
-  if (!game || game.kickoff.getTime() < now().getTime()) return { error: "That game has already started." };
+  if (isEvent(team)) {
+    // An event's jobs are for the day itself, until it starts.
+    if (gameId !== EVENT_DUTY_GAME) return { error: "That duty doesn’t exist." };
+    if (team.event_starts_at && new Date(team.event_starts_at).getTime() < now().getTime()) return { error: "The event has already started." };
+  } else {
+    const game = await findGame(team, gameId);
+    if (!game || game.kickoff.getTime() < now().getTime()) return { error: "That game has already started." };
+  }
   if (take) {
     if (!(await takeDuty(team.id, gameId, duty, children[0]))) return { error: "Someone just took that one." };
   } else {

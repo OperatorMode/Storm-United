@@ -7,6 +7,8 @@ import { AddToMyTeams } from "./AccountLink";
 import { EventDetailsForm, GuestDecision } from "./EventOrganiserClient";
 import { InviteLink } from "../EventClient";
 import { listRsvps, pendingGuests } from "@/lib/my-events";
+import { DutyAdmin } from "./DutyAdmin";
+import { EVENT_DUTY_GAME, SUGGESTED_EVENT_DUTIES, listDuties, listDutySignups } from "@/lib/duties";
 import { tabData } from "@/lib/tabs";
 import { emailEnabled } from "@/lib/email";
 import { teamManagerIds } from "@/lib/accounts";
@@ -132,6 +134,28 @@ export async function EventOrganiser({ event, created }: { event: Team; created:
             })}
             {!event.players.length && <li className="py-2 text-zinc-500">No guests yet. Share the invitation above.</li>}
           </ul>
+        </Card>
+
+        <Card title="Duties" aside="Bring a salad, set up…">
+          {(async () => {
+            const [duties, signups] = await Promise.all([listDuties(event.id), listDutySignups(event.id)]);
+            return (
+              <DutyAdmin
+                teamId={event.id}
+                duties={duties}
+                suggestions={SUGGESTED_EVENT_DUTIES}
+                families={event.players.map((g) => ({ id: g.id, label: g.name }))}
+                intro="What needs doing or bringing, one per line. Guests see the list and tap “I’ll do it”. You can also put someone on a job yourself."
+                games={[
+                  {
+                    gameId: EVENT_DUTY_GAME,
+                    label: "Who’s doing what",
+                    slots: duties.map((duty) => ({ duty, playerId: signups.find((d) => d.game_id === EVENT_DUTY_GAME && d.duty === duty)?.player_id ?? null })),
+                  },
+                ]}
+              />
+            );
+          })()}
         </Card>
 
         <Card title="Event details">

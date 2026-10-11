@@ -8,6 +8,9 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 import { AnswerEvent, InviteLink, InvitationAnswer } from "./EventClient";
 import { getDeviceName } from "@/lib/profile";
 import { listRsvps } from "@/lib/my-events";
+import { DutyList } from "@/components/DutyList";
+import { now } from "@/lib/clock";
+import { EVENT_DUTY_GAME, listDuties, listDutySignups } from "@/lib/duties";
 import { eventTypeLabel } from "@/lib/event-style";
 import { approvedChildren, ids as idList, listPhones } from "@/lib/phones";
 import { tabData } from "@/lib/tabs";
@@ -51,7 +54,7 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
     );
   }
 
-  const [children, picked, waiting, rsvps, admin, tabs, deviceId] = await Promise.all([
+  const [children, picked, waiting, rsvps, admin, tabs, deviceId, duties, dutySignups] = await Promise.all([
     currentChildren(event),
     pickedChildren(event),
     waitingChildren(event),
@@ -59,6 +62,8 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
     isTeamAdmin(event),
     tabData(event),
     currentDeviceId(),
+    listDuties(event.id),
+    listDutySignups(event.id),
   ]);
   const guestId = children[0] ?? null;
   const me = guestId ? event.allPlayers.find((p) => p.id === guestId) : null;
@@ -204,6 +209,26 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
               ) : null,
             )}
             {!admin && groups.none.length > 0 && <p className="text-xs text-zinc-500">{groups.none.length} more invited, no answer yet.</p>}
+          </section>
+        )}
+
+        {(me || admin) && duties.length > 0 && (
+          <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-semibold">Can you help?</h2>
+            <p className="text-xs text-zinc-500">Tap “I’ll do it” so the organisers know it’s covered.</p>
+            <DutyList
+              teamId={event.id}
+              gameId={EVENT_DUTY_GAME}
+              canTake={!!me && !(start && start.getTime() < now().getTime())}
+              slots={duties.map((duty) => {
+                const taken = dutySignups.find((d) => d.game_id === EVENT_DUTY_GAME && d.duty === duty);
+                return {
+                  duty,
+                  takenBy: taken ? (event.allPlayers.find((p) => p.id === taken.player_id)?.name ?? "Taken") : null,
+                  mine: !!taken && !!me && taken.player_id === me.id,
+                };
+              })}
+            />
           </section>
         )}
 

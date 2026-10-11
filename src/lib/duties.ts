@@ -6,6 +6,9 @@ import { check, db, readLocal, writeLocal } from "./store";
 // identified by its first child's id (the same id used for MVP ballots).
 
 export const SUGGESTED_DUTIES = ["Oranges", "Snacks", "Team manager on the day", "Linesperson", "Pack up"];
+// My Event: the same roster, for the one day. Its "game" is the event itself.
+export const SUGGESTED_EVENT_DUTIES = ["Bring a salad", "Bring a dessert", "Drinks", "Ice", "Plates and cups", "Set up", "Pack up"];
+export const EVENT_DUTY_GAME = "event";
 
 export type DutySignup = { game_id: string; duty: string; player_id: string };
 
