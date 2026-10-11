@@ -32,7 +32,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/act-5-clash.webp",
         title: "Solve a clash",
-        text: "Two things at once? Tap Resolve clash. Choose Not going (the coach sees “Can’t make it”, or an activity skips that time), or pick who’s taking them: Mum, Dad, or the child on their own. Once it’s sorted, the clash turns green: resolved.",
+        text: "Two things at once? Tap Resolve clash. Choose Not going (the coach sees “Can’t make it”, or an activity skips that time), or pick who’s taking them: you, Mum, Dad, someone it’s shared with, or the child on their own. The rest of the family is told, and the clash turns green: resolved.",
       },
       {
         image: "/guide/act-3-add.webp",
@@ -41,8 +41,8 @@ const PATHS: Path[] = [
       },
       {
         image: "/guide/act-4-share.webp",
-        title: "Share with another phone",
-        text: "Tap Share at the top, then Get a code for all your activities or just some, and type it on the other phone under “Got a code?”. It works once, so nobody else can use it.",
+        title: "Share: your family, or one event",
+        text: "Tap Share. Join our family: their phone becomes part of your family and sees everything. Share one event: just that event, every time or one date, as a Shared event in their own My Activities; they can leave it any time. The code works once.",
       },
       {
         image: "/guide/act-1-week.webp",
@@ -69,12 +69,12 @@ const PATHS: Path[] = [
       {
         image: "/guide/join-3-team.webp",
         title: "Your team’s page",
-        text: "The next game with time, place and directions. Tap Can play, Maybe or Can’t make it, and see who else is coming. Further down: the ladder and the season’s fixtures. Tap the picture to see the whole page.",
+        text: "The next game with time, place and directions. Tap Can play, Maybe or Can’t make it, and see who else is coming. Further down: MVP votes (a red Vote now when it’s your turn), the ladder straight from the league’s website, and the season’s fixtures. Tap the picture to see the whole page.",
       },
       {
         image: "/guide/join-5-board.webp",
         title: "Board: news from the coach",
-        text: "Only the coach posts on the Board: times, places, what to bring. Tap Got it so the coach knows you’ve seen it.",
+        text: "Only the coach posts on the Board: times, places, what to bring. Tap the green Got it button so the coach knows you’ve seen it.",
       },
       {
         image: "/guide/join-4-chat.webp",
@@ -116,7 +116,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/manage-4-squad.webp",
         title: "Your squad and codes",
-        text: "Add players one per line, or find them on the league’s website. A join code keeps the team private to your families. A manager PIN lets a co-coach help out.",
+        text: "Add players one per line, from your club’s roster link (saved with the team), or from a file. A join code keeps the team private to your families. A manager PIN lets a co-coach help out.",
       },
       {
         image: "/guide/manage-5-share.webp",
@@ -131,7 +131,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/manage-7-corner.webp",
         title: "Manager’s Corner",
-        text: "Everything for running the team, folded into sections: game rotation, your team’s special role (if you set one up, like goalie), training, duties, the MVP tally, backup scores and team settings. Tap the picture to see it all.",
+        text: "Everything for running the team, folded into sections, each with a line on what it’s for: game rotation, your team’s special role (if you set one up, like goalie), training, duties, the MVP tally, backup scores and team settings (MVP votes can be turned off there). Tap the picture to see it all.",
       },
       {
         image: "/guide/manage-8-training.webp",
@@ -163,7 +163,7 @@ const PATHS: Path[] = [
       {
         image: "/guide/event-3-answer.webp",
         title: "Guests answer in one tap",
-        text: "Guests open the link, type their first name and tap Going, Maybe or Can’t come. No app to install, no account.",
+        text: "Guests open the link, type their first name and tap Going, Maybe or Can’t come, with who from their family is coming (for their calendar). No app to install, no account.",
       },
       {
         image: "/guide/event-4-page.webp",
@@ -382,7 +382,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
               <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">How it fits together</h3>
               <ol className="mt-2 space-y-1.5 text-sm">
                 {[
-                  { n: 1, title: "League", text: "fixtures, results and the ladder. Added by the league, or by anyone with a link to its website." },
+                  { n: 1, title: "League", text: "fixtures, results and the ladder, read from its website or app when a coach sets up their team, or run by hand for social comps." },
                   { n: 2, title: "Team", text: "a coach picks their team in the league’s draw." },
                   { n: 3, title: "Families and players", text: "join their team with its code." },
                 ].map((l) => (
