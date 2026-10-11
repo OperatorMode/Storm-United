@@ -320,7 +320,8 @@ export async function connectFeedAction(competitionId: string, _: unknown, formD
 }
 
 export async function syncNowAction(competitionId: string) {
-  if (!(await claimableCompetition(competitionId))) return { error: "Not authorised." };
+  // An imported league is the league's: only its official admins can act on it (it updates by itself anyway).
+  if (!(await managedCompetition(competitionId))) return { error: "Only the league’s official admins can do this." };
   const res = await syncCompetitionFeed(competitionId, true);
   refreshAll();
   return res.count ? { ok: true, count: res.count } : { error: res.errors[0] ?? "Nothing synced." };

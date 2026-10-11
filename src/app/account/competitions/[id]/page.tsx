@@ -208,7 +208,13 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
             <div className="text-xl font-bold">Almost there</div>
             <p className="mt-1">
               {competition.name} is set up and linked to {source}, but no games came through on the first read. Big
-              schedules sometimes take a second try: press <b>Check for updates now</b> below.
+              schedules sometimes take a second try: {canManage ? (
+                <>
+                  press <b>Check for updates now</b> below.
+                </>
+              ) : (
+                "Sidelnr tries again by itself, so check back a little later."
+              )}
             </p>
           </div>
         ) : isNew ? (
@@ -258,7 +264,11 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
             <a href={feed.url} target="_blank" rel="noreferrer" className="block truncate text-xs text-zinc-500 underline">
               {feed.url}
             </a>
-            <UpdateNow competitionId={id} />
+            {canManage ? (
+              <UpdateNow competitionId={id} />
+            ) : (
+              <p className="text-xs text-zinc-500">It updates by itself. Only the league’s official admins can change anything here.</p>
+            )}
           </div>
         </Card>
 
