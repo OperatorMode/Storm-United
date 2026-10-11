@@ -30,7 +30,8 @@ d["leagues"].append({"id": LEAGUE, "name": "Riverside Junior League", "short_nam
                      "venue": "Riverside Park", "source": "manual", "timezone": "Australia/Perth", "created_by": "demo-coach",
                      "verified_at": "2026-10-01T02:00:00.000Z", "verified_by": "secretary@riversidejl.example"})
 d["competitions"].append({"id": COMP, "league_id": LEAGUE, "name": "Under 10s", "season": "2026", "kind": "season", "source_key": None,
-                          "points_win": 3, "points_draw": 1, "ladder_last_round": None, "finals_date": None, "finals_note": None,
+                          "points_win": 3, "points_draw": 1, "ladder_last_round": None, "finals_date": "2026-11-21",
+                          "finals_note": "Top four play semi-finals and a grand final.",
                           "feed_type": "web", "feed_url": "https://riversidejl.example/fixtures/under-10s",
                           "feed_synced_at": (datetime.now(timezone.utc) - timedelta(minutes=40)).isoformat(), "feed_error": None,
                           "ladder_table": {"columns": ["P", "W", "D", "L", "GD", "Pts"], "source": "riversidejl.example",

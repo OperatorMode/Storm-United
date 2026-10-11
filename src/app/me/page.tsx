@@ -29,6 +29,8 @@ import { MeActions } from "./MeActions";
 import { ActivityList, SessionToggle } from "./ActivitiesManage";
 import { ActivityReminders } from "./ActivityReminders";
 import { ClashSolver, type SkipTarget } from "./ClashSolver";
+import { QuickAnswer } from "./QuickAnswer";
+import { zonedTime } from "@/lib/fixtures";
 import { listTakers } from "@/lib/takers";
 import { pushPublicKey } from "@/lib/push";
 import { SidelnrLink } from "@/components/SidelnrLink";
@@ -63,6 +65,7 @@ type Entry = {
   resolved?: string[]; // clashes already solved, and how ("Dad takes Leo, Mum takes Zara")
   key: string; // for the clash solver: "<team>:<game or training>", or the activity session's id
   taker?: string | null; // who's taking them (clash solver)
+  possible?: { note: string | null }; // might happen (finals, if the team makes it): shown faded, never a clash
   training?: { cancelled: boolean; minutes: number; note: string | null };
   duties?: string[]; // jobs this family is on for the game (oranges, snacks…)
 };
@@ -88,7 +91,7 @@ function findClashes(entries: Entry[]): { child: number; family: number } {
   const going = (e: Entry) => (e.activity?.cancelled ? [] : e.kids.filter((k) => k.status !== "no"));
   // Cancelled training and postponed games don't count; a skipped activity or a
   // child who isn't going still does, as a solved clash.
-  const live = entries.filter((e) => e.kids.length > 0 && (e.game.time !== "Postponed" || e.activity?.cancelled));
+  const live = entries.filter((e) => !e.possible && e.kids.length > 0 && (e.game.time !== "Postponed" || e.activity?.cancelled));
   const what = (y: Entry) =>
     y.activity
       ? y.activity.name
@@ -188,7 +191,36 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           training: { cancelled: t.cancelled, minutes: t.minutes, note: t.note },
         }),
       );
-      return [...sessions, ...ourGames.map(
+      // A finals day the team might play: on the calendar (faded) until the real fixture is in the draw.
+      const finalsDate = competition?.finals_date ?? null;
+      const finalsKnown = !!finalsDate && ourGames.some((g) => isoDateIn(g.kickoff, tz) === finalsDate);
+      const possible: Entry[] =
+        finalsDate && !finalsKnown && finalsDate >= isoDateIn(new Date(now), tz)
+          ? [
+              {
+                team,
+                game: {
+                  id: `finals-${competition!.id}`,
+                  round: null,
+                  time: "TBC",
+                  pitch: null,
+                  stage: "Finals",
+                  home: team.league_name,
+                  away: "",
+                  kickoff: zonedTime(finalsDate, "12:00", tz),
+                  score: null,
+                  scoreSource: null,
+                },
+                tz,
+                place: null,
+                clashes: [],
+                key: `${team.id}:finals-${competition!.id}`,
+                kids: children.map((c) => ({ id: c, name: firstName(playerName(team, c)), status: null })),
+                possible: { note: competition!.finals_note ?? null },
+              },
+            ]
+          : [];
+      return [...sessions, ...possible, ...ourGames.map(
         (game): Entry => ({
           team,
           game,
@@ -437,16 +469,48 @@ function editValues(a: Activity): ActivityInitial {
  * least one thing (not going, a skipped activity, or a cancelled training),
  * or not going to anything.
  */
-function dayMarkers(entries: Entry[]): { key: string; state: "going" | "some" | "none" }[] {
+function dayMarkers(entries: Entry[]): { key: string; state: "going" | "some" | "none" | "possible" }[] {
   const per = new Map<string, { going: boolean; off: boolean }>();
+  const maybe = new Set<string>(); // only something that might happen (finals)
   for (const e of entries) {
+    if (e.possible) {
+      for (const k of e.kids) maybe.add(kidKey(k.name));
+      continue;
+    }
     for (const k of e.kids) {
       const off = k.status === "no" || !!e.activity?.cancelled || e.game.time === "Postponed";
       const p = per.get(kidKey(k.name)) ?? { going: false, off: false };
       per.set(kidKey(k.name), { going: p.going || !off, off: p.off || off });
     }
   }
-  return [...per.entries()].map(([key, p]) => ({ key, state: p.going && p.off ? "some" : p.going ? "going" : "none" }));
+  const real = [...per.entries()].map(([key, p]) => ({ key, state: (p.going && p.off ? "some" : p.going ? "going" : "none") as "going" | "some" | "none" }));
+  return [...real, ...[...maybe].filter((k) => !per.has(k)).map((key) => ({ key, state: "possible" as const }))];
+}
+
+/** A day the team might play (finals): faded, until the real fixture is in the draw. */
+function PossibleCard({ e }: { e: Entry }) {
+  const team = e.team!;
+  return (
+    <li
+      data-kid={e.kids[0] ? kidKey(e.kids[0].name) : undefined}
+      className="rounded-2xl border border-dashed border-zinc-300 bg-white/70 p-3 text-zinc-600"
+    >
+      <Link href={`/${team.id}`} className="flex items-start gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoSrc(team)} alt="" className="size-10 shrink-0 object-contain opacity-60" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs">
+            {e.kids.map((k) => k.name).join(" & ")}
+            {e.kids.length > 0 && " · "}
+            {team.name}
+          </span>
+          <span className="block font-semibold text-zinc-800">Possible: finals</span>
+          <span className="mt-0.5 block text-sm">If {team.name} makes it. Time and place once the draw is out.</span>
+          {e.possible?.note && <span className="block text-xs text-zinc-500">{e.possible.note}</span>}
+        </span>
+      </Link>
+    </li>
+  );
 }
 
 /** The clash solver on a card: Resolve clash (not going, or who's taking them), or who's taking them. */
@@ -508,8 +572,10 @@ function ActivityCard({ e, options }: { e: Entry; options: string[] }) {
 
 function GameCard({ e, options }: { e: Entry; options: string[] }) {
   if (e.activity || !e.team) return <ActivityCard e={e} options={options} />;
+  if (e.possible) return <PossibleCard e={e} />;
   const { game, tz } = e;
   const team = e.team;
+  const future = game.kickoff.getTime() > clockNow().getTime() && game.time !== "Postponed";
   const home = game.home === team.league_name;
   const meet = team.meet_minutes > 0 && !e.training ? meetingTime(game, team.meet_minutes, tz) : null;
   return (
@@ -560,18 +626,26 @@ function GameCard({ e, options }: { e: Entry; options: string[] }) {
             You’re on: {d}
           </span>
         ))}
-        {!e.training?.cancelled && e.kids.map((k) =>
-          k.status ? (
-            <span key={k.name} className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[k.status].cls}`}>
-              {e.kids.length > 1 && `${k.name}: `}
-              {STATUS[k.status].label}
-            </span>
-          ) : (
-            <Link key={k.name} href={`/${team.id}`} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-              Can {k.name} {e.training ? "come" : "play"}? Tap to answer
-            </Link>
-          ),
-        )}
+        {!e.training?.cancelled &&
+          e.kids.map((k) =>
+            future && k.id ? (
+              <QuickAnswer
+                key={k.name}
+                teamId={team.id}
+                gameId={game.id}
+                kidId={k.id}
+                kidName={k.name}
+                training={!!e.training}
+                status={k.status}
+                showName={e.kids.length > 1}
+              />
+            ) : k.status ? (
+              <span key={k.name} className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[k.status].cls}`}>
+                {e.kids.length > 1 && `${k.name}: `}
+                {STATUS[k.status].label}
+              </span>
+            ) : null,
+          )}
         {e.place && <Directions place={e.place} className="ml-auto bg-zinc-900 text-white" />}
       </div>
     </li>

@@ -12,7 +12,7 @@ export type CalendarDay = {
   duty: boolean; // the family is on a duty that day
   // One marker per person, in their colour: going to everything (dot), skipping
   // at least one thing (dot with a ring), or not going to anything (ring only).
-  kids: { key: string; state: "going" | "some" | "none" }[];
+  kids: { key: string; state: "going" | "some" | "none" | "possible" }[];
   node: ReactNode; // that day's cards
 };
 
@@ -81,6 +81,9 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
               <Marker state="none" /> Not going
             </span>
             <span className="flex items-center gap-1">
+              <Marker state="possible" /> Possible (finals)
+            </span>
+            <span className="flex items-center gap-1">
               <span className="size-3 rounded ring-2 ring-red-600" /> Clash
             </span>
             <span className="flex items-center gap-1">
@@ -142,7 +145,7 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
                     key={date}
                     type="button"
                     onClick={() => onPick(date)}
-                    className={`relative rounded-lg bg-zinc-100 ${day.kids.length > 3 ? "pb-5" : "pb-3"} pt-1.5 font-semibold text-zinc-900 ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
+                    className={`relative rounded-lg ${day.kids.length && day.kids.every((k) => k.state === "possible") ? "border border-dashed border-zinc-300 bg-white text-zinc-500" : "bg-zinc-100 text-zinc-900"} ${day.kids.length > 3 ? "pb-5" : "pb-3"} pt-1.5 font-semibold ${day.clash ? "ring-2 ring-red-600" : day.resolved ? "ring-2 ring-emerald-500" : date === selected ? "ring-2 ring-zinc-900" : ""}`}
                   >
                     {i + 1}
                     {day.duty && <span className="absolute left-0.5 top-0 text-[9px] text-amber-500">★</span>}
@@ -163,11 +166,13 @@ function Months({ days, selected, onPick }: { days: CalendarDay[]; selected: str
 }
 
 /** A person's marker on a calendar day, in their colour (grey in the key). */
-function Marker({ kid, state }: { kid?: string; state: "going" | "some" | "none" }) {
+function Marker({ kid, state }: { kid?: string; state: "going" | "some" | "none" | "possible" }) {
   const c = kid ? "var(--kid, #71717a)" : "#71717a";
   const style =
     state === "going"
       ? { background: c }
+      : state === "possible"
+        ? { background: c, opacity: 0.35 }
       : state === "some"
         ? { background: c, boxShadow: `0 0 0 1px #f4f4f5, 0 0 0 2.2px ${c}` }
         : { boxShadow: `inset 0 0 0 1.5px ${c}` };
