@@ -26,7 +26,7 @@ export default async function EditMyTeamPage({ params }: PageProps<"/account/tea
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
       <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-        <SidelnrLink className="" />
+        <SidelnrLink className="text-zinc-900" />
         <Link href="/account">← My teams</Link>
       </div>
       <h1 className="text-xl font-semibold">Edit {team.name}</h1>

@@ -75,7 +75,7 @@ export default async function SuperPage({ searchParams }: PageProps<"/super">) {
     return (
       <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
         <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
-          <SidelnrLink className="" />
+          <SidelnrLink className="text-zinc-900" />
           <Link href="/super">← All teams</Link>
         </div>
         <Card title={editing ? `Edit ${editing.name}` : "New team"}>

@@ -5,7 +5,7 @@ import { SidelnrLink } from "./SidelnrLink";
 export function ComingSoonPage({ title, text }: { title: string; text: string }) {
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 pb-10">
-      <SidelnrLink className="" />
+      <SidelnrLink className="text-zinc-900" />
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-accent">Coming soon</div>
         <h1 className="mt-1 text-xl font-semibold">{title}</h1>
