@@ -38,7 +38,7 @@ export function ChatThread({
   const bottom = useRef<HTMLDivElement>(null);
   const last = messages.at(-1)?.created_at;
 
-  const label = (id: string) => (id === "coach" ? "Coach" : (names[id] ?? "A parent"));
+  const label = (id: string) => names[id] ?? (id === "coach" ? (event ? "Organiser" : "Coach") : event ? "A guest" : "A parent");
 
   // Fetch anything newer than what we have.
   const poll = useCallback(async () => {
@@ -108,7 +108,7 @@ export function ChatThread({
     <>
       <main className="flex-1 space-y-1 px-4 pb-44 pt-3">
         {messages.length === 0 && (
-          <p className="py-10 text-center text-sm text-zinc-500">No messages yet. Say hi to the team.</p>
+          <p className="py-10 text-center text-sm text-zinc-500">No messages yet. Say hi to {event ? "everyone" : "the team"}.</p>
         )}
         {messages.map((m, i) => {
           const mine = m.author_id === me || (!!family && m.author_id === family.id);
@@ -121,7 +121,7 @@ export function ChatThread({
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[80%] ${sameAuthorAsPrev ? "" : "mt-2"}`}>
                   {!mine && !sameAuthorAsPrev && (
-                    <div className={`mb-0.5 px-1 text-[11px] font-medium ${m.author_id === "coach" ? "text-accent" : "text-zinc-500"}`}>
+                    <div className={`mb-0.5 px-1 text-[11px] font-medium ${m.author_id === "coach" ? "font-semibold text-zinc-800" : "text-zinc-500"}`}>
                       {label(m.author_id)}
                     </div>
                   )}

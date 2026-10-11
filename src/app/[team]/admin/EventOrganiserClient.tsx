@@ -72,8 +72,8 @@ export function EventFields({ initial, onType }: { initial?: Partial<Details>; o
         <span className="mb-1 block font-medium">Hosted by (optional)</span>
         <input name="host" maxLength={40} defaultValue={initial?.host} placeholder="e.g. Kate & Tom" className={field} />
       </label>
-      <div className="grid grid-cols-3 gap-2">
-        <label className="col-span-3 block sm:col-span-1">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <label className="col-span-2 block sm:col-span-1">
           <span className="mb-1 block font-medium">Date</span>
           <input name="date" type="date" required defaultValue={initial?.date} className={field} />
         </label>

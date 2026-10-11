@@ -212,5 +212,40 @@ for aid, kids in ((welcome, ["ava", "noah", "zoe", "max", "isla", "ethan", "ruby
     for kid in kids:
         d["acks"].append({"announcement_id": aid, "player_id": kid, "created_at": ago(4), "demo": True})
 
+# My Event: Mia's birthday party, organised by Kate & Tom. Leo's family (the phone in
+# the screenshots) is a guest; The Nguyens were invited by The Parkers and wait for an OK.
+EVENT = "mias-birthday-demo"
+d["teams"] = [t for t in d["teams"] if t["id"] != EVENT]
+d["players"] = [x for x in d["players"] if x.get("team_id") != EVENT]
+for k in ("event_rsvps", "team_duties", "duty_signups", "chat", "announcements", "team_phones"):
+    d[k] = [x for x in d.get(k, []) if x.get("team_id") != EVENT]
+d["teams"].append({
+    "id": EVENT, "name": "Mia’s 9th birthday", "league_name": "Mia’s 9th birthday", "division": "event", "competition_id": None,
+    "primary_color": "#be123c", "accent_color": "#fde68a", "logo_url": None,
+    # Made-up stored values: the screenshots carry the matching cookies (see shots-event.json).
+    "admin_pin_hash": "demo:organiser", "join_code_hash": "demo:invite", "join_code_key": None,
+    "meet_minutes": 0, "goalie_enabled": False, "kind": "event",
+    "event_starts_at": "2026-11-07T06:00:00.000Z", "event_ends_at": "2026-11-07T09:00:00.000Z",
+    "event_place": "Riverside Park, BBQ area 3", "event_host": "Kate & Tom", "rsvp_by": "2026-10-31",
+    "event_details": "Party games, a piñata and cake at 4. Bring swimmers if it’s warm.", "event_tz": "Australia/Perth",
+    "event_type": "birthday", "event_dress": "Wear something colourful",
+})
+guests = [("leos-family", "Leo’s family", "org", False), ("the-parkers", "The Parkers", "org", False), ("noahs-family", "Noah’s family", "org", False),
+          ("avas-family", "Ava’s family", "org", False), ("islas-family", "Isla’s family", "org", False), ("the-nguyens", "The Nguyens", "the-parkers", True)]
+for i, (gid, name, by, pending) in enumerate(guests):
+    d["players"].append({"team_id": EVENT, "id": gid, "name": name, "sort": i, "active": not pending, "pending": pending, "invited_by": by})
+for gid, status, adults, kids in (("the-parkers", "yes", 2, 2), ("noahs-family", "yes", 1, 1), ("avas-family", "maybe", 2, 1), ("islas-family", "no", 0, 0)):
+    d.setdefault("event_rsvps", []).append({"team_id": EVENT, "guest_id": gid, "status": status, "adults": adults, "kids": kids, "updated_at": ago(10)})
+for i, name in enumerate(["Bring a salad", "Bring a dessert", "Ice", "Set up", "Pack up"]):
+    d["team_duties"].append({"team_id": EVENT, "name": name, "sort": i})
+for duty, gid in (("Ice", "the-parkers"), ("Bring a dessert", "noahs-family")):
+    d["duty_signups"].append({"team_id": EVENT, "game_id": "event", "duty": duty, "player_id": gid, "created_at": ago(8)})
+d["announcements"].append({"id": str(uuid.uuid4()), "team_id": EVENT, "created_at": ago(20), "source": None,
+                           "body": "Thanks for all the answers so far! If it rains we move under the big shelter next to BBQ area 3."})
+for author, body, h in (("the-parkers", "Can’t wait! Is there parking close to BBQ area 3?", 9),
+                        ("coach", "Yes, the car park on River Rd is right next to it.", 8.5),
+                        ("noahs-family", "Noah has been counting down the days", 6)):
+    d["chat"].append({"id": str(uuid.uuid4()), "team_id": EVENT, "author_id": author, "body": body, "created_at": ago(h)})
+
 json.dump(d, open(p, "w", encoding="utf8"), indent=2)
 print("demo ready")

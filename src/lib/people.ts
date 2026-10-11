@@ -44,7 +44,8 @@ export const teamLabels = cache(async (teamId: string): Promise<Record<string, s
   const team = await getTeam(teamId);
   if (!team) return {};
   const out: Record<string, string> = { [COACH_ID]: team.kind === "event" ? "Organiser" : "Coach" };
-  for (const p of team.allPlayers) out[p.id] = `${firstName(p.name)}’s parent`;
+  // Posts made by a child's id: "Leo's parent"; at an event, by the guest family itself ("The Parkers").
+  for (const p of team.allPlayers) out[p.id] = team.kind === "event" ? p.name : `${firstName(p.name)}’s parent`;
   const phones = (await listPhones(team.id))
     .filter((p) => p.member_id)
     .sort((a, b) => (a.created_at ?? a.last_seen).localeCompare(b.created_at ?? b.last_seen));
