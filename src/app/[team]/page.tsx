@@ -1,4 +1,5 @@
 import { Card } from "@/components/Card";
+import { Section } from "@/components/Section";
 import { gameParts, roleName, slotLabel, type GameParts } from "@/lib/role";
 import { OfficialLadderTable } from "@/components/OfficialLadderTable";
 import { SidelnrLink } from "@/components/SidelnrLink";
@@ -122,6 +123,8 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
 
   const played = ourGames.filter((g) => g.kickoff.getTime() <= now.getTime()).reverse();
   const openVoting = played.filter((g) => votingState(g, now) === "open");
+  // Open votes this family hasn't sent yet: a red marker on the folded MVP card.
+  const toVote = voter ? openVoting.filter((g) => !ballots.some((b) => b.game_id === g.id && b.voter_id === voter)).length : 0;
 
   return (
     <div className="mx-auto max-w-md pb-24">
@@ -278,7 +281,19 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
         })()}
 
         {team.mvp_enabled !== false && (
-        <Card title="MVP votes" aside="3 · 2 · 1 points">
+        <Section
+          title="MVP votes"
+          aside={
+            toVote ? (
+              <span className="flex items-center gap-1.5 font-semibold text-red-600">
+                <span className="size-2 rounded-full bg-red-600" aria-hidden />
+                {toVote === 1 ? "Vote now" : `${toVote} to vote`}
+              </span>
+            ) : (
+              "3 · 2 · 1 points"
+            )
+          }
+        >
           {openVoting.map((g) => {
             const gameBallots = ballots.filter((b) => b.game_id === g.id);
             const mine = voter ? gameBallots.find((b) => b.voter_id === voter) : undefined;
@@ -338,7 +353,7 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
               })}
             </ul>
           )}
-        </Card>
+        </Section>
         )}
 
         {officialLadder ? (
