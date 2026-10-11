@@ -123,6 +123,13 @@ export async function sendActivityReminders(now = Date.now()): Promise<number> {
   return sent;
 }
 
+/** Tells the household's other phones that a clash was sorted, e.g. "John takes Leo to …" (not this phone). */
+export async function notifyClashSorted(householdId: string, text: string, exceptDevice: string | null): Promise<void> {
+  const phones = (await allHouseholdPush()).filter((p) => p.household_id === householdId && p.notify_new !== false && p.device_id !== exceptDevice);
+  const payload = { title: "Clash sorted", body: `${text} Check My Activities.`, url: "/me", icon: "/app-icon/192", tag: `clash-${Date.now()}` };
+  await Promise.allSettled(phones.map((p) => sendPushTo(p, payload, () => deleteHouseholdPush(p.endpoint))));
+}
+
 /** Tells the household's other phones that an activity was added (not the phone that added it). */
 export async function notifyNewActivity(
   householdId: string,

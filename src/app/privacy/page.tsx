@@ -160,7 +160,7 @@ export default function PrivacyPage() {
       <h2>Removing information</h2>
       <ul>
         <li>
-          <b>On your phone:</b> <Link href="/me#forget">Forget this phone</Link> (at the bottom of My Activities) removes the
+          <b>On your phone:</b> <Link href="/#forget">Forget this phone</Link> (at the very bottom of the home page) removes the
           teams and children it remembers. Remove an activity in My Activities to delete it.
         </li>
         <li>

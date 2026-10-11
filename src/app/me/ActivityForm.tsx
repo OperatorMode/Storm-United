@@ -206,7 +206,7 @@ export function ActivityForm({ people, initial, onDone }: { people: string[]; in
 
       <label className="block">
         <span className="mb-1 block font-medium">Where (optional)</span>
-        <input name="location" maxLength={120} defaultValue={initial?.location} placeholder="Address, for directions" className={field} />
+        <input name="location" maxLength={120} defaultValue={initial?.location} placeholder="A place or address, e.g. Riverside Park" className={field} />
       </label>
 
       <button disabled={pending || !person.trim()} className="w-full rounded-xl bg-zinc-900 px-4 py-3 font-semibold text-white disabled:opacity-30">

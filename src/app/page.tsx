@@ -4,6 +4,7 @@ import { TeamBadge } from "@/components/TeamBadge";
 import { competitionLabel, getCompetition } from "@/lib/league";
 import { tabData } from "@/lib/tabs";
 import { listChat } from "@/lib/messages";
+import { ForgetPhone } from "@/app/me/ForgetPhone";
 import { LegalLinks } from "@/components/LegalPage";
 import { Guide } from "@/components/Guide";
 import { WhoAreYou } from "@/components/WhoAreYou";
@@ -320,6 +321,11 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
           chat, and your whole family’s schedule in one spot.
         </p>
         <LegalLinks className="opacity-60" />
+        {(ids.length > 0 || rows.length > 0) && (
+          <p className="text-center opacity-50">
+            <ForgetPhone />
+          </p>
+        )}
         {/* A new phone (no teams, not signed in) gets the guide on its first visit. */}
         <Guide autoOpen={!ids.length && !manager} openNow={openGuide} />
       </div>

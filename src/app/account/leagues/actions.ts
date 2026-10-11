@@ -3,6 +3,7 @@
 import { redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { currentManagerId } from "@/lib/session";
+import { removeLeagueAdmin } from "@/lib/owner-tools";
 import { competitionTz, getCompetition, listCompetitions, pitchLabel } from "@/lib/league";
 import { formatDay, formatTime, formatWhen, isTimezone, isoDateIn, minutesOfDay } from "@/lib/time";
 import { buildSeasonDraw, type DrawSettings } from "@/lib/season-draw";
@@ -794,4 +795,13 @@ export async function requestLeagueReview(competitionId: string, note: string) {
     }
   }
   return res;
+}
+
+/** "Stop running this league": this account leaves the league's admins. The league carries on. */
+export async function stopRunningLeague(leagueId: string) {
+  const managerId = await currentManagerId();
+  if (!managerId || !(await adminLeagueIds(managerId)).includes(leagueId)) return { error: "Not authorised." };
+  await removeLeagueAdmin(leagueId, managerId);
+  refreshAll();
+  redirect("/account/leagues", RedirectType.replace);
 }

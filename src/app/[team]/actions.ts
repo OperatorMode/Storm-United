@@ -31,7 +31,7 @@ import {
   voterCookie,
   selfCookie,
   isPlayerSelf,
-  isTeamAdmin,
+  isTeamAdmin, inviteCookie
 } from "@/lib/session";
 
 // Loads the team and checks this browser is allowed in (join code).
@@ -313,6 +313,7 @@ export async function leaveTeam(teamId: string, pushEndpoint: string | null) {
   store.delete(selfCookie(team.id));
   store.delete(joinCookie(team.id));
   store.delete(adminCookie(team.id)); // the team PIN on this device too, or home keeps listing the team
+  store.delete(inviteCookie(team.id)); // an event's invitation on this phone
   if (team.id === "storm-united") store.delete("su_voter"); // from before teams had their own links
   if (pushEndpoint) await deletePushSub(team.id, pushEndpoint);
   revalidatePath("/", "layout");

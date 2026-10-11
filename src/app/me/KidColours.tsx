@@ -11,7 +11,10 @@ import { kidKey } from "@/lib/kid-key";
 export const PALETTE = ["#2563eb", "#db2777", "#16a34a", "#ea580c", "#7c3aed", "#0891b2", "#ca8a04", "#4b5563"];
 const KEY = "su_kid_colours";
 
-export function KidColours({ kids }: { kids: string[] }) {
+// `fixed`: names with a set colour that isn't picked here (an event nobody in the family
+// was picked for shows in the event's own colour).
+export function KidColours({ kids: all, fixed = {} }: { kids: string[]; fixed?: Record<string, string> }) {
+  const kids = all.filter((k) => !(k in fixed));
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [open, setOpen] = useState<string | null>(null);
 
@@ -33,7 +36,10 @@ export function KidColours({ kids }: { kids: string[] }) {
     } catch {}
   };
 
-  const css = kids.map((k, i) => `[data-kid="${kidKey(k)}"]{--kid:${colourOf(k, i)}}`).join("");
+  const css = [
+    ...kids.map((k, i) => `[data-kid="${kidKey(k)}"]{--kid:${colourOf(k, i)}}`),
+    ...Object.entries(fixed).map(([k, c]) => `[data-kid="${kidKey(k)}"]{--kid:${c}}`),
+  ].join("");
 
   return (
     <>

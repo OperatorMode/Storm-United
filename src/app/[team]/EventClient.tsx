@@ -16,23 +16,26 @@ export function InvitationAnswer({
   needName,
   rsvpBy,
   families,
+  family,
 }: {
   eventId: string;
   needName: boolean;
   rsvpBy: string | null;
   families: { id: string; name: string }[];
+  family: string[]; // this phone's family, for "who's going"
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [status, setStatus] = useState<"yes" | "maybe" | "no" | null>(null);
   const [adults, setAdults] = useState(1);
   const [kids, setKids] = useState(0);
+  const [people, setPeople] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const send = (s: "yes" | "maybe" | "no") =>
     start(async () => {
       setError(null);
-      const res = await answerInvitation(eventId, s, adults, kids, needName ? name : null);
+      const res = await answerInvitation(eventId, s, adults, kids, needName ? name : null, people);
       if (res.error) return setError(res.error);
       router.replace(`/${eventId}?joined`, { scroll: true });
     });
@@ -67,6 +70,7 @@ export function InvitationAnswer({
       </div>
       {status && status !== "no" && (
         <div className="space-y-2 rounded-xl bg-zinc-50 p-3 text-sm">
+          <WhoGoing family={needName && name.trim() ? [name.trim(), ...family] : family} value={people} set={setPeople} />
           <Stepper label="Adults" value={adults} set={setAdults} />
           <Stepper label="Kids" value={kids} set={setKids} />
           <button type="button" disabled={pending} onClick={() => send(status)} className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white">
@@ -133,23 +137,26 @@ export function AnswerEvent({
   name,
   current,
   rsvpBy,
+  family,
 }: {
   eventId: string;
   name: string;
-  current: { status: "yes" | "maybe" | "no"; adults: number; kids: number } | null;
+  current: { status: "yes" | "maybe" | "no"; adults: number; kids: number; people: string[] } | null;
   rsvpBy: string | null;
+  family: string[]; // this phone's family, for "who's going"
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(current?.status ?? null);
   const [adults, setAdults] = useState(current?.adults || 1);
   const [kids, setKids] = useState(current?.kids ?? 0);
+  const [people, setPeople] = useState<string[]>(current?.people ?? []);
   const [saved, setSaved] = useState(!!current);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const save = (s: "yes" | "maybe" | "no", a = adults, k = kids) =>
     start(async () => {
       setError(null);
-      const res = await answerEvent(eventId, s, a, k);
+      const res = await answerEvent(eventId, s, a, k, people);
       if (res.error) return setError(res.error);
       setSaved(true);
       router.refresh();
@@ -194,6 +201,14 @@ export function AnswerEvent({
       </div>
       {status && status !== "no" && (
         <div className="space-y-2 rounded-xl bg-zinc-50 p-3 text-sm">
+          <WhoGoing
+            family={family}
+            value={people}
+            set={(f) => {
+              setPeople(f);
+              setSaved(false);
+            }}
+          />
           {stepper("Adults", adults, setAdults, 0)}
           {stepper("Kids", kids, setKids, 0)}
           <button
@@ -248,6 +263,58 @@ export function InviteLink({ eventId, eventName, label = "Invite someone" }: { e
         {label}
       </button>
       {msg && <p className="mt-1 break-all text-xs text-zinc-600">{msg}</p>}
+    </div>
+  );
+}
+
+/** Who from the family is going: each gets their own dot in My Activities. */
+function WhoGoing({ family, value, set }: { family: string[]; value: string[]; set: (f: (prev: string[]) => string[]) => void }) {
+  const [typing, setTyping] = useState(false);
+  const [other, setOther] = useState("");
+  const options = [...new Set([...family, ...value])];
+  const toggle = (p: string) => set((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  const add = () => {
+    const p = other.replace(/\s+/g, " ").trim().slice(0, 24);
+    if (p) set((prev) => (prev.includes(p) ? prev : [...prev, p]));
+    setOther("");
+    setTyping(false);
+  };
+  return (
+    <div>
+      <div className="mb-1.5 text-xs text-zinc-500">Who from your family? (for your calendar)</div>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((p) => (
+          <button
+            key={p}
+            type="button"
+            aria-pressed={value.includes(p)}
+            onClick={() => toggle(p)}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${value.includes(p) ? "bg-zinc-900 text-white" : "border border-zinc-300 bg-white text-zinc-700"}`}
+          >
+            {p}
+          </button>
+        ))}
+        {typing ? (
+          <span className="flex gap-1">
+            <input
+              autoFocus
+              value={other}
+              onChange={(e) => setOther(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
+              maxLength={24}
+              placeholder="First name"
+              className="w-28 rounded-full border border-zinc-300 bg-white px-3 py-1 text-sm"
+            />
+            <button type="button" onClick={add} className="rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white">
+              Add
+            </button>
+          </span>
+        ) : (
+          <button type="button" onClick={() => setTyping(true)} className="rounded-full border border-dashed border-zinc-400 px-3 py-1 text-sm text-zinc-600">
+            + Someone else
+          </button>
+        )}
+      </div>
     </div>
   );
 }

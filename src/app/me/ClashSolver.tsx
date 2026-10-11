@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setClashTaker, toggleSession } from "./activity-actions";
+import { setClashTaker, tellFamilyClashSorted, toggleSession } from "./activity-actions";
 import { updateAttendance, updateTrainingAttendance } from "@/app/[team]/actions";
 
 export type SkipTarget =
@@ -22,6 +22,7 @@ export function ClashSolver({
   resolved = null,
   options,
   skip,
+  about,
 }: {
   entryKey: string;
   clash: { kind: "child" | "family"; text: string } | null;
@@ -30,6 +31,7 @@ export function ClashSolver({
   resolved?: string | null; // a solved clash, and how ("Dad takes Leo, Mum takes Zara")
   options: string[]; // family members to pick from
   skip: SkipTarget | null;
+  about: string; // what and when, for the family's notification: "Riverside Rockets game, Sat 7 Nov 8:30 am"
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -41,6 +43,7 @@ export function ClashSolver({
   const pick = (who: string | null) =>
     start(async () => {
       await setClashTaker(entryKey, who);
+      if (who) await tellFamilyClashSorted(kidNames.includes(who) ? `${who} goes on their own to ${about}.` : `${who} takes ${kids} to ${about}.`);
       setOpen(false);
       setTyping(false);
       setOther("");
@@ -55,6 +58,7 @@ export function ClashSolver({
           if (skip.type === "game") await updateAttendance(skip.teamId, skip.id, { status: "no" }, kid);
           else await updateTrainingAttendance(skip.teamId, skip.id, "no", kid);
         }
+      await tellFamilyClashSorted(`${kids} ${kidNames.length > 1 ? "aren’t" : "isn’t"} going to ${about}.`);
       setOpen(false);
       router.refresh();
     });

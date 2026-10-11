@@ -89,6 +89,11 @@ export async function createEventAction(_: unknown, form: FormData) {
   const team = (await getTeam(event.id))!;
   if (code) store.set(adminCookie(event.id), adminToken(team)!, COOKIE_OPTS);
   store.set(inviteCookie(event.id), `${ORGANISER}.${inviteSignature(event.id, ORGANISER)}`, COOKIE_OPTS);
+  // The organiser's family is a guest too (they answer who's going on the event page, like everyone).
+  const device = await ensureDeviceId();
+  const mine = await addGuest(team, clean(form.get("host"), 40) || (await getDeviceName(device)) || "Organiser", ORGANISER);
+  store.set(voterCookie(event.id), mine.id, COOKIE_OPTS);
+  await recordPhone(event.id, device, [mine.id], false, (await headers()).get("user-agent"));
   redirect(`/${event.id}/admin?created`);
 }
 
@@ -127,7 +132,14 @@ export async function joinEvent(eventId: string, familyName: string) {
  * hasn't got one). Invited by another guest: the answer waits with them for an
  * organiser's OK.
  */
-export async function answerInvitation(eventId: string, status: "yes" | "maybe" | "no", adults: number, kids: number, typedName: string | null) {
+export async function answerInvitation(
+  eventId: string,
+  status: "yes" | "maybe" | "no",
+  adults: number,
+  kids: number,
+  typedName: string | null,
+  people: string[] = [],
+) {
   const event = await eventFor(eventId);
   if (!event || !(await canView(event))) return { error: "This invitation isn’t open on this phone." };
   if (!["yes", "maybe", "no"].includes(status)) return { error: "Invalid answer." };
@@ -148,7 +160,7 @@ export async function answerInvitation(eventId: string, status: "yes" | "maybe" 
   const store = await cookies();
   store.set(voterCookie(event.id), guest.id, COOKIE_OPTS);
   await recordPhone(event.id, device, [guest.id], false, (await headers()).get("user-agent"));
-  await setRsvp(event.id, guest.id, status, status === "no" ? 0 : adults, status === "no" ? 0 : kids);
+  await setRsvp(event.id, guest.id, status, status === "no" ? 0 : adults, status === "no" ? 0 : kids, people);
   if (guest.pending) {
     after(() =>
       notifyManagers(event.id, {
@@ -166,14 +178,14 @@ export async function answerInvitation(eventId: string, status: "yes" | "maybe" 
 }
 
 /** Going / Maybe / Can't, and how many adults and kids. */
-export async function answerEvent(eventId: string, status: "yes" | "maybe" | "no", adults: number, kids: number) {
+export async function answerEvent(eventId: string, status: "yes" | "maybe" | "no", adults: number, kids: number, people: string[] = []) {
   const event = await eventFor(eventId);
   if (!event) return { error: "Event not found." };
   const guest = (await currentChildren(event))[0];
   if (!guest) return { error: "Join the event first." };
   if (!["yes", "maybe", "no"].includes(status)) return { error: "Invalid answer." };
   if (status !== "no" && adults + kids < 1) return { error: "How many are coming?" };
-  await setRsvp(event.id, guest, status, status === "no" ? 0 : adults, status === "no" ? 0 : kids);
+  await setRsvp(event.id, guest, status, status === "no" ? 0 : adults, status === "no" ? 0 : kids, people);
   revalidatePath(`/${event.id}`, "layout");
   revalidatePath("/me");
   return { ok: true };

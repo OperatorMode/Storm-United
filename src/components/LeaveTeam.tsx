@@ -10,11 +10,13 @@ export function LeaveTeam({
   teamId,
   teamName,
   managing = false,
+  event = false,
   className = "",
 }: {
   teamId: string;
   teamName: string;
   managing?: boolean;
+  event?: boolean; // a My Event: "Leave this event"
   className?: string;
 }) {
   const [pending, start] = useTransition();
@@ -23,7 +25,9 @@ export function LeaveTeam({
       type="button"
       disabled={pending}
       onClick={() => {
-        const message = managing
+        const message = event
+          ? `Leave ${teamName} on this phone? It disappears from your home page and My Activities, and its notifications stop. Your answer stays with the organiser: change it to Can’t come first if you’re not going.`
+          : managing
           ? `Leave ${teamName} as a parent on this device? Its notifications stop here. You manage this team, so it stays under My Team while you're signed in.`
           : `Leave ${teamName} on this device? It disappears from your home page and My Activities, and its notifications stop. You can join again with the team code.`;
         if (!confirm(message)) return;
@@ -38,7 +42,7 @@ export function LeaveTeam({
       }}
       className={className}
     >
-      {pending ? "Leaving…" : "Leave this team"}
+      {pending ? "Leaving…" : event ? "Leave this event" : "Leave this team"}
     </button>
   );
 }

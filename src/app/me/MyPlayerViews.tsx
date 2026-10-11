@@ -84,7 +84,7 @@ export function MyPlayerViews({ list, days }: { list: ReactNode; days: CalendarD
               <Marker state="none" /> Not going
             </span>
             <span className="flex items-center gap-1">
-              <Marker state="possible" /> Possible (finals)
+              <Marker state="possible" /> Possible
             </span>
             <span className="flex items-center gap-1">
               <span className="size-3 rounded ring-2 ring-red-600" /> Clash

@@ -88,7 +88,7 @@ export function EventFields({ initial, onType }: { initial?: Partial<Details>; o
       </div>
       <label className="block">
         <span className="mb-1 block font-medium">Where</span>
-        <input name="place" maxLength={120} defaultValue={initial?.place} placeholder="Address, for directions" className={field} />
+        <input name="place" maxLength={120} defaultValue={initial?.place} placeholder="A place or address, e.g. Riverside Park" className={field} />
       </label>
       <DressCode initial={initial?.dress} />
       <label className="block">

@@ -4,11 +4,13 @@ import { TabBar } from "@/components/TabBar";
 import { Directions } from "@/components/Directions";
 import { GuideLink } from "@/components/Guide";
 import { InstallLink } from "@/components/InstallLink";
+import { LeaveTeam } from "@/components/LeaveTeam";
 import { FamilyRequests, type OtherPhone } from "@/components/FamilyPhones";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { AnswerEvent, InviteLink, InvitationAnswer } from "./EventClient";
 import { getDeviceName } from "@/lib/profile";
 import { listRsvps } from "@/lib/my-events";
+import { familyPeople } from "@/lib/family";
 import { DutyList } from "@/components/DutyList";
 import { now } from "@/lib/clock";
 import { EVENT_DUTY_GAME, listDuties, listDutySignups } from "@/lib/duties";
@@ -55,7 +57,7 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
     );
   }
 
-  const [children, picked, waiting, rsvps, admin, tabs, deviceId, duties, dutySignups] = await Promise.all([
+  const [children, picked, waiting, rsvps, admin, tabs, deviceId, duties, dutySignups, family] = await Promise.all([
     currentChildren(event),
     pickedChildren(event),
     waitingChildren(event),
@@ -65,6 +67,7 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
     currentDeviceId(),
     listDuties(event.id),
     listDutySignups(event.id),
+    familyPeople(),
   ]);
   const guestId = children[0] ?? null;
   const me = guestId ? event.allPlayers.find((p) => p.id === guestId) : null;
@@ -151,7 +154,8 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
           <AnswerEvent
             eventId={event.id}
             name={me.name}
-            current={answerOf(me.id) ? { status: answerOf(me.id)!.status, adults: answerOf(me.id)!.adults, kids: answerOf(me.id)!.kids } : null}
+            current={answerOf(me.id) ? { status: answerOf(me.id)!.status, adults: answerOf(me.id)!.adults, kids: answerOf(me.id)!.kids, people: answerOf(me.id)!.people ?? [] } : null}
+            family={family}
             rsvpBy={event.rsvp_by ? formatIsoDate(event.rsvp_by, tz) : null}
           />
         ) : awaitingOrganiser ? (
@@ -173,6 +177,7 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
             needName={!(await getDeviceName(deviceId))}
             rsvpBy={event.rsvp_by ? formatIsoDate(event.rsvp_by, tz) : null}
             families={guests.map((g) => ({ id: g.id, name: g.name }))}
+            family={family}
           />
         )}
 
@@ -241,6 +246,11 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
         )}
         {me && <NotificationSettings teamId={event.id} vapidKey={pushPublicKey()} event />}
 
+        {(me || pickedGuest) && (
+          <div className="pt-2 text-center">
+            <LeaveTeam event teamId={event.id} teamName={event.name} className="rounded-xl border border-zinc-300 px-4 py-2 text-sm text-zinc-600" />
+          </div>
+        )}
         <p className="pt-2 text-center text-xs text-zinc-500">
           {admin ? (
             <Link href={`/${event.id}/admin`} className="underline">

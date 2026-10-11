@@ -24,6 +24,7 @@ import { listLeagueMessages } from "@/lib/league-messages";
 import { VerifyLeague } from "../../leagues/VerifyLeague";
 import { leagueClaims } from "@/lib/league-verify";
 import { currentManagerId } from "@/lib/session";
+import { StopRunningLeague } from "@/app/account/leagues/StopRunningLeague";
 import { getManager } from "@/lib/accounts";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
@@ -311,6 +312,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
                 leagueImpact={leagueImpact}
               />
             </Card>
+            {isAdmin && <StopRunningLeague leagueId={competition.league_id} leagueName={competition.league.name} />}
           </>
         )}
       </div>
@@ -477,6 +479,7 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
           leagueImpact={leagueImpact}
         />
       </Card>
+      <StopRunningLeague leagueId={competition.league_id} leagueName={competition.league.name} />
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { listTraining } from "@/lib/training";
 import { listDutySignups } from "@/lib/duties";
 import { LegalLinks } from "@/components/LegalPage";
-import { ForgetPhone } from "./ForgetPhone";
+import { LeaveFamily } from "./LeaveFamily";
 import { MyPlayerViews } from "./MyPlayerViews";
 import { KidColours } from "./KidColours";
 import { kidKey } from "@/lib/kid-key";
@@ -32,6 +32,7 @@ import { ClashSolver, type SkipTarget } from "./ClashSolver";
 import { QuickAnswer } from "./QuickAnswer";
 import { isEvent, listRsvps } from "@/lib/my-events";
 import { DEFAULT_TZ } from "@/lib/time";
+import { getDeviceName } from "@/lib/profile";
 import { zonedTime } from "@/lib/fixtures";
 import { listTakers } from "@/lib/takers";
 import { pushPublicKey } from "@/lib/push";
@@ -161,7 +162,8 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
   const perTeam = await Promise.all(
     teams.map(async (team): Promise<Entry[]> => {
       if (!(await canView(team))) return [];
-      // A My Event the family joined: one entry, for the whole family, with their answer.
+      // A My Event the family joined: one entry, with a dot for each person going (or, if
+      // nobody was picked, one in the event's own colour, under the event's name).
       if (isEvent(team)) {
         const guest = (await currentChildren(team))[0];
         if (!guest || !team.event_starts_at) return [];
@@ -187,7 +189,9 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
             place: team.event_place ?? null,
             clashes: [],
             key: `${team.id}:event`,
-            kids: [{ name: "Family", status: answer?.status ?? null }],
+            kids: answer?.people?.length
+              ? answer.people.map((name) => ({ name, status: answer.status }))
+              : [{ name: team.name, status: answer?.status ?? null }],
             event: {
               host: team.event_host ?? null,
               ends: team.event_ends_at ? new Date(team.event_ends_at) : null,
@@ -325,7 +329,8 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
   ).flat();
   const people = [...new Set([...teamKids, ...activities.map((a) => a.person)])].filter((p) => p !== "Me");
   // Who can take a child somewhere (clash solver): Mum, Dad, anyone picked before, or the child on their own.
-  const takerOptions = [...new Set(["Mum", "Dad", ...Object.values(takers), ...people])];
+  const myName = await getDeviceName(deviceId);
+  const takerOptions = [...new Set([...(myName ? [myName] : []), "Mum", "Dad", ...Object.values(takers), ...people])];
 
   // Upcoming games grouped by day.
   const days = new Map<string, Entry[]>();
@@ -371,7 +376,10 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           </div>
         )}
 
-        <KidColours kids={[...new Set(upcoming.flatMap((e) => e.kids.map((k) => k.name)))]} />
+        <KidColours
+          kids={[...new Set(upcoming.flatMap((e) => e.kids.map((k) => k.name)))]}
+          fixed={Object.fromEntries(upcoming.filter((e) => e.event && e.team && e.kids[0]?.name === e.team.name).map((e) => [e.team!.name, e.team!.primary_color]))}
+        />
 
         {days.size > 0 && (
           <MyPlayerViews
@@ -475,7 +483,11 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           </details>
         )}
 
-        {(teams.length > 0 || activities.length > 0) && <ForgetPhone />}
+        {activities.length > 0 && (
+          <div className="pt-2 text-center">
+            <LeaveFamily />
+          </div>
+        )}
         <LegalLinks className="pt-2 text-zinc-400" />
       </main>
     </div>
@@ -538,13 +550,18 @@ function EventCard({ e, options }: { e: Entry; options: string[] }) {
   const heads = [ev.adults && `${ev.adults} adult${ev.adults === 1 ? "" : "s"}`, ev.kids && `${ev.kids} kid${ev.kids === 1 ? "" : "s"}`].filter(Boolean).join(", ");
   return (
     <li
-      data-kid={kidKey("Family")}
+      data-kid={kidKey(e.kids[0]?.name ?? team.name)}
       style={{ borderLeftColor: "var(--kid, #e4e4e7)" }}
       className={`rounded-2xl border border-l-4 bg-white p-3 shadow-sm ${e.clashes.length ? "border-amber-300" : e.resolved?.length ? "border-emerald-300" : "border-zinc-200"}`}
     >
       <Solver e={e} options={options} />
       <Link href={`/${team.id}`} className="block">
         <span className="block text-xs text-zinc-500">
+          {e.kids[0]?.name !== team.name && (
+            <b data-kid={kidKey(e.kids[0].name)} className="font-semibold" style={{ color: "var(--kid)" }}>
+              {e.kids.map((k) => k.name).join(" & ")} ·{" "}
+            </b>
+          )}
           Event{ev.host ? ` · hosted by ${ev.host}` : ""}
         </span>
         <span className="block font-semibold">{team.name}</span>
@@ -623,8 +640,17 @@ function Solver({ e, options }: { e: Entry; options: string[] }) {
       resolved={e.clashes.length ? null : (e.resolved?.join(" · ") ?? null)}
       options={options}
       skip={skip}
+      about={`${entryTitle(e)}, ${formatWeekday(e.game.kickoff, e.tz)} ${formatTime(e.game.kickoff, e.tz)}`}
     />
   );
+}
+
+/** What an entry is, in a few words: "Riverside Rockets game", "Riverside Rockets training", "Piano". */
+function entryTitle(e: Entry): string {
+  if (e.activity) return e.activity.name;
+  if (!e.team) return e.game.home;
+  if (e.event) return e.team.name;
+  return `${e.team.name} ${e.training ? "training" : "game"}`;
 }
 
 function ActivityCard({ e, options }: { e: Entry; options: string[] }) {

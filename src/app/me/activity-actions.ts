@@ -23,7 +23,7 @@ import {
   type WeeklySlot,
 } from "@/lib/activities";
 import { readActivitySource, refreshActivity } from "@/lib/activity-import";
-import { deleteHouseholdPush, getHouseholdPush, notifyNewActivity, saveHouseholdPush } from "@/lib/activity-reminders";
+import { deleteHouseholdPush, getHouseholdPush, notifyClashSorted, notifyNewActivity, saveHouseholdPush } from "@/lib/activity-reminders";
 import { after } from "next/server";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
 import { COOKIE_OPTS, HOUSEHOLD_COOKIE, currentDeviceId, currentHouseholdId } from "@/lib/session";
@@ -237,6 +237,15 @@ export async function joinActivities(code: string) {
   return { ok: true };
 }
 
+/** This phone leaves its family's activities: a fresh, empty household; its reminders here stop. */
+export async function leaveFamily(endpoint: string | null) {
+  const id = await createHousehold();
+  (await cookies()).set(HOUSEHOLD_COOKIE, id, COOKIE_OPTS);
+  if (endpoint) await deleteHouseholdPush(endpoint);
+  refresh();
+  return { ok: true };
+}
+
 // ---------- reminders ----------
 
 type BrowserSubscription = { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
@@ -277,4 +286,13 @@ export async function setClashTaker(entryKey: string, taker: string | null) {
   await setTaker(await household(), key, who);
   refresh();
   return { ok: true };
+}
+
+/** A clash was sorted on this phone: tell the family's other phones ("John takes Leo to Riverside Rockets game, Sat 7 Nov 8:30 am."). */
+export async function tellFamilyClashSorted(text: string) {
+  const id = await currentHouseholdId();
+  const msg = text.replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!id || !msg) return;
+  const me = await currentDeviceId();
+  after(() => notifyClashSorted(id, msg, me));
 }

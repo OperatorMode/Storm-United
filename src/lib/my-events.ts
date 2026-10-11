@@ -8,7 +8,7 @@ import { hashSecret, slugify, type Team } from "./teams";
 // with how many adults and kids. A family invited by another guest waits
 // (pending) until an organiser lets them in.
 
-export type Rsvp = { team_id: string; guest_id: string; status: "yes" | "maybe" | "no"; adults: number; kids: number; updated_at: string };
+export type Rsvp = { team_id: string; guest_id: string; status: "yes" | "maybe" | "no"; adults: number; kids: number; people?: string[]; updated_at: string };
 
 export const isEvent = (team: Pick<TeamRow, "kind">) => team.kind === "event";
 export const ORGANISER = "org";
@@ -96,13 +96,15 @@ export async function listRsvps(eventId: string): Promise<Rsvp[]> {
   }
 }
 
-export async function setRsvp(eventId: string, guestId: string, status: Rsvp["status"], adults: number, kids: number): Promise<void> {
+export async function setRsvp(eventId: string, guestId: string, status: Rsvp["status"], adults: number, kids: number, people: string[] = []): Promise<void> {
   const row: Rsvp = {
     team_id: eventId,
     guest_id: guestId,
     status,
     adults: Math.max(0, Math.min(50, Math.round(adults))),
     kids: Math.max(0, Math.min(50, Math.round(kids))),
+    // Who from the family is going (first names), for their dots in My Activities.
+    people: status === "no" ? [] : [...new Set(people.map((p) => p.replace(/\s+/g, " ").trim().slice(0, 24)).filter(Boolean))].slice(0, 12),
     updated_at: new Date().toISOString(),
   };
   const s = db();
