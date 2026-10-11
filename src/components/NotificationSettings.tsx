@@ -16,8 +16,8 @@ async function registration() {
   return navigator.serviceWorker.register("/sw.js", { scope: "/" });
 }
 
-// Per-device switches for message-board and chat notifications.
-export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vapidKey: string | null }) {
+// Per-device notification switches, in one place: the team's (or event's) home page.
+export function NotificationSettings({ teamId, vapidKey, event = false }: { teamId: string; vapidKey: string | null; event?: boolean }) {
   const [mode, setMode] = useState<Mode>("loading");
   const [prefs, setPrefs] = useState<Prefs>({ board: false, chat: false, games: false, reminders: false, dm: false });
   const [error, setError] = useState<string | null>(null);
@@ -94,23 +94,41 @@ export function NotificationSettings({ teamId, vapidKey }: { teamId: string; vap
         )}
         {mode === "ready" && (
           <>
-            <Toggle
-              label="Game changes"
-              hint="New time or pitch, postponed or cancelled"
-              checked={prefs.games}
-              disabled={pending}
-              onChange={(v) => update({ ...prefs, games: v })}
-            />
+            {!event && (
+              <Toggle
+                label="Game changes"
+                hint="New time or pitch, postponed or cancelled"
+                checked={prefs.games}
+                disabled={pending}
+                onChange={(v) => update({ ...prefs, games: v })}
+              />
+            )}
             <Toggle
               label="Reminders"
-              hint="“Can your child play?” two days before, and on game day"
+              hint={
+                event
+                  ? "If you haven’t answered by the reply-by date, the day before, and on the day, with your job"
+                  : "“Can your child play?” two days before, and on game day, with your duty"
+              }
               checked={prefs.reminders}
               disabled={pending}
               onChange={(v) => update({ ...prefs, reminders: v })}
             />
-            <Toggle label="Message board" hint="When the coach posts" checked={prefs.board} disabled={pending} onChange={(v) => update({ ...prefs, board: v })} />
-            <Toggle label="Team chat" hint="When someone writes in the chat" checked={prefs.chat} disabled={pending} onChange={(v) => update({ ...prefs, chat: v })} />
-            <Toggle label="Private messages" hint="When someone in the team or the coach messages you" checked={prefs.dm} disabled={pending} onChange={(v) => update({ ...prefs, dm: v })} />
+            <Toggle
+              label={event ? "News" : "Message board"}
+              hint={event ? "When the organisers post" : "When the coach posts"}
+              checked={prefs.board}
+              disabled={pending}
+              onChange={(v) => update({ ...prefs, board: v })}
+            />
+            <Toggle label={event ? "Chat" : "Team chat"} hint="When someone writes in the chat" checked={prefs.chat} disabled={pending} onChange={(v) => update({ ...prefs, chat: v })} />
+            <Toggle
+              label="Private messages"
+              hint={event ? "When a guest or an organiser messages you" : "When someone in the team or the coach messages you"}
+              checked={prefs.dm}
+              disabled={pending}
+              onChange={(v) => update({ ...prefs, dm: v })}
+            />
             <p className="text-xs text-zinc-400">Applies to this phone only.</p>
             {(prefs.board || prefs.chat || prefs.games || prefs.reminders || prefs.dm) && (
               <button

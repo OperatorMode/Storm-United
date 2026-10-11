@@ -238,7 +238,7 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
             <p className="text-center text-xs text-zinc-500">Anyone you invite needs an organiser’s OK.</p>
           </div>
         )}
-        {me && <NotificationSettings teamId={event.id} vapidKey={pushPublicKey()} />}
+        {me && <NotificationSettings teamId={event.id} vapidKey={pushPublicKey()} event />}
 
         <p className="pt-2 text-center text-xs text-zinc-500">
           {admin ? (

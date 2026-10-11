@@ -2,14 +2,12 @@ import { notFound } from "next/navigation";
 import { SidelnrLink } from "@/components/SidelnrLink";
 import { JoinGate } from "@/components/JoinGate";
 import { TabBar } from "@/components/TabBar";
-import { NotificationSettings } from "@/components/NotificationSettings";
 import { AckButton, AnnouncementComposer, DeleteAnnouncement } from "./BoardControls";
 import { firstName, getTeam, playerName } from "@/lib/teams";
 import { canView, currentVoter, isTeamAdmin } from "@/lib/session";
 import { listAnnouncements } from "@/lib/messages";
 import { isEvent } from "@/lib/my-events";
 import { formatWhen, tabData } from "@/lib/tabs";
-import { pushPublicKey } from "@/lib/push";
 import { teamTz } from "@/lib/league";
 
 export default async function BoardPage({ params }: PageProps<"/[team]/board">) {
@@ -88,7 +86,6 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
           );
         })}
 
-        <NotificationSettings teamId={team.id} vapidKey={pushPublicKey()} />
       </main>
 
       <TabBar teamId={team.id} active="board" {...tabs} />
