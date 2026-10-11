@@ -277,6 +277,7 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
           );
         })()}
 
+        {team.mvp_enabled !== false && (
         <Card title="MVP votes" aside="3 · 2 · 1 points">
           {openVoting.map((g) => {
             const gameBallots = ballots.filter((b) => b.game_id === g.id);
@@ -338,6 +339,7 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
             </ul>
           )}
         </Card>
+        )}
 
         {officialLadder ? (
           <Card title="Ladder" aside={competition?.name}>

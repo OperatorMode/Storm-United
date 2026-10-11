@@ -12,6 +12,7 @@ export function TeamSettings({
   hasJoinCode,
   meetMinutes,
   goalieEnabled,
+  mvpEnabled,
   roleName,
   gameParts,
   partName,
@@ -22,6 +23,7 @@ export function TeamSettings({
   hasJoinCode: boolean;
   meetMinutes: number;
   goalieEnabled: boolean;
+  mvpEnabled: boolean;
   roleName: string | null;
   gameParts: number;
   partName: string;
@@ -85,6 +87,16 @@ export function TeamSettings({
 
       <PartsField count={gameParts} name={partName} />
       <RoleField enabled={goalieEnabled} name={roleName} />
+
+      <label className="flex items-start gap-2">
+        <input type="checkbox" name="mvp_enabled" defaultChecked={mvpEnabled} className="mt-1 size-4" />
+        <span>
+          <span className="block font-medium">MVP votes</span>
+          <span className="block text-xs text-zinc-500">
+            After each game, families vote for the best players (3, 2 and 1 points). Untick to hide MVP everywhere for this team.
+          </span>
+        </span>
+      </label>
 
       {muteLeague !== null && (
         <label className="flex items-start gap-2">

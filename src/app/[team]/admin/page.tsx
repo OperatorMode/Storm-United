@@ -417,6 +417,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         />
       </Section>
 
+      {team.mvp_enabled !== false && (
+      <>
       <Section title="Season MVP" hint="The season’s MVP points from the families’ votes. Only managers see this.">
         <table className="w-full text-sm tabular-nums">
           <thead>
@@ -474,6 +476,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           </ul>
         )}
       </Section>
+      </>
+      )}
 
       <Section title="Backup scores" hint="Enter a score if the league hasn’t posted it yet.">
         {played.length === 0 ? (
@@ -528,6 +532,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           hasJoinCode={!!team.join_code_hash}
           meetMinutes={team.meet_minutes}
           goalieEnabled={team.goalie_enabled}
+          mvpEnabled={team.mvp_enabled !== false}
           roleName={team.role_name ?? null}
           gameParts={gp.count}
           partName={gp.name}
@@ -554,7 +559,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         </Section>
       )}
 
-      {earlier.length > 0 && (
+      {team.mvp_enabled !== false && earlier.length > 0 && (
         <Section title="Earlier seasons" aside="MVP points">
           <ul className="space-y-1 text-sm">
             {earlier.map((r) => (

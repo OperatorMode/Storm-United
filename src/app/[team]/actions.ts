@@ -159,6 +159,7 @@ export async function updateAttendance(
 export async function submitBallot(teamId: string, gameId: string, picks: string[]) {
   const team = await teamFor(teamId);
   if (!team) return { error: "Team not found." };
+  if (team.mvp_enabled === false) return { error: "MVP votes are turned off for this team." };
   const children = await currentChildren(team);
   const voter = children[0];
   if (!voter) return { error: "Pick your child first." };
