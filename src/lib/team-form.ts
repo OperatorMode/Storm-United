@@ -8,7 +8,7 @@ import { PART_PRESETS } from "./role";
 // managers (self-serve). Permission checks happen in the calling action.
 
 // Paths that already mean something in the app and can't be team links.
-const RESERVED = new Set(["super", "api", "brand", "icons", "uploads", "_next", "admin", "account", "login", "auth", "events", "me", "cal", "app-icon", "manifest.webmanifest", "privacy", "terms", "features"]);
+const RESERVED = new Set(["super", "api", "brand", "icons", "uploads", "_next", "admin", "account", "login", "auth", "events", "me", "cal", "app-icon", "manifest.webmanifest", "privacy", "terms", "features", "what-we-see", "event", "feedback", "guide"]);
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 export type TeamFormOptions = {

@@ -12,6 +12,24 @@ export default function TermsPage() {
         setting up a team or league, you also agree on behalf of that group.
       </p>
 
+      <h2>A self-managed app</h2>
+      <ul>
+        <li>
+          Sidelnr gives teams, families and event organisers the tools; they run their own team or event. Coaches and managers
+          decide who joins, what’s posted and how the team works. Organisers do the same for their events. Families decide
+          which phones follow their child.
+        </li>
+        <li>
+          Sidelnr’s owner doesn’t moderate or look into teams or events, and can’t see inside them in the app.{" "}
+          <Link href="/what-we-see">Here’s exactly what the owner sees</Link>. Problems in a team are for its managers first:
+          report a message in the chat, or talk to the coach or organiser.
+        </li>
+        <li>
+          If something serious is reported to us, or a manager or family asks for help they can’t get in their team, we can
+          step in: delete a team or event, take a manager off, reset a team PIN, or close an account.
+        </li>
+      </ul>
+
       <h2>Using Sidelnr</h2>
       <ul>
         <li>
@@ -58,8 +76,8 @@ export default function TermsPage() {
       <h2>Your content</h2>
       <p>
         What you post (messages, chat, team details, activities) stays yours. You let us store and show it to the people it’s
-        meant for so the app works. We may remove content that breaks these terms, and suspend phones, accounts or teams that
-        misuse Sidelnr.
+        meant for so the app works. Managers and organisers look after what’s posted in their team or event. If something
+        that breaks these terms is reported to us, we may delete the team or event, take a manager off, or close an account.
       </p>
 
       <h2>Leaving</h2>

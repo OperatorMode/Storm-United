@@ -345,6 +345,12 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
             <button type="button" onClick={close} className="w-full py-2 text-sm text-zinc-500 underline">
               Skip, I’ll look around myself
             </button>
+            <p className="text-center text-xs text-zinc-400">
+              Sidelnr is self-managed by its teams and families.{" "}
+              <Link href="/what-we-see" onClick={close} className="underline">
+                What Sidelnr’s owner sees
+              </Link>
+            </p>
           </div>
         ) : (
           <>
