@@ -17,7 +17,7 @@ const PATHS: Path[] = [
   {
     id: "activities",
     label: "My Activities",
-    who: "Our family’s week, every team and activity in one calendar",
+    who: "The full family organiser: sync your kids’ team schedules or create your own events, all in one calendar with clash warnings",
     steps: [
       {
         image: "/guide/act-1-week.webp",
@@ -48,6 +48,48 @@ const PATHS: Path[] = [
         image: "/guide/act-1-week.webp",
         title: "Reminders and your calendar",
         text: "Turn on Reminders at the top for a heads-up a day and an hour before. Add everything to my calendar puts it all in your phone’s calendar, and keeps it up to date.",
+      },
+    ],
+  },
+  {
+    id: "event",
+    label: "My Event",
+    who: "Organise a party, birthday or dinner: who’s coming, duties and what to bring, group chat, announcements and private messages",
+    steps: [
+      {
+        image: "/guide/event-1-create.webp",
+        title: "Create your event",
+        text: "Tap Create event in My Activities, or + Create an event on the home page. Pick the type (Party, Birthday, Dinner) for its look, then when, where, a dress code and a reply-by date. No sign-in needed.",
+      },
+      {
+        image: "/guide/event-2-invite.webp",
+        title: "Share the invitation",
+        text: "Send the link in a message or your group chat. Only people with the link can open the event. Families a guest invites wait for your OK here.",
+      },
+      {
+        image: "/guide/event-3-answer.webp",
+        title: "Guests answer in one tap",
+        text: "Guests open the link, type their first name and tap Going, Maybe or Can’t come, with who from their family is coming (for their calendar). No app to install, no account.",
+      },
+      {
+        image: "/guide/event-4-page.webp",
+        title: "Everything in one place",
+        text: "When and where (with directions), the dress code and details, and adding it to the phone’s calendar. Answers can change any time.",
+      },
+      {
+        image: "/guide/event-5-help.webp",
+        title: "Who’s coming, and who brings what",
+        text: "Everyone sees who’s coming and how many. Under Can you help?, guests tap I’ll do it for a job, like bringing a salad.",
+      },
+      {
+        image: "/guide/event-6-organiser.webp",
+        title: "The Organiser page",
+        text: "Let in families a guest invited, see every answer with adults and kids, set the jobs and change the details. Add co-organisers with the organiser code.",
+      },
+      {
+        image: "/guide/event-7-chat.webp",
+        title: "News and Chat",
+        text: "Post updates under News, and talk to everyone in Chat. Guests get reminders the day before and on the day, with their job.",
       },
     ],
   },
@@ -146,51 +188,9 @@ const PATHS: Path[] = [
     ],
   },
   {
-    id: "event",
-    label: "My Event",
-    who: "A birthday, a party or a dinner: invite people and see who’s coming",
-    steps: [
-      {
-        image: "/guide/event-1-create.webp",
-        title: "Create your event",
-        text: "Tap Create event in My Activities, or + Create an event on the home page. Pick the type (Party, Birthday, Dinner) for its look, then when, where, a dress code and a reply-by date. No sign-in needed.",
-      },
-      {
-        image: "/guide/event-2-invite.webp",
-        title: "Share the invitation",
-        text: "Send the link in a message or your group chat. Only people with the link can open the event. Families a guest invites wait for your OK here.",
-      },
-      {
-        image: "/guide/event-3-answer.webp",
-        title: "Guests answer in one tap",
-        text: "Guests open the link, type their first name and tap Going, Maybe or Can’t come, with who from their family is coming (for their calendar). No app to install, no account.",
-      },
-      {
-        image: "/guide/event-4-page.webp",
-        title: "Everything in one place",
-        text: "When and where (with directions), the dress code and details, and adding it to the phone’s calendar. Answers can change any time.",
-      },
-      {
-        image: "/guide/event-5-help.webp",
-        title: "Who’s coming, and who brings what",
-        text: "Everyone sees who’s coming and how many. Under Can you help?, guests tap I’ll do it for a job, like bringing a salad.",
-      },
-      {
-        image: "/guide/event-6-organiser.webp",
-        title: "The Organiser page",
-        text: "Let in families a guest invited, see every answer with adults and kids, set the jobs and change the details. Add co-organisers with the organiser code.",
-      },
-      {
-        image: "/guide/event-7-chat.webp",
-        title: "News and Chat",
-        text: "Post updates under News, and talk to everyone in Chat. Guests get reminders the day before and on the day, with their job.",
-      },
-    ],
-  },
-  {
     id: "find",
-    label: "Find your games",
-    who: "My team’s league isn’t on Sidelnr yet",
+    label: "Add my team",
+    who: "Pulls your league’s fixtures and ladder and your team’s roster from the official pages by link, or paste your team’s fixtures from a spreadsheet and we do the rest",
     steps: [
       {
         image: "/guide/find-1-team.webp",
