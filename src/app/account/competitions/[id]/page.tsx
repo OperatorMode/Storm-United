@@ -23,7 +23,7 @@ import { LeagueMessageForm } from "../../leagues/LeagueMessage";
 import { listLeagueMessages } from "@/lib/league-messages";
 import { VerifyLeague } from "../../leagues/VerifyLeague";
 import { leagueClaims } from "@/lib/league-verify";
-import { currentManagerId, isSuperAdmin } from "@/lib/session";
+import { currentManagerId } from "@/lib/session";
 import { getManager } from "@/lib/accounts";
 import { adminLeagueIds, listCompetitionTeamNames, listFixtures } from "@/lib/fixtures";
 import { competitionTz, formatDay, getCompetition, listCompetitions } from "@/lib/league";
@@ -51,16 +51,15 @@ export default async function CompetitionAdminPage({ params, searchParams }: Pag
   const { id } = await params;
   const isNew = (await searchParams).new !== undefined;
   const managerId = await currentManagerId();
-  if (!managerId && !(await isSuperAdmin())) redirect(`/login?next=/account/competitions/${id}`);
+  if (!managerId) redirect(`/login?next=/account/competitions/${id}`);
   const competition = await getCompetition(id);
   if (!competition) notFound();
-  const isSuper = await isSuperAdmin();
-  const isAdmin = isSuper || (managerId ? (await adminLeagueIds(managerId)).includes(competition.league_id) : false);
+  const isAdmin = (await adminLeagueIds(managerId)).includes(competition.league_id);
   // An imported league (read from its own website) is official: anyone signed in
   // can see it and claim it; it's only managed once a claim is approved.
   const imported = competition.feed_type === "web";
   if (!isAdmin && !(imported && managerId)) notFound();
-  const canManage = isSuper || (isAdmin && (!imported || !!competition.league.verified_at));
+  const canManage = (isAdmin && (!imported || !!competition.league.verified_at));
 
   if (competition.league.source !== "manual") {
     return (

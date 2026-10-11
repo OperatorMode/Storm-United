@@ -3,7 +3,7 @@
 import { competitionLabel, competitionTeams, getCompetition, listCompetitions } from "@/lib/league";
 import { findSquad, squadFromLink, type SquadResult } from "@/lib/squad";
 import { listTeams } from "@/lib/store";
-import { currentManagerId, isSuperAdmin } from "@/lib/session";
+import { currentManagerId } from "@/lib/session";
 
 // Finding a competition by typing (there can be thousands across all sports).
 
@@ -38,7 +38,7 @@ export async function searchCompetitions(query: string): Promise<CompetitionHit[
  * (team name -> Sidelnr team). For managers and the owner only.
  */
 export async function drawTeams(competitionId: string, editingId: string | null): Promise<{ teams: string[]; taken: Record<string, string> }> {
-  if (!(await currentManagerId()) && !(await isSuperAdmin())) return { teams: [], taken: {} };
+  if (!(await currentManagerId())) return { teams: [], taken: {} };
   const [teams, sidelnr] = await Promise.all([competitionTeams(competitionId), listTeams()]);
   const taken = Object.fromEntries(
     sidelnr.filter((t) => t.id !== editingId && t.competition_id === competitionId).map((t) => [t.league_name, t.name]),
@@ -48,7 +48,7 @@ export async function drawTeams(competitionId: string, editingId: string | null)
 
 /** A team's players from its league's website (for the team form). */
 export async function findSquadAction(competitionId: string, team: string): Promise<SquadResult> {
-  if (!(await currentManagerId()) && !(await isSuperAdmin())) return { players: [], source: null, note: "Sign in first." };
+  if (!(await currentManagerId())) return { players: [], source: null, note: "Sign in first." };
   const competition = await getCompetition(competitionId);
   if (!competition || !(await competitionTeams(competitionId)).includes(team)) return { players: [], source: null, note: null };
   try {
@@ -61,7 +61,7 @@ export async function findSquadAction(competitionId: string, team: string): Prom
 
 /** A team's players from a page the coach links to (team form). */
 export async function squadFromLinkAction(competitionId: string, team: string, url: string): Promise<SquadResult> {
-  if (!(await currentManagerId()) && !(await isSuperAdmin())) return { players: [], source: null, note: "Sign in first." };
+  if (!(await currentManagerId())) return { players: [], source: null, note: "Sign in first." };
   if (!url.trim() || url.length > 500) return { players: [], source: null, note: "Paste the link to the squad page." };
   const competition = await getCompetition(competitionId);
   try {

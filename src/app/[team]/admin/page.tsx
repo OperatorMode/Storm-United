@@ -25,7 +25,7 @@ import { listTraining } from "@/lib/training";
 import { formatTime } from "@/lib/time";
 import { listAnnouncements, listChat } from "@/lib/messages";
 import { adminLogout } from "./actions";
-import { adminAccess, currentManagerId, isSuperAdmin } from "@/lib/session";
+import { adminAccess, currentManagerId } from "@/lib/session";
 import { teamManagerIds } from "@/lib/accounts";
 import { AddToMyTeams } from "./AccountLink";
 import { emailEnabled } from "@/lib/email";
@@ -93,12 +93,11 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     );
   }
 
-  const [{ ourGames, tz }, ballots, manual, attendance, superAdmin, tabs, chat, posts, managerId, managers, competitions] = await Promise.all([
+  const [{ ourGames, tz }, ballots, manual, attendance, tabs, chat, posts, managerId, managers, competitions] = await Promise.all([
     getLeagueData(team),
     getBallots(team.id),
     getManualScores(team.id),
     getAttendance(team.id),
-    isSuperAdmin(),
     tabsPromise,
     listChat(team.id),
     listAnnouncements(team.id),
@@ -197,12 +196,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     <div className="mx-auto max-w-md pb-24">
       {header}
       <main className="mt-4 space-y-4 px-4">
-        <p className={`rounded-xl px-3 py-2 text-xs ${access === "owner" ? "bg-amber-50 text-amber-900" : "bg-zinc-100 text-zinc-600"}`}>
-          {access === "manager"
-            ? "Unlocked by your manager account."
-            : access === "pin"
-              ? "Unlocked with this team’s PIN on this device."
-              : "Unlocked with the Sidelnr owner PIN, which opens every team on this device."}{" "}
+        <p className="rounded-xl bg-zinc-100 px-3 py-2 text-xs text-zinc-600">
+          {access === "manager" ? "Unlocked by your manager account." : "Unlocked with this team’s PIN on this device."}{" "}
           Lock it at the bottom of this page.
         </p>
         {(seasonOver || seasonEnding) && (
@@ -573,11 +568,6 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
       )}
 
       <div className="flex items-center justify-center gap-6 pt-2 text-sm text-zinc-500">
-        {superAdmin && (
-          <Link href="/super" className="underline">
-            All teams
-          </Link>
-        )}
         <form action={adminLogout.bind(null, team.id)}>
           <button className="underline">Lock / sign out</button>
         </form>

@@ -2,7 +2,7 @@
 
 import { redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { currentManagerId, isSuperAdmin } from "@/lib/session";
+import { currentManagerId } from "@/lib/session";
 import { competitionTz, getCompetition, listCompetitions, pitchLabel } from "@/lib/league";
 import { formatDay, formatTime, formatWhen, isTimezone, isoDateIn, minutesOfDay } from "@/lib/time";
 import { buildSeasonDraw, type DrawSettings } from "@/lib/season-draw";
@@ -72,7 +72,7 @@ const imported = (c: { feed_type?: string | null }) => c.feed_type === "web";
 /** Full league admin: an imported league only once it's claimed. */
 async function managedCompetition(competitionId: string) {
   const c = await editableCompetition(competitionId);
-  return c && (!imported(c) || c.league.verified_at || (await isSuperAdmin())) ? c : null;
+  return c && (!imported(c) || c.league.verified_at) ? c : null;
 }
 
 /** Who may ask to verify (claim) a league: its admin, or anyone signed in for an imported one. */
@@ -83,11 +83,10 @@ async function claimableCompetition(competitionId: string) {
   return c && imported(c) && !c.league.verified_at && (await currentManagerId()) ? c : null;
 }
 
-// League admin of the competition's league, or the super admin.
+// League admin of the competition's league (the Sidelnr owner isn't one: it has no way into leagues).
 async function editableCompetition(competitionId: string) {
   const competition = await getCompetition(competitionId);
   if (!competition) return null;
-  if (await isSuperAdmin()) return competition;
   const managerId = await currentManagerId();
   if (!managerId) return null;
   return (await adminLeagueIds(managerId)).includes(competition.league_id) ? competition : null;
@@ -150,7 +149,7 @@ export async function createLeagueAction(_: unknown, formData: FormData) {
 
 export async function addCompetitionAction(leagueId: string, _: unknown, formData: FormData) {
   const managerId = await currentManagerId();
-  if (!(await isSuperAdmin()) && !(managerId && (await adminLeagueIds(managerId)).includes(leagueId))) {
+  if (!(managerId && (await adminLeagueIds(managerId)).includes(leagueId))) {
     return { error: "You’re not an admin of this league." };
   }
   const get = (k: string) => String(formData.get(k) ?? "").trim();
@@ -416,7 +415,7 @@ export async function createEventAction(_: unknown, formData: FormData) {
 
 export async function addEventDivisionAction(leagueId: string, _: unknown, formData: FormData) {
   const managerId = await currentManagerId();
-  if (!(await isSuperAdmin()) && !(managerId && (await adminLeagueIds(managerId)).includes(leagueId))) {
+  if (!(managerId && (await adminLeagueIds(managerId)).includes(leagueId))) {
     return { error: "You’re not an admin of this event." };
   }
   const get = (k: string) => String(formData.get(k) ?? "").trim();

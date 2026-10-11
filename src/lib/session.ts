@@ -129,13 +129,13 @@ const myTeamIds = cache(async (): Promise<string[]> => {
 });
 
 // How this browser has access to a team's Manager's Corner, if at all: a
-// signed-in manager of the team, the team's own PIN on this device, or the
-// Sidelnr owner (super admin, every team).
-export async function adminAccess(team: Team): Promise<"manager" | "pin" | "owner" | null> {
+// signed-in manager of the team, or the team's own PIN on this device. The
+// Sidelnr owner has no way in: teams and events belong to their families and
+// coaches (the owner page can only delete things and take managers off).
+export async function adminAccess(team: Team): Promise<"manager" | "pin" | null> {
   if ((await myTeamIds()).includes(team.id)) return "manager";
   const token = adminToken(team);
   if (token && (await cookies()).get(adminCookie(team.id))?.value === token) return "pin";
-  if (await isSuperAdmin()) return "owner";
   return null;
 }
 

@@ -105,7 +105,10 @@ export default function PrivacyPage() {
           Official access is set up by us, by request, after we’ve confirmed who’s asking.
         </li>
         <li>
-          <b>The owner’s access</b> to run Sidelnr is protected by a password and a code from an authenticator app.
+          <b>Teams and events run themselves.</b> The Sidelnr owner’s page in the app can’t open a team or event or show
+          what’s in it (players, guests, answers, chat, messages). It can only step in when asked or needed: delete a team,
+          event or account, take a manager off, or reset a team PIN. It’s protected by a password and a code from an
+          authenticator app.
         </li>
         <li>
           <b>Encryption.</b> Everything travels over an encrypted connection (HTTPS), and our database provider encrypts the
@@ -121,7 +124,11 @@ export default function PrivacyPage() {
         <li>MVP vote tallies: only the team’s managers.</li>
         <li>Your activities in My Activities: only your phone and the phones you’ve shared them with.</li>
         <li>League organisers see fixtures and results, not players, attendance or chat.</li>
-        <li>Sidelnr itself, only to run and support the app, look into a report or a request, or fix a problem.</li>
+        <li>An event: its guests and organisers.</li>
+        <li>
+          Sidelnr itself: not through the app. The data sits in our database, so we can reach it there, but only to fix a
+          problem, keep the service running, or act on a report or a request (for example to delete something).
+        </li>
       </ul>
 
       <h2>Services we use</h2>
