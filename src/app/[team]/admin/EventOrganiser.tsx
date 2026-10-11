@@ -138,6 +138,8 @@ export async function EventOrganiser({ event, created }: { event: Team; created:
           <EventDetailsForm
             eventId={event.id}
             initial={{
+              type: event.event_type ?? "other",
+              dress: event.event_dress ?? "",
               name: event.name,
               host: event.event_host ?? "",
               date: start ? isoDateIn(start, tz) : "",

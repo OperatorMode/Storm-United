@@ -1,5 +1,6 @@
 "use server";
 
+import { isEventType, type EventType } from "@/lib/event-style";
 import { after } from "next/server";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -75,6 +76,8 @@ export async function createEventAction(_: unknown, form: FormData) {
       details: String(form.get("details") ?? "").trim().slice(0, 2000) || null,
       rsvpBy,
       tz,
+      type: isEventType(form.get("type")) ? (form.get("type") as EventType) : "other",
+      dress: clean(form.get("dress"), 60) || null,
       primary: hex(form.get("primary"), "#0f766e"),
       accent: hex(form.get("accent"), "#f59e0b"),
     },
@@ -222,6 +225,8 @@ export async function updateEventDetails(eventId: string, _: unknown, form: Form
     event_details: String(form.get("details") ?? "").trim().slice(0, 2000) || null,
     rsvp_by: String(form.get("rsvp_by") ?? "") ? parseDate(String(form.get("rsvp_by"))) : null,
     event_tz: tz,
+    event_type: isEventType(form.get("type")) ? (form.get("type") as EventType) : (row.event_type ?? "other"),
+    event_dress: clean(form.get("dress"), 60) || null,
     admin_pin_hash: code ? hashSecret(code) : row.admin_pin_hash,
   });
   revalidatePath(`/${event.id}`, "layout");

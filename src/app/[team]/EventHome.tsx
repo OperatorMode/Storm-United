@@ -8,6 +8,7 @@ import { NotificationSettings } from "@/components/NotificationSettings";
 import { AnswerEvent, InviteLink, InvitationAnswer } from "./EventClient";
 import { getDeviceName } from "@/lib/profile";
 import { listRsvps } from "@/lib/my-events";
+import { eventTypeLabel } from "@/lib/event-style";
 import { approvedChildren, ids as idList, listPhones } from "@/lib/phones";
 import { tabData } from "@/lib/tabs";
 import { pushPublicKey } from "@/lib/push";
@@ -23,9 +24,9 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
   const start = event.event_starts_at ? new Date(event.event_starts_at) : null;
   const end = event.event_ends_at ? new Date(event.event_ends_at) : null;
   const header = (
-    <header className="jersey px-4 pb-6 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
+    <header className={`event-hero event-${event.event_type ?? "other"} px-4 pb-6 pt-[calc(env(safe-area-inset-top)+1.25rem)]`}>
       <SidelnrLink />
-      <div className="mt-1 text-xs uppercase tracking-widest text-on-team/60">Event</div>
+      <div className="mt-1 text-xs uppercase tracking-widest text-on-team/60">{eventTypeLabel(event.event_type)}</div>
       <h1 className="mt-0.5 text-2xl font-semibold">{event.name}</h1>
       {event.event_host && <p className="text-sm text-on-team/70">Hosted by {event.event_host}</p>}
       {start && (
@@ -100,6 +101,12 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
                 <span className="font-medium">{event.event_place}</span>
               </span>
               <Directions place={event.event_place} className="shrink-0 bg-zinc-900 text-white" />
+            </div>
+          )}
+          {event.event_dress && (
+            <div className={event.event_place ? "border-t border-zinc-100 pt-2" : ""}>
+              <span className="block text-xs uppercase tracking-wide text-zinc-500">Dress code</span>
+              <span className="font-medium">{event.event_dress}</span>
             </div>
           )}
           {event.event_details && (

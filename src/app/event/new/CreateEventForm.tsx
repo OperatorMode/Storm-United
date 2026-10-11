@@ -13,14 +13,17 @@ const THEMES = [
   ["#be123c", "#fde68a"],
   ["#0a0a0a", "#e5334b"],
   ["#166534", "#bef264"],
+  ["#1c1917", "#d4af37"],
 ];
+// Picking the type of event also picks colours that suit it (they can still be changed).
+const TYPE_THEME = { party: 2, birthday: 3, dinner: 6, other: 0 } as const;
 
 export function CreateEventForm({ signedInAs, emailSignIn }: { signedInAs: string | null; emailSignIn: boolean }) {
   const [state, action, pending] = useActionState(createEventAction, null);
-  const [theme, setTheme] = useState(0);
+  const [theme, setTheme] = useState<number>(TYPE_THEME.party);
   return (
     <form action={action} className="space-y-4 text-sm">
-      <EventFields />
+      <EventFields onType={(t) => setTheme(TYPE_THEME[t])} />
 
       <div>
         <span className="mb-1 block font-medium">Colours</span>

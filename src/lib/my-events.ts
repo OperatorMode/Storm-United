@@ -22,6 +22,8 @@ export type EventInput = {
   details: string | null;
   rsvpBy: string | null; // yyyy-mm-dd
   tz: string;
+  type: "party" | "birthday" | "dinner" | "other";
+  dress: string | null;
   primary: string;
   accent: string;
 };
@@ -53,6 +55,8 @@ export async function createEvent(input: EventInput, organiserPinHash: string | 
     event_host: input.host,
     rsvp_by: input.rsvpBy,
     event_tz: input.tz,
+    event_type: input.type,
+    event_dress: input.dress,
   };
   await upsertTeam(row);
   return row;

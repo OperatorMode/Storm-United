@@ -40,7 +40,7 @@ export function InvitationAnswer({
     <section className="space-y-3 rounded-2xl border-2 border-zinc-900 bg-white p-4 shadow-sm">
       <div>
         <h2 className="text-lg font-semibold">You’re invited. Are you coming?</h2>
-        {rsvpBy && <p className="text-sm font-medium text-accent">Please answer by {rsvpBy}.</p>}
+        {rsvpBy && <p className="text-sm font-medium text-amber-700">Please answer by {rsvpBy}.</p>}
       </div>
       {needName && (
         <label className="block text-sm">

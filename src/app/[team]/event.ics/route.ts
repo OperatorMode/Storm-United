@@ -21,7 +21,7 @@ export async function GET(request: Request, ctx: RouteContext<"/[team]/event.ics
     `DTEND:${stamp(end)}`,
     `SUMMARY:${esc(event.name)}`,
     event.event_place ? `LOCATION:${esc(event.event_place)}` : null,
-    `DESCRIPTION:${esc([event.event_details, url].filter(Boolean).join("\n\n"))}`,
+    `DESCRIPTION:${esc([event.event_dress && `Dress code: ${event.event_dress}`, event.event_details, url].filter(Boolean).join("\n\n"))}`,
     `URL:${url}`,
     "END:VEVENT",
     "END:VCALENDAR",
