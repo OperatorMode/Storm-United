@@ -280,7 +280,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         </Section>
       )}
 
-      <Section title="Game rotation" aside="Fair playing time">
+      <Section title="Game rotation" hint="Plan who’s on and who rests each part of a game, so everyone gets fair time.">
         <RotationAdmin
           role={team.goalie_enabled ? role : null}
           gameParts={gp}
@@ -343,7 +343,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             </ul>
           );
           return (
-            <Section title={rolePlural(role)} aside="Assign · tally">
+            <Section title={rolePlural(role)} hint={`Pick each game’s ${roleInText(role)} from the families who offered, and see who’s had a turn.`}>
               {soon.length ? assign(soon) : <p className="text-sm text-zinc-500">No upcoming games.</p>}
               {rest.length > 0 && (
                 <details className="mt-4 border-t border-zinc-100 pt-3 text-sm">
@@ -375,7 +375,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           );
         })()}
 
-      <Section title="Training" aside="Sessions">
+      <Section title="Training" hint="Add one-off or weekly sessions. Families answer like for games, and they show in My Activities.">
         <TrainingAdmin
           teamId={team.id}
           squad={team.players.length}
@@ -400,7 +400,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         />
       </Section>
 
-      <Section title="Duty roster" aside="Oranges, snacks…">
+      <Section title="Duty roster" hint="The jobs each game needs (oranges, snacks…). Families tap I’ll do it and get reminded on the day.">
         <DutyAdmin
           teamId={team.id}
           duties={duties}
@@ -417,7 +417,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         />
       </Section>
 
-      <Section title="Season MVP" aside="Tally">
+      <Section title="Season MVP" hint="The season’s MVP points from the families’ votes. Only managers see this.">
         <table className="w-full text-sm tabular-nums">
           <thead>
             <tr className="text-left text-xs text-zinc-500">
@@ -440,7 +440,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         </table>
       </Section>
 
-      <Section title="Votes by game">
+      <Section title="Votes by game" hint="Who got votes in each game.">
         {played.length === 0 ? (
           <p className="text-sm text-zinc-500">No games played yet.</p>
         ) : (
@@ -475,7 +475,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         )}
       </Section>
 
-      <Section title="Backup scores" aside="If the league hasn't">
+      <Section title="Backup scores" hint="Enter a score if the league hasn’t posted it yet.">
         {played.length === 0 ? (
           <p className="text-sm text-zinc-500">Scores can be entered once a game has kicked off.</p>
         ) : (

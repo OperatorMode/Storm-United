@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
-// The family app and the team apps are dismissed separately.
-const dismissKey = (name: string) => (name === "Sidelnr" ? "su_install_dismissed_sidelnr" : "su_install_dismissed");
+// Put away once, it's gone everywhere (the team pages and My Activities); the
+// small "Install app" link at the bottom of pages stays.
+const dismissKey = () => "su_install_dismissed";
 
 // Android/Chrome: offers a real "Install" button via beforeinstallprompt.
 // iPhone/iPad Safari has no install API, so we explain Share → Add to Home Screen.
@@ -19,7 +20,7 @@ export function InstallPrompt({ name, icon }: { name: string; icon: string }) {
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
     let dismissed = false;
     try {
-      dismissed = localStorage.getItem(dismissKey(name)) === "1";
+      dismissed = localStorage.getItem(dismissKey()) === "1";
     } catch {}
     if (standalone || dismissed) return;
 
@@ -40,13 +41,13 @@ export function InstallPrompt({ name, icon }: { name: string; icon: string }) {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, [name]);
+  }, []);
 
   if (mode === "hidden") return null;
 
   function dismiss() {
     try {
-      localStorage.setItem(dismissKey(name), "1");
+      localStorage.setItem(dismissKey(), "1");
     } catch {}
     setMode("hidden");
   }

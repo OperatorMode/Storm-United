@@ -14,6 +14,7 @@ const POLL_MS = 5000;
 export function ChatThread({
   teamId,
   me,
+  family,
   isCoach,
   names,
   initial,
@@ -22,6 +23,8 @@ export function ChatThread({
 }: {
   teamId: string;
   me: string | null;
+  // A coach's phone that is also a family's ("Leo's Dad"): they choose who a message is from.
+  family: { id: string; label: string } | null;
   isCoach: boolean;
   names: Record<string, string>;
   initial: ChatMessage[];
@@ -65,12 +68,29 @@ export function ChatThread({
     } catch {}
   }, [teamId, last]);
 
+  const asKey = `su_chat_as_${teamId}`;
+  const [asFamily, setAsFamily] = useState(false);
+  useEffect(() => {
+    let saved = false;
+    try {
+      saved = localStorage.getItem(asKey) === "family";
+    } catch {}
+    if (saved) queueMicrotask(() => setAsFamily(true));
+  }, [asKey]);
+  const chooseAs = (fam: boolean) => {
+    setAsFamily(fam);
+    try {
+      localStorage.setItem(asKey, fam ? "family" : "coach");
+    } catch {}
+  };
+  const sendingAsFamily = !!family && asFamily;
+
   function send() {
     const text = draft.trim();
     if (!text) return;
     setError(null);
     start(async () => {
-      const res = await sendChat(teamId, text, await pushEndpoint());
+      const res = await sendChat(teamId, text, await pushEndpoint(), sendingAsFamily);
       if (res.error) return setError(res.error);
       setDraft("");
       await poll();
@@ -91,7 +111,7 @@ export function ChatThread({
           <p className="py-10 text-center text-sm text-zinc-500">No messages yet. Say hi to the team.</p>
         )}
         {messages.map((m, i) => {
-          const mine = m.author_id === me;
+          const mine = m.author_id === me || (!!family && m.author_id === family.id);
           const day = dayOf(m);
           const showDay = i === 0 || day !== dayOf(messages[i - 1]);
           const sameAuthorAsPrev = i > 0 && messages[i - 1].author_id === m.author_id && !showDay;
@@ -145,6 +165,25 @@ export function ChatThread({
 
       <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.4rem)] z-10 border-t border-zinc-200 bg-zinc-100/95 backdrop-blur">
         <div className="mx-auto max-w-md px-3 py-2">
+          {me && family && (
+            <div className="flex items-center gap-1.5 px-1 pb-1.5 text-xs text-zinc-500">
+              <span>Send as</span>
+              {[
+                [false, event ? "Organiser" : "Coach"],
+                [true, family.label],
+              ].map(([fam, label]) => (
+                <button
+                  key={String(fam)}
+                  type="button"
+                  aria-pressed={sendingAsFamily === fam}
+                  onClick={() => chooseAs(fam as boolean)}
+                  className={`rounded-full px-2.5 py-0.5 font-medium ${sendingAsFamily === fam ? "bg-zinc-900 text-white" : "border border-zinc-300 bg-white text-zinc-700"}`}
+                >
+                  {label as string}
+                </button>
+              ))}
+            </div>
+          )}
           {me ? (
             <form
               onSubmit={(e) => {
@@ -158,7 +197,17 @@ export function ChatThread({
                 onChange={(e) => setDraft(e.target.value)}
                 rows={1}
                 maxLength={1000}
-                placeholder={event ? (isCoach ? "Message everyone as Organiser…" : "Message everyone…") : isCoach ? "Message the team as Coach…" : "Message the team…"}
+                placeholder={
+                  sendingAsFamily
+                    ? `Message ${event ? "everyone" : "the team"} as ${family!.label}…`
+                    : event
+                      ? isCoach
+                        ? "Message everyone as Organiser…"
+                        : "Message everyone…"
+                      : isCoach
+                        ? "Message the team as Coach…"
+                        : "Message the team…"
+                }
                 className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-base"
               />
               <button

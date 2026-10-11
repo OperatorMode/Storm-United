@@ -8,6 +8,7 @@ import { FamilyFollowers, FamilyRequests, type OtherPhone } from "@/components/F
 import { personId, teamLabels } from "@/lib/people";
 import { LeaveTeam } from "@/components/LeaveTeam";
 import { GuideLink } from "@/components/Guide";
+import { InstallLink } from "@/components/InstallLink";
 import { EventHome } from "./EventHome";
 import { isEvent } from "@/lib/my-events";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -427,6 +428,7 @@ export default async function TeamHome({ params, searchParams }: PageProps<"/[te
           />
           <p className="mt-4 text-xs text-zinc-500">
             <GuideLink />
+            <InstallLink before=" · " />
           </p>
         </div>
       </main>

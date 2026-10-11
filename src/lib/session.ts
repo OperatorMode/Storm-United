@@ -232,7 +232,18 @@ export async function currentVoter(team: Team): Promise<string | null> {
 
 // Who this browser posts as in the team chat: the coach (team admin) or its
 // person ("Leo's Dad"). Phones not recorded yet post as the family, like before.
-export async function chatAuthor(team: Team): Promise<string | null> {
-  if (await isTeamAdmin(team)) return "coach";
+/** Who this phone is in the team as a family member ("Leo's Dad"), if anyone. */
+export async function familyAuthor(team: Team): Promise<string | null> {
   return (await currentPerson(team)) ?? (await currentVoter(team));
+}
+
+/**
+ * Who a chat message is from: the coach on an unlocked phone, else the family.
+ * A coach who is also a parent on the same phone can choose to send as their
+ * family instead (asFamily).
+ */
+export async function chatAuthor(team: Team, asFamily = false): Promise<string | null> {
+  const family = await familyAuthor(team);
+  if ((await isTeamAdmin(team)) && !(asFamily && family)) return "coach";
+  return family;
 }

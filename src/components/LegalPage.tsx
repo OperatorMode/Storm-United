@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SidelnrLink } from "./SidelnrLink";
 import { FeedbackLink } from "./FeedbackLink";
 import { GuideLink } from "./Guide";
+import { InstallLink } from "./InstallLink";
 
 export const CONTACT_EMAIL = "hello@sidelnr.app";
 
@@ -40,6 +41,7 @@ export function LegalLinks({ className = "" }: { className?: string }) {
         Terms
       </Link>{" "}
       · <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+      <InstallLink before=" · " />
     </p>
   );
 }

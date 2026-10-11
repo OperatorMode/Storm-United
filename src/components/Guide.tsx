@@ -11,12 +11,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // pages any time after.
 
 type Step = { image: string; title: string; text: string };
-type Path = { id: string; label: string; steps: Step[] };
+type Path = { id: string; label: string; who: string; steps: Step[] };
 
 const PATHS: Path[] = [
   {
     id: "activities",
     label: "My Activities",
+    who: "Our family’s week, every team and activity in one calendar",
     steps: [
       {
         image: "/guide/act-1-week.webp",
@@ -53,6 +54,7 @@ const PATHS: Path[] = [
   {
     id: "join",
     label: "Join a team",
+    who: "I’m a parent or player joining a team",
     steps: [
       {
         image: "/guide/join-1-code.webp",
@@ -94,6 +96,7 @@ const PATHS: Path[] = [
   {
     id: "manage",
     label: "Manage a team",
+    who: "I’m a coach or team manager",
     steps: [
       {
         image: "/guide/manage-1-signin.webp",
@@ -145,6 +148,7 @@ const PATHS: Path[] = [
   {
     id: "league",
     label: "Add your league",
+    who: "My league isn’t on Sidelnr yet",
     steps: [
       {
         image: "/guide/league-1-add.webp",
@@ -185,9 +189,6 @@ const PATHS: Path[] = [
   },
 
 ];
-
-// Coming next: shown in the list, not ready yet.
-const LATER: string[] = [];
 
 const SEEN_KEY = "su_guide_seen";
 export const GUIDE_EVENT = "sidelnr:guide";
@@ -255,7 +256,7 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
   const last = step === steps.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="How Sidelnr works">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true" aria-label="How Sidelnr works">
       <div
         className={`flex w-full max-w-md flex-col rounded-t-3xl bg-white text-zinc-950 shadow-2xl sm:rounded-3xl ${path ? "h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:h-[min(92dvh,900px)]" : ""}`}
       >
@@ -271,33 +272,27 @@ export function Guide({ autoOpen = false, openNow = false }: { autoOpen?: boolea
         {!path ? (
           <div className="max-h-[calc(100dvh-env(safe-area-inset-top)-4.5rem)] space-y-4 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-1">
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold">Why are you here?</h2>
-              <p className="text-sm text-zinc-600">Pick one and we’ll show you the basics in a few steps.</p>
-              <select
-                value=""
-                onChange={(e) => {
-                  const p = PATHS.find((x) => x.id === e.target.value);
-                  if (p) {
-                    setPath(p);
-                    setStep(0);
-                  }
-                }}
-                className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-base"
-              >
-                <option value="" disabled>
-                  Choose…
-                </option>
+              <h2 className="text-2xl font-semibold">What brings you here?</h2>
+              <p className="text-sm text-zinc-600">Pick one for a few quick steps with real screens. It takes about a minute.</p>
+              <div className="grid gap-2 pt-1">
                 {PATHS.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.label}
-                  </option>
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setPath(p);
+                      setStep(0);
+                    }}
+                    className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-left shadow-sm active:bg-zinc-50"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{p.label}</span>
+                      <span className="block text-sm text-zinc-500">{p.who}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-zinc-400">{p.steps.length} steps →</span>
+                  </button>
                 ))}
-                {LATER.map((l) => (
-                  <option key={l} value={l} disabled>
-                    {l} (coming soon)
-                  </option>
-                ))}
-              </select>
+              </div>
             </div>
 
             {/* How it fits together: a league, its teams, their families; and the family's own week. */}

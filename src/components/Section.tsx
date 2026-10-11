@@ -1,20 +1,26 @@
 // A card that folds away: just its title (and a short note) until tapped.
-// Used in Manager's Corner so a long page stays scannable.
+// Used in Manager's Corner so a long page stays scannable. `hint` is one line
+// under the title saying what it's for, visible while folded.
 export function Section({
   title,
   aside,
+  hint,
   open = false,
   children,
 }: {
   title: string;
   aside?: React.ReactNode;
+  hint?: string;
   open?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <details open={open} className="group rounded-2xl border border-zinc-200 bg-white shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">{title}</h2>
+        <span className="min-w-0">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">{title}</h2>
+          {hint && <span className="mt-0.5 block text-xs text-zinc-400">{hint}</span>}
+        </span>
         <span className="flex items-center gap-2 text-xs text-zinc-500">
           {aside && <span className="text-right">{aside}</span>}
           <svg viewBox="0 0 20 20" aria-hidden className="size-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-180">

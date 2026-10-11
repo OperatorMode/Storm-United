@@ -69,10 +69,10 @@ export async function acknowledge(teamId: string, id: string) {
 
 // ---------- chat ----------
 
-export async function sendChat(teamId: string, body: string, fromEndpoint: string | null = null) {
+export async function sendChat(teamId: string, body: string, fromEndpoint: string | null = null, asFamily = false) {
   const team = await viewableTeam(teamId);
   if (!team) return { error: "Team not found." };
-  const author = await chatAuthor(team);
+  const author = await chatAuthor(team, asFamily);
   if (!author) return { error: "Pick your child first." };
   const text = body.trim();
   if (!text) return { error: "Write something first." };

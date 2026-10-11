@@ -3,6 +3,7 @@ import { SidelnrLink } from "@/components/SidelnrLink";
 import { TabBar } from "@/components/TabBar";
 import { Directions } from "@/components/Directions";
 import { GuideLink } from "@/components/Guide";
+import { InstallLink } from "@/components/InstallLink";
 import { FamilyRequests, type OtherPhone } from "@/components/FamilyPhones";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { AnswerEvent, InviteLink, InvitationAnswer } from "./EventClient";
@@ -248,6 +249,7 @@ export async function EventHome({ event, joined = false }: { event: Team; joined
           ) : (
             <GuideLink />
           )}
+          <InstallLink before=" · " />
         </p>
       </main>
       <TabBar teamId={event.id} active="home" {...tabs} />
