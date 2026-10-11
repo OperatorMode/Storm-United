@@ -61,7 +61,8 @@ export default async function BoardPage({ params }: PageProps<"/[team]/board">) 
               </div>
               <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{a.body}</p>
 
-              {voter && !coach && (
+              {/* Every family on this phone taps Got it, a manager's own family too. */}
+              {voter && (
                 <div className="mt-3">
                   <AckButton teamId={team.id} id={a.id} done={mine} />
                 </div>

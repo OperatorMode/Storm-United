@@ -34,7 +34,9 @@ export async function postAnnouncement(teamId: string, _: unknown, formData: For
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return { error: "Write something first." };
   if (body.length > 2000) return { error: "Keep it under 2000 characters." };
-  await addAnnouncement(team.id, body);
+  const postId = await addAnnouncement(team.id, body);
+  // The manager's own family (if this phone has one) has seen their own post.
+  for (const child of await currentChildren(team)) await ackAnnouncement(team.id, postId, child);
   const fromEndpoint = String(formData.get("from_endpoint") ?? "") || null;
   after(() =>
     notifyTeam(
