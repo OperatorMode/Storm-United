@@ -10,9 +10,11 @@ import { getTeamRow, upsertTeam } from "@/lib/store";
 import { ORGANISER, addGuest, createEvent, decideGuest, isEvent, setRsvp } from "@/lib/my-events";
 import { ensureDeviceId } from "@/lib/device";
 import { recordPhone } from "@/lib/phones";
-import { linkManager } from "@/lib/accounts";
+import { linkManager, teamManagerIds, unlinkManager } from "@/lib/accounts";
+import { deleteTeam } from "@/lib/store";
+import { getPushSubs } from "@/lib/messages";
 import { NAME_MAX, getDeviceName, setDeviceName } from "@/lib/profile";
-import { notifyManagers } from "@/lib/push";
+import { notifyManagers, sendPush } from "@/lib/push";
 import { parseDate, parseTime, zonedTime } from "@/lib/fixtures";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
 import {
@@ -25,6 +27,8 @@ import {
   inviteCookie,
   inviteSignature,
   isTeamAdmin,
+  joinCookie,
+  joinToken,
   pickedChildren,
   voterCookie,
 } from "@/lib/session";
@@ -250,4 +254,46 @@ export async function updateEventDetails(eventId: string, _: unknown, form: Form
 export async function pickedGuest(eventId: string): Promise<string | null> {
   const event = await eventFor(eventId);
   return event ? ((await pickedChildren(event))[0] ?? null) : null;
+}
+
+/**
+ * Organiser: delete the event for everyone (the name typed to confirm). Guests
+ * who turned on notifications hear it's cancelled first.
+ */
+export async function deleteEventAction(eventId: string, typedName: string) {
+  const event = await eventFor(eventId);
+  if (!event || !(await isTeamAdmin(event))) return { error: "Organisers only." };
+  if (typedName.trim().toLowerCase() !== event.name.trim().toLowerCase()) return { error: `Type “${event.name}” exactly to delete it.` };
+  const subs = await getPushSubs(event.id);
+  await Promise.allSettled(
+    subs.map((sub) => sendPush(sub, { title: `Cancelled: ${event.name}`, body: "The organiser has cancelled this event.", url: "/", icon: "/app-icon/192", tag: `${event.id}-cancelled` })),
+  );
+  await deleteTeam(event.id);
+  const store = await cookies();
+  for (const c of [adminCookie(event.id), inviteCookie(event.id), voterCookie(event.id)]) store.delete(c);
+  revalidatePath("/", "layout");
+  redirect("/");
+}
+
+/**
+ * Organiser: stop organising. Your account comes off the event and the
+ * organiser code on this phone is forgotten. The event carries on for its
+ * guests and other organisers; your family stays a guest.
+ */
+export async function stopOrganising(eventId: string) {
+  const event = await eventFor(eventId);
+  if (!event || !(await isTeamAdmin(event))) return { error: "Organisers only." };
+  const managerId = await currentManagerId();
+  const others = (await teamManagerIds(event.id)).filter((m) => m !== managerId);
+  if (!others.length && !event.admin_pin_hash) {
+    return { error: "You’re the only organiser and there’s no organiser code. Set one under Event details first, and give it to whoever takes over." };
+  }
+  if (managerId) await unlinkManager(event.id, managerId);
+  const store = await cookies();
+  // Still a guest: keep the event open on this phone without the organiser's access.
+  const token = joinToken(event);
+  if (token) store.set(joinCookie(event.id), token, COOKIE_OPTS);
+  store.delete(adminCookie(event.id));
+  revalidatePath("/", "layout");
+  redirect(`/${event.id}`);
 }

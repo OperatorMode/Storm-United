@@ -4,7 +4,7 @@ import { TabBar } from "@/components/TabBar";
 import { Card } from "@/components/Card";
 import { AdminLogin } from "./AdminLogin";
 import { AddToMyTeams } from "./AccountLink";
-import { EventDetailsForm, GuestDecision } from "./EventOrganiserClient";
+import { EventDetailsForm, EventEnd, GuestDecision } from "./EventOrganiserClient";
 import { InviteLink } from "../EventClient";
 import { listRsvps, pendingGuests } from "@/lib/my-events";
 import { DutyAdmin } from "./DutyAdmin";
@@ -204,6 +204,10 @@ export async function EventOrganiser({ event, created }: { event: Team; created:
               )
             )}
           </div>
+        </Card>
+
+        <Card title="Stop organising or delete">
+          <EventEnd eventId={event.id} eventName={event.name} />
         </Card>
 
         <form action={adminLogout.bind(null, event.id)} className="text-center">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { decideEventGuest, updateEventDetails } from "../event-actions";
+import { decideEventGuest, deleteEventAction, stopOrganising, updateEventDetails } from "../event-actions";
 import { DRESS_CODES, EVENT_TYPES, type EventType } from "@/lib/event-style";
 
 const field = "w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base";
@@ -160,6 +160,52 @@ function DressCode({ initial }: { initial?: string }) {
         />
       )}
       <input type="hidden" name="dress" value={pick === "own" ? own : pick} />
+    </div>
+  );
+}
+
+/** Stop organising (the event carries on), or delete it for everyone (the name typed to confirm). */
+export function EventEnd({ eventId, eventName }: { eventId: string; eventName: string }) {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            confirm(`Stop organising ${eventName}? The event carries on for its guests and the other organisers, and your family stays a guest.`) &&
+            start(async () => {
+              const res = await stopOrganising(eventId);
+              if (res?.error) setError(res.error);
+            })
+          }
+          className="w-full rounded-xl border border-zinc-300 px-4 py-2.5 font-medium"
+        >
+          Stop organising
+        </button>
+        <p className="mt-1 text-xs text-zinc-500">For when someone else takes over. They need the organiser code or their own account on it.</p>
+      </div>
+      <div>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            const typed = prompt(`Delete ${eventName} for everyone? Guests are told it’s cancelled, and the guest list, answers, News and Chat are deleted. This can’t be undone.\n\nType “${eventName}” to delete it.`);
+            if (typed === null) return;
+            start(async () => {
+              const res = await deleteEventAction(eventId, typed);
+              if (res?.error) setError(res.error);
+            });
+          }}
+          className="w-full rounded-xl border border-red-300 px-4 py-2.5 font-medium text-red-700"
+        >
+          Delete this event
+        </button>
+        <p className="mt-1 text-xs text-zinc-500">Cancels it for everyone. Guests who turned on notifications are told.</p>
+      </div>
+      {error && <p className="text-accent">{error}</p>}
     </div>
   );
 }
