@@ -22,11 +22,11 @@ import { calendarToken } from "@/lib/calendar";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { currentDeviceId, currentHouseholdId } from "@/lib/session";
-import { listActivities, sessionsOf, weeklySummary, type Activity } from "@/lib/activities";
+import { listActivities, sessionsOf, weeklySummary, type Activity, sharedWith } from "@/lib/activities";
 import type { ActivityInitial } from "./ActivityForm";
 import { needsRefresh, refreshActivity } from "@/lib/activity-import";
 import { MeActions } from "./MeActions";
-import { ActivityList, SessionToggle } from "./ActivitiesManage";
+import { ActivityList, LeaveShared, SessionToggle } from "./ActivitiesManage";
 import { ActivityReminders } from "./ActivityReminders";
 import { ClashSolver, type SkipTarget } from "./ClashSolver";
 import { QuickAnswer } from "./QuickAnswer";
@@ -59,13 +59,14 @@ const GAME_WINDOW_MS = 90 * 60 * 1000; // a game stays "upcoming" until ~1.5h af
 
 type Entry = {
   team: Team | null; // null: a family activity
-  activity?: { id: string; name: string; kind: string | null; start: string; minutes: number; cancelled: boolean };
+  activity?: { id: string; name: string; kind: string | null; start: string; minutes: number; cancelled: boolean; shared?: { single: boolean } };
   game: Game;
   tz: string;
   place: string | null;
   kids: { name: string; status: AttendanceStatus | null; id?: string }[];
   clashes: { kind: "child" | "family"; text: string }[];
   resolved?: string[]; // clashes already solved, and how ("Dad takes Leo, Mum takes Zara")
+  me?: string | null; // this phone's own name, so "Taken by John" reads "You're taking …" on John's phone
   key: string; // for the clash solver: "<team>:<game or training>", or the activity session's id
   taker?: string | null; // who's taking them (clash solver)
   possible?: { note: string | null }; // might happen (finals, if the team makes it): shown faded, never a clash
@@ -289,7 +290,15 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
     sessionsOf(a, new Date(now - 2 * 3600_000), new Date(now + ACTIVITY_DAYS_AHEAD * 86_400_000)).map(
       (s): Entry => ({
         team: null,
-        activity: { id: a.id, name: s.title, kind: a.kind, start: s.start.toISOString(), minutes: s.minutes, cancelled: s.cancelled },
+        activity: {
+          id: a.id,
+          name: s.title,
+          kind: a.kind,
+          start: s.start.toISOString(),
+          minutes: s.minutes,
+          cancelled: s.cancelled,
+          ...(a.shared ? { shared: { single: a.shared.only?.length === 1 } } : {}),
+        },
         game: {
           id: `${a.id}-${s.start.toISOString()}`,
           round: null,
@@ -319,6 +328,10 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
 
   // Who's taking whom (clash solver), then the clashes still to solve.
   const takers = householdId ? await listTakers(householdId) : {};
+  // A shared event's "who's taking" is kept by the family that shared it.
+  for (const a of activities.filter((x) => x.linked)) {
+    for (const [key, who] of Object.entries(await listTakers(a.household_id))) if (key.startsWith(`${a.id}-`)) takers[key] = who;
+  }
   for (const e of all) e.taker = takers[e.key] ?? null;
   const { child: childClashes, family: familyClashes } = findClashes(upcoming);
 
@@ -330,7 +343,10 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
   const people = [...new Set([...teamKids, ...activities.map((a) => a.person)])].filter((p) => p !== "Me");
   // Who can take a child somewhere (clash solver): Mum, Dad, anyone picked before, or the child on their own.
   const myName = await getDeviceName(deviceId);
-  const takerOptions = [...new Set([...(myName ? [myName] : []), "Mum", "Dad", ...Object.values(takers), ...people])];
+  for (const e of all) e.me = myName;
+  // Plus the people this family's events are shared with (by their "Who are you?" name).
+  const sharedNames = (await sharedWith(activities.filter((a) => !a.linked).map((a) => a.id))).flatMap((l) => (l.name ? [l.name] : []));
+  const takerOptions = [...new Set([...(myName ? [myName] : []), "Mum", "Dad", ...Object.values(takers), ...people, ...sharedNames])];
 
   // Upcoming games grouped by day.
   const days = new Map<string, Entry[]>();
@@ -347,7 +363,17 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
         <p className="mt-1 text-sm opacity-70">Every game, training and activity for your family: when, where and how to get there.</p>
         <MeActions
           people={people}
-          shareable={activities.filter((a) => !a.linked).map((a) => ({ id: a.id, label: `${a.person} · ${a.name}` }))}
+          shareable={activities
+            .filter((a) => !a.linked)
+            .map((a) => ({
+              id: a.id,
+              label: `${a.person === "Me" ? "" : `${a.person} · `}${a.name}`,
+              name: a.name,
+              dates: activityEntries
+                .filter((e) => e.activity?.id === a.id && !e.activity.cancelled && e.game.kickoff.getTime() > now)
+                .slice(0, 12)
+                .map((e) => ({ iso: e.activity!.start, label: `${formatWeekday(e.game.kickoff, e.tz)} ${formatTime(e.game.kickoff, e.tz)}` })),
+            }))}
           joinInitial={joinCode}
         />
       </header>
@@ -483,7 +509,7 @@ export default async function MyPlayerPage({ searchParams }: PageProps<"/me">) {
           </details>
         )}
 
-        {activities.length > 0 && (
+        {activities.some((a) => !a.linked) && (
           <div className="pt-2 text-center">
             <LeaveFamily />
           </div>
@@ -623,7 +649,9 @@ function Solver({ e, options }: { e: Entry; options: string[] }) {
     : e.event
       ? null
       : e.activity
-      ? { type: "activity", activityId: e.activity.id, start: e.activity.start }
+      ? e.activity.shared
+        ? null // a shared event is left, not skipped
+        : { type: "activity", activityId: e.activity.id, start: e.activity.start }
       : e.team && going.some((k) => k.id)
         ? { type: e.training ? "training" : "game", teamId: e.team.id, id: e.game.id, kidIds: going.flatMap((k) => (k.id ? [k.id] : [])) }
         : null;
@@ -637,10 +665,12 @@ function Solver({ e, options }: { e: Entry; options: string[] }) {
       }
       kidNames={going.map((k) => k.name)}
       taker={e.taker ?? null}
+      me={e.me ?? null}
       resolved={e.clashes.length ? null : (e.resolved?.join(" · ") ?? null)}
       options={options}
       skip={skip}
       about={`${entryTitle(e)}, ${formatWeekday(e.game.kickoff, e.tz)} ${formatTime(e.game.kickoff, e.tz)}`}
+      activityId={e.activity?.id ?? null}
     />
   );
 }
@@ -668,6 +698,7 @@ function ActivityCard({ e, options }: { e: Entry; options: string[] }) {
           {who}
         </b>
         {a.kind && ` · ${a.kind}`}
+        {a.shared && <span className="ml-1.5 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">Shared event</span>}
       </span>
       <span className={`block font-semibold ${a.cancelled ? "text-zinc-400 line-through" : ""}`}>{a.name}</span>
       <span className="mt-0.5 block text-sm text-zinc-700">
@@ -675,7 +706,11 @@ function ActivityCard({ e, options }: { e: Entry; options: string[] }) {
       </span>
       {e.place && <span className="block text-xs text-zinc-500">{e.place}</span>}
       <div className="mt-2 flex flex-wrap items-center gap-3">
-        <SessionToggle activityId={a.id} start={a.start} cancelled={a.cancelled} />
+        {a.shared ? (
+          <LeaveShared activityId={a.id} start={a.start} single={a.shared.single} name={a.name} />
+        ) : (
+          <SessionToggle activityId={a.id} start={a.start} cancelled={a.cancelled} />
+        )}
         {e.place && !a.cancelled && <Directions place={e.place} className="ml-auto bg-zinc-900 text-white" />}
       </div>
     </li>

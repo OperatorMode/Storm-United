@@ -33,6 +33,8 @@ export type Activity = {
   created_at: string;
   created_by_device?: string | null; // the phone that created it (only it can delete it for everyone)
   linked?: boolean; // shared from another phone's household (not stored)
+  // A shared event (not stored): only these dates (null = every time), and the dates this family left.
+  shared?: { only: string[] | null; left: string[] };
   mine?: boolean; // created on the phone that's looking (not stored)
 };
 
@@ -82,21 +84,28 @@ export async function listActivities(householdId: string, deviceId: string | nul
     const s = db();
     let own: Activity[];
     let linked: Activity[] = [];
+    let links: LinkRow[] = [];
     if (s) {
       own = check(await s.from("activities").select("*").eq("household_id", householdId)) as Activity[];
-      const ids = (check(await s.from("activity_links").select("activity_id").eq("household_id", householdId)) as { activity_id: string }[]).map(
-        (l) => l.activity_id,
-      );
+      links = check(await s.from("activity_links").select("*").eq("household_id", householdId)) as LinkRow[];
+      const ids = links.map((l) => l.activity_id);
       if (ids.length) linked = check(await s.from("activities").select("*").in("id", ids)) as Activity[];
     } else {
       const d = await readLocal();
       own = (d.activities ?? []).filter((a) => a.household_id === householdId);
-      const ids = new Set((d.activity_links ?? []).filter((l) => l.household_id === householdId).map((l) => l.activity_id));
+      links = (d.activity_links ?? []).filter((l) => l.household_id === householdId);
+      const ids = new Set(links.map((l) => l.activity_id));
       linked = (d.activities ?? []).filter((a) => ids.has(a.id));
     }
     const ownIds = new Set(own.map((a) => a.id));
     const hidden = deviceId ? new Set(await hiddenOn(deviceId)) : new Set<string>();
-    const rows = [...own, ...linked.filter((a) => !ownIds.has(a.id)).map((a) => ({ ...a, linked: true }))]
+    const linkOf = (id: string) => links.find((l) => l.activity_id === id);
+    const rows = [
+      ...own,
+      ...linked
+        .filter((a) => !ownIds.has(a.id))
+        .map((a) => ({ ...a, linked: true, shared: { only: linkOf(a.id)?.only_at ?? null, left: linkOf(a.id)?.left_at ?? [] } })),
+    ]
       .filter((a) => !hidden.has(a.id))
       .map((a) => ({ ...a, mine: !a.created_by_device || a.created_by_device === deviceId }));
     return rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -107,7 +116,7 @@ export async function listActivities(householdId: string, deviceId: string | nul
 }
 
 export async function saveActivity(activity: Activity): Promise<void> {
-  const { linked: _linked, mine: _mine, ...a } = activity; // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { linked: _linked, mine: _mine, shared: _shared, ...a } = activity; // eslint-disable-line @typescript-eslint/no-unused-vars
   const s = db();
   if (!s) {
     const d = await readLocal();
@@ -233,12 +242,20 @@ export async function moveActivities(from: string, to: string): Promise<void> {
 // Sharing chosen activities: a code for a set of activities; redeeming it links
 // them into the other phone's household (one activity, seen by both).
 
-type ShareRow = { code_hash: string; household_id: string; activity_ids: string[]; expires_at: string; created_at: string };
+type ShareRow = { code_hash: string; household_id: string; activity_ids: string[]; only_at?: string[] | null; expires_at: string; created_at: string };
+type LinkRow = { household_id: string; activity_id: string; created_at: string; only_at?: string[] | null; left_at?: string[]; name?: string | null };
 
-/** A one-use, 24-hour code for these activities only. */
-export async function newActivityShareCode(householdId: string, activityIds: string[]): Promise<string> {
+/** A one-use, 24-hour code for these activities only: every time, or just these dates (ISO starts). */
+export async function newActivityShareCode(householdId: string, activityIds: string[], onlyAt: string[] | null = null): Promise<string> {
   const code = await freshCode();
-  const row: ShareRow = { code_hash: hashCode(code), household_id: householdId, activity_ids: activityIds, expires_at: expiry(), created_at: new Date().toISOString() };
+  const row: ShareRow = {
+    code_hash: hashCode(code),
+    household_id: householdId,
+    activity_ids: activityIds,
+    ...(onlyAt ? { only_at: onlyAt } : {}),
+    expires_at: expiry(),
+    created_at: new Date().toISOString(),
+  };
   const s = db();
   if (!s) {
     const d = await readLocal();
@@ -253,7 +270,7 @@ export async function newActivityShareCode(householdId: string, activityIds: str
  * null if it's wrong, expired or already used. One database step each, so two
  * phones using the same code at the same moment can't both get in.
  */
-export async function redeemCode(code: string): Promise<{ household: string } | { activityIds: string[] } | null> {
+export async function redeemCode(code: string): Promise<{ household: string } | { activityIds: string[]; onlyAt: string[] | null } | null> {
   const clean = cleanCode(code);
   if (!clean) return null;
   const hash = hashCode(clean);
@@ -271,20 +288,29 @@ export async function redeemCode(code: string): Promise<{ household: string } | 
     if (!row) return null;
     d.activity_shares = (d.activity_shares ?? []).filter((r) => r !== row);
     await writeLocal(d);
-    return { activityIds: row.activity_ids };
+    return { activityIds: row.activity_ids, onlyAt: row.only_at ?? null };
   }
   const taken = check(
     await s.from("households").update({ share_code_hash: null }).eq("share_code_hash", hash).gt("share_expires_at", now).select("id"),
   ) as { id: string }[];
   if (taken.length) return { household: taken[0].id };
-  const used = check(await s.from("activity_shares").delete().eq("code_hash", hash).gt("expires_at", now).select("activity_ids")) as {
+  const used = check(await s.from("activity_shares").delete().eq("code_hash", hash).gt("expires_at", now).select("activity_ids, only_at")) as {
     activity_ids: string[];
+    only_at: string[] | null;
   }[];
-  return used.length ? { activityIds: used[0].activity_ids } : null;
+  return used.length ? { activityIds: used[0].activity_ids, onlyAt: used[0].only_at ?? null } : null;
 }
 
-export async function linkActivities(householdId: string, activityIds: string[]): Promise<void> {
-  const rows = activityIds.map((activity_id) => ({ household_id: householdId, activity_id, created_at: new Date().toISOString() }));
+/** Adds shared events to a household: every time, or only some dates. `name` is who joined ("Kate"), for "Who's taking". */
+export async function linkActivities(householdId: string, activityIds: string[], onlyAt: string[] | null = null, name: string | null = null): Promise<void> {
+  const rows: LinkRow[] = activityIds.map((activity_id) => ({
+    household_id: householdId,
+    activity_id,
+    created_at: new Date().toISOString(),
+    only_at: onlyAt,
+    left_at: [],
+    name,
+  }));
   const s = db();
   if (!s) {
     const d = await readLocal();
@@ -292,6 +318,38 @@ export async function linkActivities(householdId: string, activityIds: string[])
     return writeLocal(d);
   }
   check(await s.from("activity_links").upsert(rows, { onConflict: "household_id,activity_id" }));
+}
+
+/** A family leaves one date of a shared event, for themselves only (the original keeps it). */
+export async function leaveSharedDate(householdId: string, activityId: string, iso: string): Promise<void> {
+  const s = db();
+  if (!s) {
+    const d = await readLocal();
+    d.activity_links = (d.activity_links ?? []).map((l) =>
+      l.household_id === householdId && l.activity_id === activityId ? { ...l, left_at: [...new Set([...(l.left_at ?? []), iso])].slice(-200) } : l,
+    );
+    return writeLocal(d);
+  }
+  const row = check(await s.from("activity_links").select("left_at").eq("household_id", householdId).eq("activity_id", activityId).maybeSingle()) as {
+    left_at: string[] | null;
+  } | null;
+  if (!row) return;
+  const left = [...new Set([...(row.left_at ?? []), iso])].slice(-200);
+  check(await s.from("activity_links").update({ left_at: left }).eq("household_id", householdId).eq("activity_id", activityId));
+}
+
+/** Who these activities are shared with: each other family, and the name of who joined. */
+export async function sharedWith(activityIds: string[]): Promise<{ activity_id: string; household_id: string; name: string | null }[]> {
+  if (!activityIds.length) return [];
+  try {
+    const s = db();
+    const rows: LinkRow[] = s
+      ? (check(await s.from("activity_links").select("*").in("activity_id", activityIds)) as LinkRow[])
+      : ((await readLocal()).activity_links ?? []).filter((l) => activityIds.includes(l.activity_id));
+    return rows.map((r) => ({ activity_id: r.activity_id, household_id: r.household_id, name: r.name ?? null }));
+  } catch {
+    return []; // before migration 037
+  }
 }
 
 /** Stops seeing a shared activity on this phone (the original stays). */
@@ -316,6 +374,15 @@ const weekday = (iso: string) => new Date(`${iso}T12:00:00Z`).getUTCDay();
 
 /** An activity's sessions between two moments (weekly ones expanded, plus one-off and imported ones). */
 export function sessionsOf(a: Activity, from: Date, to: Date): ActivitySession[] {
+  const all = allSessionsOf(a, from, to);
+  if (!a.shared) return all;
+  // A shared event: only the shared dates, without the ones this family left.
+  const only = a.shared.only ? new Set(a.shared.only) : null;
+  const left = new Set(a.shared.left);
+  return all.filter((x) => (!only || only.has(x.start.toISOString())) && !left.has(x.start.toISOString()));
+}
+
+function allSessionsOf(a: Activity, from: Date, to: Date): ActivitySession[] {
   const out: ActivitySession[] = [];
   const cancelled = new Set(a.cancelled);
   const push = (start: Date, minutes: number, title?: string, place?: string) => {

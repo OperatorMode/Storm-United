@@ -21,6 +21,8 @@ import {
   weeklySummary,
   type Activity,
   type WeeklySlot,
+  leaveSharedDate,
+  sharedWith,
 } from "@/lib/activities";
 import { readActivitySource, refreshActivity } from "@/lib/activity-import";
 import { deleteHouseholdPush, getHouseholdPush, notifyClashSorted, notifyNewActivity, saveHouseholdPush } from "@/lib/activity-reminders";
@@ -30,7 +32,9 @@ import { COOKIE_OPTS, HOUSEHOLD_COOKIE, currentDeviceId, currentHouseholdId } fr
 import { ensureDeviceId } from "@/lib/device";
 import { DEFAULT_TZ, isTimezone } from "@/lib/time";
 import { lockedMessage, recordFailure, recordSuccess } from "@/lib/rate-limit";
-import { TAKER_MAX, setTaker } from "@/lib/takers";
+import { TAKER_MAX, listTakers, setTaker } from "@/lib/takers";
+import { getDeviceName } from "@/lib/profile";
+import { formatTime, formatWeekday } from "@/lib/time";
 
 // My Activities: a family's own activities, stored for this phone's household.
 
@@ -176,7 +180,7 @@ export async function removeActivity(activityId: string, everywhere = false) {
 /** Cancels one session ("no lesson this week"), or brings it back. */
 export async function toggleSession(activityId: string, startIso: string) {
   const a = await mine(activityId);
-  if (!a || Number.isNaN(Date.parse(startIso))) return;
+  if (!a || a.linked || Number.isNaN(Date.parse(startIso))) return; // a shared event is left, not skipped
   const iso = new Date(startIso).toISOString();
   const cancelled = a.cancelled.includes(iso) ? a.cancelled.filter((c) => c !== iso) : [...a.cancelled, iso];
   await saveActivity({ ...a, cancelled: cancelled.slice(-200) });
@@ -211,6 +215,19 @@ export async function shareActivities(activityIds: string[] | null) {
   }
 }
 
+/** Share an event (not the family): one activity, every time, or just one date (ISO start). */
+export async function shareEvent(activityId: string, onlyAt: string | null) {
+  const id = await household();
+  const a = (await listActivities(id)).find((x) => x.id === activityId && !x.linked);
+  if (!a) return { error: "Pick one of your own events." };
+  if (onlyAt && Number.isNaN(Date.parse(onlyAt))) return { error: "Pick a date." };
+  try {
+    return { code: showCode(await newActivityShareCode(id, [a.id], onlyAt ? [new Date(onlyAt).toISOString()] : null)) };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Couldn’t make a code." };
+  }
+}
+
 /** Joins the household of another phone; this phone's own activities move across. */
 export async function joinActivities(code: string) {
   // The code is used up here: nobody else can use it after this.
@@ -223,10 +240,10 @@ export async function joinActivities(code: string) {
   }
   await recordSuccess("share", "activities");
   if ("activityIds" in shared) {
-    // Chosen activities: link just those to this phone.
-    await linkActivities(await household(), shared.activityIds);
+    // A shared event: it's added to this family (marked Shared), nobody joins anyone's family.
+    await linkActivities(await household(), shared.activityIds, shared.onlyAt, await getDeviceName(await device()));
     refresh();
-    return { ok: true, count: shared.activityIds.length };
+    return { ok: true, kind: "event" as const, count: shared.activityIds.length };
   }
   const current = await currentHouseholdId();
   if (current !== shared.household) {
@@ -234,7 +251,7 @@ export async function joinActivities(code: string) {
     (await cookies()).set(HOUSEHOLD_COOKIE, shared.household, COOKIE_OPTS);
   }
   refresh();
-  return { ok: true };
+  return { ok: true, kind: "family" as const };
 }
 
 /** This phone leaves its family's activities: a fresh, empty household; its reminders here stop. */
@@ -280,19 +297,66 @@ export async function getActivityReminders(endpoint: string): Promise<{ day: boo
 }
 
 /** Clash solver: who's taking a child to a game, training or activity (null clears it). */
-export async function setClashTaker(entryKey: string, taker: string | null) {
+export async function setClashTaker(entryKey: string, taker: string | null, activityId: string | null = null) {
   const key = entryKey.slice(0, 200);
   const who = taker?.replace(/\s+/g, " ").trim().slice(0, TAKER_MAX) || null;
-  await setTaker(await household(), key, who);
+  // A shared event: who's taking is one answer for everyone, kept by the family that shared it.
+  const shared = activityId ? await mine(activityId) : null;
+  await setTaker(shared?.linked ? shared.household_id : await household(), key, who);
   refresh();
   return { ok: true };
 }
 
 /** A clash was sorted on this phone: tell the family's other phones ("John takes Leo to Riverside Rockets game, Sat 7 Nov 8:30 am."). */
-export async function tellFamilyClashSorted(text: string) {
+export async function tellFamilyClashSorted(text: string, activityId: string | null = null) {
   const id = await currentHouseholdId();
   const msg = text.replace(/\s+/g, " ").trim().slice(0, 200);
   if (!id || !msg) return;
   const me = await currentDeviceId();
-  after(() => notifyClashSorted(id, msg, me));
+  const families = await familiesOf(id, activityId);
+  after(() => notifyClashSorted(families, msg, me));
+}
+
+/** This family, plus (for a shared event) the family that shared it and everyone it's shared with. */
+async function familiesOf(householdId: string, activityId: string | null): Promise<string[]> {
+  const a = activityId ? await mine(activityId) : null;
+  if (!a) return [householdId];
+  return [...new Set([householdId, a.household_id, ...(await sharedWith([a.id])).map((l) => l.household_id)])];
+}
+
+/**
+ * Leave a shared event: one date (`iso`), or every time. Only for this family;
+ * the family that shared it keeps it. If the person leaving was taking a child
+ * on those dates, that's undone, the clash shows again, and both families hear.
+ */
+export async function leaveSharedEvent(activityId: string, iso: string | null) {
+  const id = await currentHouseholdId();
+  const a = id ? await mine(activityId) : null;
+  if (!id || !a?.linked) return { error: "Not a shared event." };
+  if (iso && Number.isNaN(Date.parse(iso))) return { error: "Invalid date." };
+  const at = iso ? new Date(iso).toISOString() : null;
+  const families = await familiesOf(id, a.id); // before leaving: afterwards this family no longer has it
+  if (at) await leaveSharedDate(id, a.id, at);
+  else await unlinkActivity(id, a.id);
+  // Was this person taking them? Then nobody is now.
+  const me = await currentDeviceId();
+  const name = (await getDeviceName(me))?.toLowerCase();
+  if (name) {
+    const takers = await listTakers(a.household_id);
+    const now = Date.now();
+    const freed = Object.entries(takers).filter(([key, who]) => {
+      if (who.toLowerCase() !== name || !key.startsWith(`${a.id}-`)) return false;
+      const start = key.slice(a.id.length + 1);
+      return at ? start === at : Date.parse(start) > now;
+    });
+    for (const [key] of freed) await setTaker(a.household_id, key, null);
+    if (freed.length) {
+      const first = new Date(freed[0][0].slice(a.id.length + 1));
+      const when = freed.length === 1 ? `${formatWeekday(first, a.tz)} ${formatTime(first, a.tz)}` : `${freed.length} dates`;
+      const msg = `${await getDeviceName(me)} can’t take ${a.person === "Me" ? "them" : a.person} to ${a.name} (${when}) any more.`;
+      after(() => notifyClashSorted(families, msg, me, "Clash open again"));
+    }
+  }
+  refresh();
+  return { ok: true };
 }

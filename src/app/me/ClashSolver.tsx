@@ -23,6 +23,8 @@ export function ClashSolver({
   options,
   skip,
   about,
+  activityId = null,
+  me = null,
 }: {
   entryKey: string;
   clash: { kind: "child" | "family"; text: string } | null;
@@ -32,6 +34,8 @@ export function ClashSolver({
   options: string[]; // family members to pick from
   skip: SkipTarget | null;
   about: string; // what and when, for the family's notification: "Riverside Rockets game, Sat 7 Nov 8:30 am"
+  activityId?: string | null; // an activity (a shared one: who's taking is one answer for both families)
+  me?: string | null; // this phone's own name
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -42,8 +46,8 @@ export function ClashSolver({
 
   const pick = (who: string | null) =>
     start(async () => {
-      await setClashTaker(entryKey, who);
-      if (who) await tellFamilyClashSorted(kidNames.includes(who) ? `${who} goes on their own to ${about}.` : `${who} takes ${kids} to ${about}.`);
+      await setClashTaker(entryKey, who, activityId);
+      if (who) await tellFamilyClashSorted(kidNames.includes(who) ? `${who} goes on their own to ${about}.` : `${who} takes ${kids} to ${about}.`, activityId);
       setOpen(false);
       setTyping(false);
       setOther("");
@@ -92,7 +96,9 @@ export function ClashSolver({
       )}
       {!clash && !resolved && taker && (
         <div className="flex items-center gap-2 text-xs">
-          <span className="rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700">Taken by {taker}</span>
+          <span className="rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700">
+            {me && taker.toLowerCase() === me.toLowerCase() ? `You’re taking ${kids}` : `Taken by ${taker}`}
+          </span>
           <button type="button" onClick={() => setOpen(!open)} className="text-zinc-500 underline">
             {open ? "Close" : "Change"}
           </button>

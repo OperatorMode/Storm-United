@@ -123,10 +123,15 @@ export async function sendActivityReminders(now = Date.now()): Promise<number> {
   return sent;
 }
 
-/** Tells the household's other phones that a clash was sorted, e.g. "John takes Leo to …" (not this phone). */
-export async function notifyClashSorted(householdId: string, text: string, exceptDevice: string | null): Promise<void> {
-  const phones = (await allHouseholdPush()).filter((p) => p.household_id === householdId && p.notify_new !== false && p.device_id !== exceptDevice);
-  const payload = { title: "Clash sorted", body: `${text} Check My Activities.`, url: "/me", icon: "/app-icon/192", tag: `clash-${Date.now()}` };
+/**
+ * Tells families' other phones about who's taking a child: "Clash sorted: John
+ * takes Leo to …", or "Clash open again" when someone can't any more. Goes to
+ * the given families (this one, and those a shared event is shared with), never
+ * to this phone.
+ */
+export async function notifyClashSorted(householdIds: string[], text: string, exceptDevice: string | null, title = "Clash sorted"): Promise<void> {
+  const phones = (await allHouseholdPush()).filter((p) => householdIds.includes(p.household_id) && p.notify_new !== false && p.device_id !== exceptDevice);
+  const payload = { title, body: `${text} Check My Activities.`, url: "/me", icon: "/app-icon/192", tag: `clash-${Date.now()}` };
   await Promise.allSettled(phones.map((p) => sendPushTo(p, payload, () => deleteHouseholdPush(p.endpoint))));
 }
 

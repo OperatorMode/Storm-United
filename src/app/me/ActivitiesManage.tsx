@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { joinActivities, reimportActivity, removeActivity, shareActivities, toggleSession } from "./activity-actions";
+import { joinActivities, reimportActivity, removeActivity, shareActivities, toggleSession, leaveSharedEvent, shareEvent } from "./activity-actions";
 import { kidKey } from "@/lib/kid-key";
 import { ActivityForm, type ActivityInitial } from "./ActivityForm";
 
@@ -124,36 +124,60 @@ export function SessionToggle({ activityId, start: at, cancelled }: { activityId
   );
 }
 
-// Share activities with another phone (a partner's): all of them (both phones
-// then share everything, including ones added later) or just the chosen ones.
-// The code works once, within 24 hours: copy it, or send an invitation with a
-// link that opens Sidelnr with the code ready to add.
-export function ShareActivities({ activities }: { activities: { id: string; label: string }[] }) {
-  const [all, setAll] = useState(true);
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [code, setCode] = useState<{ code: string; all: boolean } | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+// A shared event (from another family): leave one date, or the whole event,
+// for this family only. The family that shared it keeps it.
+export function LeaveShared({ activityId, start: at, single, name }: { activityId: string; start: string; single: boolean; name: string }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
-  const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  const leave = (iso: string | null, question: string) =>
+    confirm(question) &&
+    start(async () => {
+      await leaveSharedEvent(activityId, iso);
+      router.refresh();
+    });
+  return (
+    <span className="flex gap-3 text-xs text-zinc-500">
+      {!single && (
+        <button type="button" disabled={pending} onClick={() => leave(at, `Leave ${name} on this date? Only for your family: it stays for the family that shared it.`)} className="underline">
+          Leave this date
+        </button>
+      )}
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => leave(null, `Leave ${name}${single ? "" : " (every date)"}? It comes off your family’s My Activities. It stays for the family that shared it.`)}
+        className="underline"
+      >
+        Leave event
+      </button>
+    </span>
+  );
+}
 
-  if (!activities.length) return <p className="text-sm text-zinc-500">Add an activity first, then share it from here.</p>;
+// Two different things, kept apart so it's always clear which is which:
+//  - Join our family: the other phone becomes part of this family and sees every
+//    event in My Activities, now and later (the other parent, a grandparent).
+//  - Share one event: just that event (every time, or one date). The other
+//    family gets it as a Shared event in their own My Activities and doesn't
+//    join this family; they can leave it any time.
+// Each code works once, within 24 hours: copy it, or send an invitation with a
+// link that opens Sidelnr with the code ready to add.
+export type Shareable = { id: string; label: string; name: string; dates: { iso: string; label: string }[] };
 
-  const invitation = (c: string) =>
-    `I’ve shared our activities with you on Sidelnr. Tap to add them: ${window.location.origin}/me?join=${c}\n\n` +
-    `Or open Sidelnr, go to My Activities, tap Share and enter the code ${c}. It works once, within 24 hours.`;
-  const copy = async (text: string, done: string) => {
+function CodeBox({ code, text, note, again }: { code: string; text: string; note: string; again: () => void }) {
+  const [msg, setMsg] = useState<string | null>(null);
+  const copy = async (t: string, done: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(t);
       setMsg(done);
     } catch {
       setMsg("Couldn’t copy. Press and hold the code to copy it.");
     }
   };
-  const share = async (c: string) => {
-    const text = invitation(c);
+  const share = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Sidelnr activities", text });
+        await navigator.share({ title: "Sidelnr", text });
         return;
       } catch {
         return; // cancelled
@@ -161,75 +185,139 @@ export function ShareActivities({ activities }: { activities: { id: string; labe
     }
     await copy(text, "Invitation copied. Paste it into a message.");
   };
-
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-3 rounded-xl bg-zinc-50 p-3">
+      <p className="text-center font-mono text-2xl font-bold tracking-widest select-all">{code}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => copy(code, "Code copied.")} className="rounded-xl border border-zinc-300 bg-white px-3 py-2 font-medium">
+          Copy code
+        </button>
+        <button type="button" onClick={share} className="rounded-xl bg-zinc-900 px-3 py-2 font-semibold text-white">
+          Share invitation
+        </button>
+      </div>
+      <p className="text-xs text-zinc-500">{note} Works once, within 24 hours.</p>
+      <button type="button" onClick={again} className="text-xs text-zinc-600 underline">
+        Make another code
+      </button>
+      {msg && <p className="text-xs text-zinc-600">{msg}</p>}
+    </div>
+  );
+}
+
+const link = (c: string) => `${window.location.origin}/me?join=${c}`;
+
+/** Join our family: the other phone sees everything in My Activities. */
+export function ShareFamily() {
+  const [code, setCode] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <section className="space-y-2 rounded-xl border border-zinc-200 p-3">
+      <h3 className="font-semibold">Join our family</h3>
+      <p className="text-xs text-zinc-500">
+        Their phone becomes part of your family: they see <b className="font-semibold text-zinc-700">every event</b> in My Activities, now and
+        later, and can add things and sort out clashes too. For the other parent, or a grandparent who helps every week.
+      </p>
       {code ? (
-        <div className="space-y-3 rounded-xl bg-zinc-50 p-3">
-          <p className="text-center font-mono text-2xl font-bold tracking-widest select-all">{code.code}</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => copy(code.code, "Code copied.")} className="rounded-xl border border-zinc-300 bg-white px-3 py-2 font-medium">
-              Copy code
-            </button>
-            <button type="button" onClick={() => share(code.code)} className="rounded-xl bg-zinc-900 px-3 py-2 font-semibold text-white">
-              Share invitation
-            </button>
-          </div>
-          <p className="text-xs text-zinc-500">
-            Works once, within 24 hours. {code.all ? "Both phones will share all activities, including ones added later." : "Only the activities you ticked are shared."}
-          </p>
-          <button type="button" onClick={() => setCode(null)} className="text-xs text-zinc-600 underline">
-            Make another code
-          </button>
-        </div>
+        <CodeBox
+          code={code}
+          text={`Join our family on Sidelnr to see all our activities: ${link(code)}\n\nOr open Sidelnr, go to My Activities, tap Share and enter the code ${code}. It works once, within 24 hours.`}
+          note="Their phone joins your family and sees everything."
+          again={() => setCode(null)}
+        />
       ) : (
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1">
-            {[
-              { value: true, label: "All activities" },
-              { value: false, label: "Choose" },
-            ].map((o) => (
-              <button
-                key={o.label}
-                type="button"
-                onClick={() => setAll(o.value)}
-                className={`rounded-lg px-2 py-1.5 font-medium ${all === o.value ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}
-              >
-                {o.label}
-              </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            start(async () => {
+              const res = await shareActivities(null);
+              if ("error" in res) return setMsg(res.error ?? null);
+              setCode(res.code);
+            })
+          }
+          className="w-full rounded-xl bg-zinc-900 px-3 py-2 font-semibold text-white disabled:opacity-30"
+        >
+          Get a family code
+        </button>
+      )}
+      {msg && <p className="text-xs text-accent">{msg}</p>}
+    </section>
+  );
+}
+
+/** Share one event: every time, or one date. They don't join the family. */
+export function ShareEvent({ events }: { events: Shareable[] }) {
+  const [id, setId] = useState(events[0]?.id ?? "");
+  const [when, setWhen] = useState<"all" | string>("all");
+  const [code, setCode] = useState<{ code: string; text: string } | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  const ev = events.find((e) => e.id === id);
+  return (
+    <section className="space-y-2 rounded-xl border border-zinc-200 p-3">
+      <h3 className="font-semibold">Share one event</h3>
+      <p className="text-xs text-zinc-500">
+        Only this event, <b className="font-semibold text-zinc-700">not your family</b>. It shows as a Shared event in their own My Activities, next
+        to their family’s things. They can leave it any time. For someone who helps with one thing, like an aunt who takes them to soccer.
+      </p>
+      {!events.length ? (
+        <p className="text-xs text-zinc-500">Add an activity first, then you can share it.</p>
+      ) : code ? (
+        <CodeBox code={code.code} text={code.text} note="They get this event only, not your family." again={() => setCode(null)} />
+      ) : (
+        <>
+          <select
+            value={id}
+            onChange={(e) => {
+              setId(e.target.value);
+              setWhen("all");
+            }}
+            aria-label="Event"
+            className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base"
+          >
+            {events.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.label}
+              </option>
             ))}
-          </div>
-          {!all && (
-            <ul className="space-y-1">
-              {activities.map((a) => (
-                <li key={a.id}>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={chosen.includes(a.id)} onChange={() => toggle(a.id)} className="size-4 accent-zinc-900" />
-                    {a.label}
-                  </label>
-                </li>
+          </select>
+          {ev && ev.dates.length > 1 && (
+            <select value={when} onChange={(e) => setWhen(e.target.value)} aria-label="When" className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-base">
+              <option value="all">Every time</option>
+              {ev.dates.map((d) => (
+                <option key={d.iso} value={d.iso}>
+                  Only {d.label}
+                </option>
               ))}
-            </ul>
+            </select>
           )}
           <button
             type="button"
-            disabled={pending || (!all && !chosen.length)}
+            disabled={pending || !ev}
             onClick={() =>
               start(async () => {
-                const res = await shareActivities(all ? null : chosen);
+                if (!ev) return;
+                const only = when === "all" ? (ev.dates.length === 1 ? ev.dates[0].iso : null) : when;
+                const res = await shareEvent(ev.id, only);
                 if ("error" in res) return setMsg(res.error ?? null);
                 setMsg(null);
-                setCode({ code: res.code, all: res.all });
+                const date = only ? ev.dates.find((d) => d.iso === only)?.label : null;
+                setCode({
+                  code: res.code,
+                  text: `I’ve shared ${ev.name}${date ? ` (${date})` : ""} with you on Sidelnr. It’s just this event: it shows as a Shared event in your My Activities. Tap to add it: ${link(res.code)}\n\nOr open Sidelnr, go to My Activities, tap Share and enter the code ${res.code}. It works once, within 24 hours.`,
+                });
               })
             }
             className="w-full rounded-xl bg-zinc-900 px-3 py-2 font-semibold text-white disabled:opacity-30"
           >
-            Get a code
+            Get a code for this event
           </button>
-        </div>
+        </>
       )}
-      {msg && <p className="text-xs text-zinc-600">{msg}</p>}
-    </div>
+      {msg && <p className="text-xs text-accent">{msg}</p>}
+    </section>
   );
 }
 
@@ -247,8 +335,8 @@ export function JoinCode({ initial = "", highlight = false }: { initial?: string
   const ready = entered.replace("-", "").length === 8;
   return (
     <div className={`space-y-2 text-sm ${highlight ? "rounded-2xl border-2 border-zinc-900 bg-white p-4 shadow-sm" : ""}`}>
-      <span className="block font-medium">{highlight ? "Activities were shared with you" : "Got a code from another phone?"}</span>
-      {highlight && <span className="block text-xs text-zinc-500">Tap Add to see them in My Activities on this phone.</span>}
+      <span className="block font-medium">{highlight ? "Someone shared with you" : "Got a code?"}</span>
+      {highlight && <span className="block text-xs text-zinc-500">Tap Add: the code says if it’s one event or joining their family.</span>}
       <div className="flex gap-2">
         <input
           value={entered}
@@ -271,7 +359,12 @@ export function JoinCode({ initial = "", highlight = false }: { initial?: string
               setMsg(
                 "error" in res
                   ? { error: res.error }
-                  : { ok: "count" in res ? `Added ${res.count} shared activit${res.count === 1 ? "y" : "ies"}.` : "Linked. Both phones now share all activities." },
+                  : {
+                      ok:
+                        res.kind === "event"
+                          ? "Added to your My Activities as a Shared event. You haven’t joined their family."
+                          : "You’ve joined the family: this phone now sees all its activities.",
+                    },
               );
             })
           }

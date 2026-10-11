@@ -82,8 +82,8 @@ export type LocalDb = {
   league_claims?: import("./league-verify").LeagueClaim[];
   households?: { id: string; share_code_hash: string | null; share_expires_at: string | null; created_at: string }[];
   activities?: import("./activities").Activity[];
-  activity_shares?: { code_hash: string; household_id: string; activity_ids: string[]; expires_at: string; created_at: string }[];
-  activity_links?: { household_id: string; activity_id: string; created_at: string }[];
+  activity_shares?: { code_hash: string; household_id: string; activity_ids: string[]; only_at?: string[] | null; expires_at: string; created_at: string }[];
+  activity_links?: { household_id: string; activity_id: string; created_at: string; only_at?: string[] | null; left_at?: string[]; name?: string | null }[]; // migration 037
   activity_hidden?: { device_id: string; activity_id: string; created_at: string }[];
   conversations?: import("./dms").Conversation[];
   conversation_members?: import("./dms").ConversationMember[];
