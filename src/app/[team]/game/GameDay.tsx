@@ -56,6 +56,7 @@ export function GameDay({
   onFieldCount,
   layout,
   initial,
+  keeperTag,
 }: {
   teamId: string;
   gameId: string;
@@ -66,6 +67,7 @@ export function GameDay({
   onFieldCount: number;
   layout: Record<string, Spot>;
   initial: LiveGame;
+  keeperTag: string; // "GK", or the team's role ("Cat" for a catcher)
 }) {
   const nameOf = useCallback((id: string) => players.find((p) => p.id === id)?.name ?? "Player", [players]);
   const [g, setG] = useState<LiveGame>(() => {
@@ -74,7 +76,8 @@ export function GameDay({
     const first = plan ? Object.keys(plan.spots).filter((id) => isOn(plan.spots[id][0])) : available.slice(0, onFieldCount);
     const keeper = plan ? (Object.keys(plan.spots).find((id) => plan.spots[id][0] === "gk") ?? null) : null;
     const auto = formation(first, keeper);
-    return { ...initial, onField: first, pos: Object.fromEntries(first.map((id) => [id, layout[id] ?? auto[id]])) };
+    // Where they usually play, except the keeper: always in goal.
+    return { ...initial, onField: first, pos: Object.fromEntries(first.map((id) => [id, id === keeper ? auto[id] : (layout[id] ?? auto[id])])) };
   });
   const [now, setNow] = useState(() => Date.now());
   const swaps = useMemo(() => swapsOf(plan), [plan]);
@@ -127,6 +130,18 @@ export function GameDay({
     }
   }, [elapsed, running, partMs, plan?.parts, g.clock.elapsedMs]);
   const partName = plan?.parts === 4 ? `Q${part + 1}` : plan?.parts === 2 ? (part ? "2nd half" : "1st half") : plan?.parts && plan.parts > 1 ? `Part ${part + 1}` : "";
+
+  // Who's in goal now, per the rotation (the tag on their card follows it through the game).
+  const block = (() => {
+    if (!plan) return 0;
+    let t = 0;
+    for (let i = 0; i < plan.minutes.length; i++) {
+      t += plan.minutes[i] * 60_000;
+      if (elapsed < t) return i;
+    }
+    return plan.minutes.length - 1;
+  })();
+  const keepers = plan ? Object.keys(plan.spots).filter((id) => plan.spots[id][block] === "gk") : [];
 
   // The rotation's next swap: a suggestion, the coach decides.
   const due = swaps.find((s) => !g.doneSwaps.includes(s.at) && elapsed >= s.at * 60_000);
@@ -242,6 +257,7 @@ export function GameDay({
           </button>
         )}
         <span className="max-w-20 truncate">{nameOf(id)}</span>
+        {keepers.includes(id) && <span className="rounded bg-amber-400 px-1 text-[10px] font-bold text-zinc-900">{keeperTag}</span>}
         {goals > 0 && (
           <span className="flex items-center gap-0.5">
             <span className="rounded bg-emerald-600 px-1 text-[10px] text-white">{goals}</span>
