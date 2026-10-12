@@ -12,7 +12,7 @@ import { formatTime } from "@/lib/time";
 import { getAttendance } from "@/lib/store";
 import { listRotations } from "@/lib/rotation";
 import { emptyLive, getLive } from "@/lib/game-live";
-import { roleName } from "@/lib/role";
+import { roleInText, roleName } from "@/lib/role";
 import { now as clockNow } from "@/lib/clock";
 import { GameDay } from "./GameDay";
 
@@ -129,6 +129,7 @@ export default async function GamePage({ params, searchParams }: PageProps<"/[te
           layout={team.field_layout ?? {}}
           // Until kick-off, the line-up follows the latest saved rotation; after it, it's as the coach set it.
           initial={live?.startedAt ? live : emptyLive()}
+          roleWord={team.goalie_enabled ? roleInText(roleName(team)) : null}
           keeperTag={!team.goalie_enabled || /^goal/i.test(roleName(team)) ? "GK" : roleName(team).slice(0, 3)}
         />
       </main>

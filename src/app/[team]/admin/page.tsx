@@ -32,6 +32,7 @@ import { emailEnabled } from "@/lib/email";
 import { competitionLabel, formatDay, getLeagueData, listCompetitions, roundLabel, opponent, votingState } from "@/lib/league";
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { roleByPart, roleTally } from "@/lib/goalies";
+import { listLive } from "@/lib/game-live";
 import { leagueMessagesFor } from "@/lib/league-messages";
 import { memberLabel, openReports } from "@/lib/dms";
 import { ReportedMessages } from "./ReportedMessages";
@@ -122,12 +123,16 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
     ...dmReports.map((r) => ({ id: r.id, kind: "dm" as const, author: r.message?.author ?? null, reporter: r.reporter, body: r.message?.body, at: r.message?.created_at })),
     ...chatReports.map((r) => ({ id: r.id, kind: "chat" as const, author: r.message?.author_id ?? null, reporter: r.reporter, body: r.message?.body, at: r.message?.created_at })),
   ];
-  const [training, duties, dutySignups, rotations] = await Promise.all([
+  const [training, duties, dutySignups, rotations, liveGames] = await Promise.all([
     listTraining(team.id),
     listDuties(team.id),
     listDutySignups(team.id),
     listRotations(team.id),
+    listLive(team.id),
   ]);
+  // This season's games saved in My Game ("Save game data"): real playing time and goals.
+  const savedGames = liveGames.filter((r) => r.state.saved && ourGames.some((g) => g.id === r.game_id));
+  const actual = Object.fromEntries(savedGames.map((r) => [r.game_id, { played: r.state.saved!.played, rested: r.state.saved!.rested }]));
   // Rotations only count for this season's games.
   const seasonRotations = Object.fromEntries(Object.entries(rotations).filter(([id]) => ourGames.some((g) => g.id === id)));
   const lastPlan = Object.values(seasonRotations).at(-1);
@@ -288,6 +293,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           teamId={team.id}
           players={team.players}
           allSaved={seasonRotations}
+          actual={actual}
           defaults={{
             shape: lastPlan?.shape ?? { parts: gp.count, partMinutes: gp.count >= 4 ? 10 : 20, swapEvery: gp.count >= 4 ? 0 : 10 },
             onField: lastPlan?.onField ?? 6,
@@ -310,6 +316,44 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
             })}
         />
       </Section>
+
+      {savedGames.length > 0 &&
+        (() => {
+          const rows = team.allPlayers
+            .map((p) => ({
+              id: p.id,
+              goals: savedGames.reduce((n, r) => n + (r.state.scorers[p.id] ?? 0), 0),
+              games: savedGames.filter((r) => (r.state.saved!.played[p.id] ?? 0) > 0).length,
+            }))
+            .filter((r) => r.goals > 0 || team.players.some((p) => p.id === r.id))
+            .sort((a, b) => b.goals - a.goals || a.id.localeCompare(b.id));
+          return (
+            <Section title="Goals" hint="Who scored, from the games saved in My Game (Save game data after full time).">
+              <table className="w-full text-sm tabular-nums">
+                <thead>
+                  <tr className="text-left text-xs text-zinc-500">
+                    <th className="py-1 font-medium">Player</th>
+                    <th className="py-1 text-center font-medium">Games</th>
+                    <th className="py-1 text-right font-medium">Goals</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} className="border-t border-zinc-100">
+                      <td className="py-1.5 pr-2">{nameOf(r.id)}</td>
+                      <td className="py-1.5 text-center text-zinc-600">{r.games}</td>
+                      <td className="py-1.5 text-right font-semibold">{r.goals}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-2 text-xs text-zinc-500">
+                {savedGames.length === 1 ? "1 game saved" : `${savedGames.length} games saved`}
+                {savedGames.some((r) => r.state.ownGoals > 0) ? `, plus ${savedGames.reduce((n, r) => n + r.state.ownGoals, 0)} own goal(s) by the other team` : ""}.
+              </p>
+            </Section>
+          );
+        })()}
 
       {team.goalie_enabled &&
         (() => {

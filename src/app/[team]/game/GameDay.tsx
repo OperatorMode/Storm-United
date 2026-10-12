@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { endGame, saveGame } from "./actions";
-import { ourGoals, type LiveGame, type Spot } from "@/lib/game-live-shared";
+import { endGame, saveGame, saveGameData } from "./actions";
+import { ourGoals, stamp, type LiveGame, type Spot } from "@/lib/game-live-shared";
 
 type Player = { id: string; name: string };
 type Plan = { minutes: number[]; spots: Record<string, ("on" | "rest" | "gk")[]>; parts: number | null; partMinutes: number | null } | null;
@@ -58,6 +58,7 @@ export function GameDay({
   layout,
   initial,
   keeperTag,
+  roleWord,
 }: {
   teamId: string;
   gameId: string;
@@ -69,6 +70,7 @@ export function GameDay({
   layout: Record<string, Spot>;
   initial: LiveGame;
   keeperTag: string; // "GK", or the team's role ("Cat" for a catcher)
+  roleWord: string | null; // "goalie" (or the team's role) when the team keeps that tally
 }) {
   const nameOf = useCallback((id: string) => players.find((p) => p.id === id)?.name ?? "Player", [players]);
   const [g, setG] = useState<LiveGame>(() => {
@@ -89,6 +91,7 @@ export function GameDay({
     return { ...initial, onField: first, pos };
   });
   const [now, setNow] = useState(() => Date.now());
+  const [savingData, setSavingData] = useState(false);
   const swaps = useMemo(() => swapsOf(plan), [plan]);
   const bench = available.filter((id) => !g.onField.includes(id));
 
@@ -122,7 +125,7 @@ export function GameDay({
     return () => void lock?.release().catch(() => {});
   }, [running]);
   const start = () =>
-    setG((s) => ({ ...s, clock: { ...s.clock, runningSince: new Date().toISOString() }, startedAt: s.startedAt ?? new Date().toISOString() }));
+    setG((s) => stamp({ ...s, clock: { ...s.clock, runningSince: new Date().toISOString() }, startedAt: s.startedAt ?? new Date().toISOString() }, Date.now()));
   const pause = () =>
     setG((s) => (s.clock.runningSince ? { ...s, clock: { elapsedMs: s.clock.elapsedMs + (Date.now() - Date.parse(s.clock.runningSince)), runningSince: null } } : s));
 
@@ -171,7 +174,7 @@ export function GameDay({
         onField = onField.map((id) => (id === off ? on : id));
         pos[on] = pos[off];
       }
-      return { ...st, onField, pos, doneSwaps: [...st.doneSwaps, s.at] };
+      return stamp({ ...st, onField, pos, doneSwaps: [...st.doneSwaps, s.at] }, Date.now());
     });
   const skip = (s: Swap) => setG((st) => ({ ...st, doneSwaps: [...st.doneSwaps, s.at] }));
 
@@ -213,7 +216,7 @@ export function GameDay({
       } else if (onSide && fromField) {
         onField = onField.filter((p) => p !== id);
       } else return st;
-      return { ...st, onField, pos };
+      return stamp({ ...st, onField, pos }, Date.now()); // playing time counts from here
     });
   };
 
@@ -319,7 +322,7 @@ export function GameDay({
                 type="button"
                 onClick={() =>
                   // Back to 0:00 and the rotation's swaps from the start. The score stays (it has its own − buttons).
-                  confirm("Reset the clock to 0:00?") && setG((s) => ({ ...s, clock: { elapsedMs: 0, runningSince: null }, doneSwaps: [] }))
+                  confirm("Reset the clock to 0:00?") && setG((s) => stamp({ ...s, clock: { elapsedMs: 0, runningSince: null }, doneSwaps: [], log: [] }, Date.now()))
                 }
                 className="mt-1 block w-full text-[11px] text-zinc-500 underline"
               >
@@ -389,7 +392,30 @@ export function GameDay({
           Full time
         </button>
       ) : (
-        <p className="text-center text-sm text-emerald-700">Full time: {ourGoals(g)}–{g.them}, saved to the team’s results.</p>
+        <div className="space-y-2 text-center">
+          <p className="text-sm text-emerald-700">Full time: {ourGoals(g)}–{g.them}, saved to the team’s results.</p>
+          <button
+            type="button"
+            disabled={savingData}
+            onClick={() => {
+              setSavingData(true);
+              saveGameData(teamId, gameId)
+                .then((r) => {
+                  if ("saved" in r && r.saved) setG((s) => ({ ...s, saved: r.saved }));
+                  else if ("error" in r) alert(r.error);
+                })
+                .finally(() => setSavingData(false));
+            }}
+            className={`w-full rounded-xl px-4 py-2.5 text-sm font-semibold ${g.saved ? "border border-zinc-300 bg-white" : "bg-emerald-600 text-white"}`}
+          >
+            {savingData ? "Saving…" : g.saved ? "Save game data again" : "Save game data"}
+          </button>
+          <p className="text-xs text-zinc-500">
+            {g.saved
+              ? "Saved: playing time, goals" + (roleWord ? ` and ${roleWord}` : "") + " are in the season tallies in Manager’s Corner."
+              : "Adds each player’s playing time, goals" + (roleWord ? ` and time as ${roleWord}` : "") + " to the season tallies in Manager’s Corner."}
+          </p>
+        </div>
       )}
       <Link href={`/${teamId}/admin?open=rotation#rotation`} className="block text-center text-sm text-zinc-600 underline">
         Game rotation

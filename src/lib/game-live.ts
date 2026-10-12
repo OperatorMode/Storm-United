@@ -6,7 +6,7 @@ import { check, db, getTeamRow, readLocal, upsertTeam, writeLocal } from "./stor
 // live score next to the team on their home screen.
 
 import { ourGoals, type LiveGame, type Spot } from "./game-live-shared";
-export { emptyLive, ourGoals, type LiveGame, type Spot } from "./game-live-shared";
+export { emptyLive, ourGoals, type LiveGame, type SavedStats, type Spot } from "./game-live-shared";
 
 type Row = { team_id: string; game_id: string; state: LiveGame; updated_at: string };
 
@@ -30,6 +30,17 @@ export async function saveLive(teamId: string, gameId: string, state: LiveGame):
     return writeLocal(d);
   }
   check(await s.from("game_live").upsert(row, { onConflict: "team_id,game_id" }));
+}
+
+/** A team's games in My Game (for the tallies: those saved with "Save game data"). */
+export async function listLive(teamId: string): Promise<{ game_id: string; state: LiveGame }[]> {
+  try {
+    const s = db();
+    if (!s) return ((await readLocal()).game_live ?? []).filter((r) => r.team_id === teamId);
+    return check(await s.from("game_live").select("game_id, state").eq("team_id", teamId)) as { game_id: string; state: LiveGame }[];
+  } catch {
+    return [];
+  }
 }
 
 /** Games in progress (started, not ended, touched in the last 4 hours), for the live score on home screens. */

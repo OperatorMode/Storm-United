@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { saveGameRotation } from "./actions";
 import { partPlural, roleInText, rolePlural, type GameParts } from "@/lib/role";
 import { blocksOf, buildRotation, seasonTotals, type GameShape, type RotationPlan, type Spot } from "@/lib/rotation-plan";
@@ -37,6 +37,7 @@ export function RotationAdmin({
   players,
   games,
   allSaved,
+  actual,
   defaults,
   role,
   gameParts,
@@ -47,6 +48,7 @@ export function RotationAdmin({
   players: { id: string; name: string }[];
   games: GameInfo[];
   allSaved: Record<string, RotationPlan>;
+  actual: Record<string, { played: Record<string, number>; rested: Record<string, number> }>; // games saved in My Game
   defaults: { shape: GameShape; onField: number; goaliesStayOn: boolean };
 }) {
   const [saved, setSaved] = useState(allSaved);
@@ -63,11 +65,21 @@ export function RotationAdmin({
 
   const name = (id: string) => players.find((p) => p.id === id)?.name.split(" ")[0] ?? id;
   // Minutes rested so far this season, not counting this game's own plan.
-  const restedSoFar = useMemo(() => {
-    const totals = seasonTotals(Object.entries(saved).filter(([id]) => id !== gameId).map(([, p]) => p));
-    return Object.fromEntries(Object.entries(totals).map(([id, t]) => [id, t.rested]));
-  }, [saved, gameId]);
-  const season = useMemo(() => seasonTotals(Object.values(saved)), [saved]);
+  // A game saved in My Game counts as it was really played, instead of its plan.
+  const totals = useCallback(
+    (skip: string | null) => {
+      const t = seasonTotals(Object.entries(saved).filter(([id]) => id !== skip && !actual[id]).map(([, p]) => p));
+      for (const [id, a] of Object.entries(actual)) {
+        if (id === skip) continue;
+        for (const [p, m] of Object.entries(a.played)) (t[p] ??= { played: 0, rested: 0 }).played += m;
+        for (const [p, m] of Object.entries(a.rested)) (t[p] ??= { played: 0, rested: 0 }).rested += m;
+      }
+      return t;
+    },
+    [saved, actual],
+  );
+  const restedSoFar = useMemo(() => Object.fromEntries(Object.entries(totals(gameId)).map(([id, t]) => [id, t.rested])), [totals, gameId]);
+  const season = useMemo(() => totals(null), [totals]);
   const blocks = blocksOf(shape, gameParts);
   // The team's own split (e.g. 9 innings) is offered too.
   const partOptions: [number, string][] = PARTS.some(([n]) => n === gameParts.count)
@@ -286,6 +298,9 @@ export function RotationAdmin({
       {Object.keys(season).length > 0 && (
         <details className="rounded-xl bg-zinc-50 p-3">
           <summary className="cursor-pointer font-medium">Season balance</summary>
+          {Object.keys(actual).length > 0 && (
+            <p className="mt-1 text-zinc-500">Games saved in My Game count as they were played; the rest as planned.</p>
+          )}
           <table className="mt-2 w-full text-xs tabular-nums">
             <thead>
               <tr className="text-left text-zinc-500">
