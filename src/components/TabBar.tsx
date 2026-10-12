@@ -16,13 +16,15 @@ export function TabBar({
   latestChatAt,
   messagesUnread = 0,
   kind = "team",
+  manager = false,
 }: {
   teamId: string;
-  active: "home" | "board" | "chat" | "messages" | "manager";
+  active: "home" | "board" | "chat" | "messages" | "manager" | "game";
   boardUnread: number;
   latestChatAt: string | null;
   messagesUnread?: number; // private messages not read yet
   kind?: "team" | "event"; // an event: Announcements and Organiser instead of Board and Manager
+  manager?: boolean; // a team's manager on this phone: also the My Game tab
 }) {
   const [chatUnread, setChatUnread] = useState(false);
   useEffect(() => {
@@ -40,12 +42,13 @@ export function TabBar({
     { key: "board", href: `/${teamId}/board`, label: kind === "event" ? "News" : "Board", icon: BoardIcon, badge: boardUnread },
     { key: "chat", href: `/${teamId}/chat`, label: "Chat", icon: ChatIcon, badge: chatUnread ? -1 : 0 },
     { key: "messages", href: `/${teamId}/messages`, label: "Private", icon: MessagesIcon, badge: messagesUnread },
+    ...(manager && kind === "team" ? [{ key: "game", href: `/${teamId}/game`, label: "Game", icon: BallIcon, badge: 0 }] : []),
     { key: "manager", href: `/${teamId}/admin`, label: kind === "event" ? "Organiser" : "Manager", icon: WhistleIcon, badge: 0 },
-  ] as const;
+  ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className="mx-auto grid max-w-md grid-cols-5">
+      <ul className={`mx-auto grid max-w-md ${tabs.length === 6 ? "grid-cols-6" : "grid-cols-5"}`}>
         {tabs.map((t) => {
           const on = t.key === active;
           return (
@@ -85,6 +88,15 @@ function BoardIcon() {
     <svg {...iconProps} viewBox="0 0 24 24" aria-hidden>
       <path d="M4 5h16v11H8l-4 4z" />
       <path d="M8 9h8M8 12h5" />
+    </svg>
+  );
+}
+function BallIcon() {
+  return (
+    <svg {...iconProps} viewBox="0 0 24 24" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m12 7 4 3-1.5 4.5h-5L8 10z" />
+      <path d="M12 3v4M16 10l4.5-1.5M14.5 14.5l2.5 4M9.5 14.5 7 18.5M8 10 3.5 8.5" />
     </svg>
   );
 }

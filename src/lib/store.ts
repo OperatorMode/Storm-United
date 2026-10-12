@@ -58,6 +58,7 @@ export type TeamRow = {
   event_type?: "party" | "birthday" | "dinner" | "other" | null; // migration 035: sets the background
   mvp_enabled?: boolean; // migration 038: MVP votes on (default) or off for the team
   roster_url?: string | null; // migration 039: the team's own roster page
+  field_layout?: Record<string, { x: number; y: number }> | null; // migration 040: where each player usually plays
   event_dress?: string | null; // dress code
 };
 export type PlayerRow = { id: string; name: string; sort: number; active: boolean; pending?: boolean; invited_by?: string | null };
@@ -86,6 +87,7 @@ export type LocalDb = {
   activities?: import("./activities").Activity[];
   activity_shares?: { code_hash: string; household_id: string; activity_ids: string[]; only_at?: string[] | null; expires_at: string; created_at: string }[];
   activity_links?: { household_id: string; activity_id: string; created_at: string; only_at?: string[] | null; left_at?: string[]; name?: string | null }[]; // migration 037
+  game_live?: { team_id: string; game_id: string; state: import("./game-live").LiveGame; updated_at: string }[]; // migration 040
   activity_hidden?: { device_id: string; activity_id: string; created_at: string }[];
   conversations?: import("./dms").Conversation[];
   conversation_members?: import("./dms").ConversationMember[];
@@ -275,7 +277,7 @@ const strip = <T extends { team_id: string }>({ team_id: _, ...rest }: T) => res
 // ---------- teams & players ----------
 
 const TEAM_COLS =
-  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled, role_name, game_parts, part_name, mute_league, kind, event_starts_at, event_ends_at, event_place, event_details, event_host, rsvp_by, event_tz, event_type, event_dress, mvp_enabled, roster_url";
+  "id, name, league_name, division, competition_id, primary_color, accent_color, logo_url, admin_pin_hash, join_code_hash, join_code_key, meet_minutes, goalie_enabled, role_name, game_parts, part_name, mute_league, kind, event_starts_at, event_ends_at, event_place, event_details, event_host, rsvp_by, event_tz, event_type, event_dress, mvp_enabled, roster_url, field_layout";
 
 export async function listTeams(): Promise<TeamRow[]> {
   const s = db();

@@ -144,15 +144,26 @@ export function RotationAdmin({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block font-medium">Swap every</span>
-          <select value={shape.swapEvery} onChange={(e) => setShape({ ...shape, swapEvery: Number(e.target.value) })} className={field}>
-            {[3, 4, 5, 6, 7, 8, 10, 12, 15, 20, 25, 30].map((m) => (
-              <option key={m} value={m}>
-                {m} min
-              </option>
-            ))}
-            <option value={0}>Each {shape.parts === 4 ? "quarter" : shape.parts === 1 ? "period" : "half"}</option>
-          </select>
+          <span className="mb-1 block font-medium">Swap every (min)</span>
+          {/* Any number of minutes (e.g. 9 in an 18-minute game), or only at the break. */}
+          <input
+            type="number"
+            min={1}
+            max={90}
+            disabled={shape.swapEvery === 0}
+            value={shape.swapEvery || shape.partMinutes}
+            onChange={(e) => setShape({ ...shape, swapEvery: Math.max(1, Math.min(90, Number(e.target.value) || 1)) })}
+            className={`${field} disabled:opacity-40`}
+          />
+          <span className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500">
+            <input
+              type="checkbox"
+              checked={shape.swapEvery === 0}
+              onChange={(e) => setShape({ ...shape, swapEvery: e.target.checked ? 0 : Math.min(10, shape.partMinutes) })}
+              className="size-3.5"
+            />
+            Only at each {shape.parts === 4 ? "quarter" : shape.parts === 1 ? "period" : "half"}
+          </span>
         </label>
         <label className="block">
           <span className="mb-1 block font-medium">On the field</span>

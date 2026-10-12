@@ -1,5 +1,5 @@
 import { latestChatAt, listAnnouncements } from "./messages";
-import { currentVoter, dmIdentities } from "./session";
+import { currentVoter, dmIdentities, isTeamAdmin } from "./session";
 import { blocksBy, conversationsFor, unreadCounts } from "./dms";
 import type { Team } from "./teams";
 
@@ -7,20 +7,22 @@ import type { Team } from "./teams";
 // if messaging data can't be read, the page still renders without them.
 export async function tabData(team: Team) {
   try {
-    const [announcements, chatAt, voter] = await Promise.all([
+    const [announcements, chatAt, voter, manager] = await Promise.all([
       listAnnouncements(team.id),
       latestChatAt(team.id),
       currentVoter(team),
+      isTeamAdmin(team),
     ]);
     return {
       boardUnread: voter ? announcements.filter((a) => !a.acks.includes(voter)).length : 0,
       latestChatAt: chatAt,
       messagesUnread: await messagesUnread(team),
       kind: team.kind ?? "team",
+      manager, // the My Game tab
     };
   } catch (err) {
     console.error("tab badges unavailable", err);
-    return { boardUnread: 0, latestChatAt: null, messagesUnread: 0, kind: team.kind ?? "team" };
+    return { boardUnread: 0, latestChatAt: null, messagesUnread: 0, kind: team.kind ?? "team", manager: false };
   }
 }
 

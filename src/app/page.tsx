@@ -5,6 +5,7 @@ import { competitionLabel, getCompetition } from "@/lib/league";
 import { tabData } from "@/lib/tabs";
 import { listChat } from "@/lib/messages";
 import { ForgetPhone } from "@/app/me/ForgetPhone";
+import { liveScores } from "@/lib/game-live";
 import { LegalLinks } from "@/components/LegalPage";
 import { Guide } from "@/components/Guide";
 import { WhoAreYou } from "@/components/WhoAreYou";
@@ -117,6 +118,8 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
     }
   }
   const has = { teams: runs.teams.length > 0 || [...managing].some((id) => known.some((t) => t.id === id && !isEvent(t))), leagues: runs.leagues.length > 0, events: runs.events.length > 0 };
+  // Games in progress: the live score next to the team (My Game, from the coach's sideline screen).
+  const live = await liveScores(known.filter((t) => !isEvent(t)).map((t) => t.id));
   // Each team: its competition, which of this phone's kids play in it, and what's new.
   const rows = await Promise.all(
     known.map(async (t) => {
@@ -226,7 +229,15 @@ export default async function Landing({ searchParams }: PageProps<"/">) {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={logoSrc(t)} alt="" className="size-10 shrink-0 object-contain" />
                       <span className="min-w-0 flex-1">
-                        <span className={`block truncate font-semibold ${managing.has(t.id) ? "pr-16" : ""}`}>{t.name}</span>
+                        <span className={`block truncate font-semibold ${managing.has(t.id) ? "pr-16" : ""}`}>
+                          {t.name}
+                          {live[t.id] && (
+                            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 align-middle text-[11px] font-bold text-white">
+                              <span className="size-1.5 animate-pulse rounded-full bg-white" aria-hidden />
+                              Live {live[t.id].us}–{live[t.id].them}
+                            </span>
+                          )}
+                        </span>
                         <span className="block truncate text-xs text-zinc-500">{league}</span>
                         {kids.length > 0 && <span className="block truncate text-xs font-medium text-zinc-700">{kids.join(" & ")}</span>}
                       </span>
