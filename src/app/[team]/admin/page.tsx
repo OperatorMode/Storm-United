@@ -53,7 +53,8 @@ export async function generateMetadata({ params }: PageProps<"/[team]/admin">): 
 
 export default async function AdminPage({ params, searchParams }: PageProps<"/[team]/admin">) {
   const team = await getTeam((await params).team);
-  const created = (await searchParams).created !== undefined;
+  const query = await searchParams;
+  const created = query.created !== undefined;
   if (!team) notFound();
 
   const tabsPromise = tabData(team);
@@ -280,7 +281,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
         </Section>
       )}
 
-      <Section title="Game rotation" hint="Plan who’s on and who rests each part of a game, so everyone gets fair time.">
+      <Section id="rotation" open={query.open === "rotation"} title="Game rotation" hint="Plan who’s on and who rests each part of a game, so everyone gets fair time.">
         <RotationAdmin
           role={team.goalie_enabled ? role : null}
           gameParts={gp}

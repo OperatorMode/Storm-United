@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { endGame, saveGame } from "./actions";
 import { ourGoals, type LiveGame, type Spot } from "@/lib/game-live-shared";
@@ -76,8 +77,16 @@ export function GameDay({
     const first = plan ? Object.keys(plan.spots).filter((id) => isOn(plan.spots[id][0])) : available.slice(0, onFieldCount);
     const keeper = plan ? (Object.keys(plan.spots).find((id) => plan.spots[id][0] === "gk") ?? null) : null;
     const auto = formation(first, keeper);
-    // Where they usually play, except the keeper: always in goal.
-    return { ...initial, onField: first, pos: Object.fromEntries(first.map((id) => [id, id === keeper ? auto[id] : (layout[id] ?? auto[id])])) };
+    // Where they usually play, except the keeper: always in goal. A usual spot in goal (they kept
+    // goal last time) or on top of someone already placed goes back to the formation, so no card hides another.
+    const pos: Record<string, Spot> = {};
+    const near = (p: Spot) => Object.values(pos).some((q) => Math.hypot(p.x - q.x, p.y - q.y) < 9);
+    if (keeper && auto[keeper]) pos[keeper] = auto[keeper];
+    for (const id of first.filter((p) => p !== keeper)) {
+      const usual = layout[id];
+      pos[id] = usual && usual.y < 82 && !near(usual) ? usual : auto[id];
+    }
+    return { ...initial, onField: first, pos };
   });
   const [now, setNow] = useState(() => Date.now());
   const swaps = useMemo(() => swapsOf(plan), [plan]);
@@ -305,6 +314,18 @@ export function GameDay({
                 {running ? "Pause" : elapsed ? "Start again" : "Kick-off"}
               </button>
             )}
+            {!g.ended && elapsed > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  // Back to 0:00 and the rotation's swaps from the start. The score stays (it has its own − buttons).
+                  confirm("Reset the clock to 0:00?") && setG((s) => ({ ...s, clock: { elapsedMs: 0, runningSince: null }, doneSwaps: [] }))
+                }
+                className="mt-1 block w-full text-[11px] text-zinc-500 underline"
+              >
+                Reset
+              </button>
+            )}
           </div>
           <div className="text-center">
             <div className="text-[11px] uppercase tracking-wide text-zinc-500">{title.replace(/^vs |^@ /, "")}</div>
@@ -370,6 +391,9 @@ export function GameDay({
       ) : (
         <p className="text-center text-sm text-emerald-700">Full time: {ourGoals(g)}–{g.them}, saved to the team’s results.</p>
       )}
+      <Link href={`/${teamId}/admin?open=rotation#rotation`} className="block text-center text-sm text-zinc-600 underline">
+        Game rotation
+      </Link>
 
       {drag?.moved && (
         <div className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white px-2 py-1 text-xs font-semibold shadow-xl ring-2 ring-emerald-500" style={{ left: drag.x, top: drag.y }}>

@@ -6,16 +6,18 @@ export function Section({
   aside,
   hint,
   open = false,
+  id,
   children,
 }: {
   title: string;
   aside?: React.ReactNode;
   hint?: string;
   open?: boolean;
+  id?: string;
   children: React.ReactNode;
 }) {
   return (
-    <details open={open} className="group rounded-2xl border border-zinc-200 bg-white shadow-sm">
+    <details id={id} open={open} className="scroll-mt-4 group rounded-2xl border border-zinc-200 bg-white shadow-sm">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">{title}</h2>
