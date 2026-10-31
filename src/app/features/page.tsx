@@ -123,10 +123,34 @@ export default function FeaturesPage() {
         </li>
       </ul>
 
-      <h2>For events (coming soon)</h2>
+      <h2>For events</h2>
       <ul>
         <li>
-          <b>Carnivals and gala days:</b> pools, a draw for the day, finals with placeholders like “1st Pool A”, and a public
+          <b>My Event:</b> organise a party, birthday or dinner. Pick the type for its look, then when, where, a dress code
+          and a reply-by date. No sign-in needed.
+        </li>
+        <li>
+          <b>Invitation link:</b> share it in a message or group chat; only people with the link can open the event. Families
+          a guest invites wait for the organiser’s OK.
+        </li>
+        <li>
+          <b>Answers in one tap:</b> guests type their first name and tap Going, Maybe or Can’t come, with who from their
+          family is coming. No app to install, no account.
+        </li>
+        <li>
+          <b>Who brings what:</b> everyone sees who’s coming and how many, and guests tap I’ll do it for a job, like bringing
+          a salad.
+        </li>
+        <li>
+          <b>Organiser page:</b> every answer with adults and kids, the jobs, the details, and co-organisers with the
+          organiser code.
+        </li>
+        <li>
+          <b>News, Chat and reminders:</b> post updates, talk to everyone, and guests get reminders the day before and on the
+          day, with their job. The event shows in each guest’s My Activities and can be added to their phone’s calendar.
+        </li>
+        <li>
+          <b>Coming soon, carnivals and gala days:</b> pools, a draw for the day, finals with placeholders like “1st Pool A”, and a public
           page with live results to share with everyone on the day.
         </li>
       </ul>
