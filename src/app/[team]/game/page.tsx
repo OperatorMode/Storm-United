@@ -78,7 +78,8 @@ export default async function GamePage({ params, searchParams }: PageProps<"/[te
   const title = `${game.home === us ? "vs" : "@"} ${opponent(game, us)}`;
 
   return (
-    <div className="mx-auto max-w-md pb-24">
+    // Wider on a tablet or computer, so the field can be bigger.
+    <div className="mx-auto max-w-md pb-24 sm:max-w-2xl">
       {header}
       <main className="mt-3 space-y-3 px-4">
         <div className="flex items-baseline justify-between gap-2 text-sm">

@@ -3,15 +3,16 @@ import type { SportId } from "@/lib/sports";
 // The field for each sport, from above, our goal (or basket) at the bottom.
 // Cards sit on top in percent of the box, so any shape works.
 
-export const FIELD_BOX: Record<SportId, string> = {
-  soccer: "aspect-[68/100] bg-emerald-700",
-  hockey: "aspect-[60/100] bg-sky-700",
-  basketball: "aspect-[54/100] bg-orange-200",
-  netball: "aspect-[50/100] bg-teal-700",
-  "ice-hockey": "aspect-[50/100] bg-sky-50",
-  afl: "aspect-[82/100] bg-emerald-700",
-  baseball: "aspect-square bg-emerald-700",
-  cricket: "aspect-[82/100] bg-emerald-700",
+// Width over height of each field, and its colour.
+export const FIELD_BOX: Record<SportId, { ratio: number; bg: string }> = {
+  soccer: { ratio: 0.68, bg: "bg-emerald-700" },
+  hockey: { ratio: 0.6, bg: "bg-sky-700" },
+  basketball: { ratio: 0.54, bg: "bg-orange-200" },
+  netball: { ratio: 0.5, bg: "bg-teal-700" },
+  "ice-hockey": { ratio: 0.5, bg: "bg-sky-50" },
+  afl: { ratio: 0.82, bg: "bg-emerald-700" },
+  baseball: { ratio: 1, bg: "bg-emerald-700" },
+  cricket: { ratio: 0.82, bg: "bg-emerald-700" },
 };
 
 const white = { fill: "none", stroke: "rgba(255,255,255,0.75)", strokeWidth: 0.5 };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { endGame, saveGame, saveGameData } from "./actions";
-import { ourCounts, ourGoals, pointsOf, scoresOf, stamp, theirGoals, type Counts, type LiveGame, type Spot } from "@/lib/game-live-shared";
+import { elapsedOf, ourCounts, ourGoals, pointsOf, scoresOf, stamp, theirGoals, type Counts, type LiveGame, type Spot } from "@/lib/game-live-shared";
 import { sportOf, type Sport, type SportId } from "@/lib/sports";
 import { Field, FIELD_BOX, ScoreIcon } from "./fields";
 
@@ -151,6 +151,16 @@ export function GameDay({
   const pause = () =>
     setG((s) => (s.clock.runningSince ? { ...s, clock: { elapsedMs: s.clock.elapsedMs + (Date.now() - Date.parse(s.clock.runningSince)), runningSince: null } } : s));
 
+  // Fixing the clock (forgot to start or stop it): move it by `ms`, or to a set time; it keeps running if it was.
+  const [fixing, setFixing] = useState(false);
+  const setClock = (to: (now: number) => number, pauseIt = false) =>
+    setG((st) => {
+      const t = Date.now();
+      const ms = Math.max(0, Math.min(6 * 3600_000, Math.round(to(elapsedOf(st, t)))));
+      const run = !!st.clock.runningSince && !pauseIt;
+      return { ...st, clock: { elapsedMs: ms, runningSince: run ? new Date(t).toISOString() : null } };
+    });
+
   // Halves (or quarters): the clock stops at the break.
   const partMs = plan?.partMinutes ? plan.partMinutes * 60_000 : null;
   const part = partMs ? Math.min((plan?.parts ?? 1) - 1, Math.floor(elapsed / partMs)) : 0;
@@ -178,8 +188,10 @@ export function GameDay({
   const keepers = plan ? Object.keys(plan.spots).filter((id) => plan.spots[id][block] === "gk") : [];
 
   // The rotation's next swap: a suggestion, the coach decides.
-  const due = swaps.find((s) => !g.doneSwaps.includes(s.at) && elapsed >= s.at * 60_000);
-  const next = swaps.find((s) => !g.doneSwaps.includes(s.at) && elapsed < s.at * 60_000);
+  // A swap the coach already made by dragging (everyone coming on is on, everyone going off is off) isn't asked about.
+  const settled = (s: Swap) => s.ins.every((id) => g.onField.includes(id)) && s.outs.every((id) => !g.onField.includes(id));
+  const due = swaps.find((s) => !g.doneSwaps.includes(s.at) && !settled(s) && elapsed >= s.at * 60_000);
+  const next = swaps.find((s) => !g.doneSwaps.includes(s.at) && !settled(s) && elapsed < s.at * 60_000);
   const alerted = useRef<number | null>(null);
   useEffect(() => {
     if (due && alerted.current !== due.at) {
@@ -395,7 +407,9 @@ export function GameDay({
           </div>
           <div className="text-center">
             <div className="text-xs text-zinc-500">{partName}</div>
-            <div className="text-4xl font-bold tabular-nums">{mmss(elapsed)}</div>
+            <button type="button" onClick={() => setFixing((f) => !f)} aria-label="Change the time" className="mx-auto block text-4xl font-bold tabular-nums">
+              {mmss(elapsed)}
+            </button>
             {!g.ended && (
               <button
                 type="button"
@@ -448,6 +462,28 @@ export function GameDay({
             )}
           </div>
         </div>
+        {fixing && !g.ended && (
+          <div className="mt-2 border-t border-zinc-100 pt-2 text-center text-sm">
+            <div className="flex justify-center gap-1.5">
+              {[
+                ["−1 min", -60_000],
+                ["−10 s", -10_000],
+                ["+10 s", 10_000],
+                ["+1 min", 60_000],
+              ].map(([label, ms]) => (
+                <button key={label} type="button" onClick={() => setClock((e) => e + Number(ms))} className="rounded-lg border border-zinc-300 px-2.5 py-1 font-semibold tabular-nums">
+                  {label}
+                </button>
+              ))}
+            </div>
+            {partMs && plan?.parts && part + 1 < plan.parts && (
+              <button type="button" onClick={() => setClock(() => (part + 1) * partMs, true)} className="mt-2 text-xs text-zinc-600 underline">
+                Jump to the start of {plan.parts === 4 ? `Q${part + 2}` : plan.parts === 2 ? "the 2nd half" : `part ${part + 2}`}
+              </button>
+            )}
+            <p className="mt-1 text-[11px] text-zinc-500">Forgot to start the clock? Start it, then add the minutes you missed. Tap the time to close.</p>
+          </div>
+        )}
       </section>
 
       {/* The rotation's swap: a suggestion */}
@@ -471,7 +507,12 @@ export function GameDay({
       ) : null}
 
       {/* The field */}
-      <div ref={pitch} className={`relative w-full overflow-hidden rounded-2xl shadow-inner ${FIELD_BOX[sp.id]}`}>
+      {/* Edge to edge on a phone; on a bigger screen as big as fits on it. */}
+      <div
+        ref={pitch}
+        style={{ aspectRatio: FIELD_BOX[sp.id].ratio, ["--r" as string]: FIELD_BOX[sp.id].ratio }}
+        className={`relative -mx-4 overflow-hidden shadow-inner sm:mx-auto sm:w-[min(100%,calc((100dvh-8rem)*var(--r)))] sm:rounded-2xl ${FIELD_BOX[sp.id].bg}`}
+      >
         <Field sport={sp.id} />
         {g.onField.map((id) => card(id, true))}
         {picker && (
