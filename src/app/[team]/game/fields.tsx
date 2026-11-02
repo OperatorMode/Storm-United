@@ -10,6 +10,8 @@ export const FIELD_BOX: Record<SportId, string> = {
   netball: "aspect-[50/100] bg-teal-700",
   "ice-hockey": "aspect-[50/100] bg-sky-50",
   afl: "aspect-[82/100] bg-emerald-700",
+  baseball: "aspect-square bg-emerald-700",
+  cricket: "aspect-[82/100] bg-emerald-700",
 };
 
 const white = { fill: "none", stroke: "rgba(255,255,255,0.75)", strokeWidth: 0.5 };
@@ -105,6 +107,46 @@ export function Field({ sport }: { sport: SportId }) {
         </>,
       );
     }
+    case "baseball": {
+      const dirt = "rgba(180,120,70,0.85)";
+      return svg(
+        100,
+        <>
+          {/* Outfield fence, foul lines and the infield dirt, home plate at the bottom */}
+          <path d="M 50 95.5 L 4 50 A 46 46 0 0 1 96 50 Z" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5" />
+          <path d="M 50 95.5 L 18 63.5 A 40 40 0 0 1 82 63.5 Z" fill={dirt} />
+          <rect x="37" y="60.5" width="26" height="26" transform="rotate(45 50 73.5)" fill="rgba(16,120,80,1)" />
+          <g fill="white">
+            <rect x="48.5" y="94" width="3" height="3" transform="rotate(45 50 95.5)" />
+            <rect x="70.5" y="72" width="3" height="3" transform="rotate(45 72 73.5)" />
+            <rect x="48.5" y="50" width="3" height="3" transform="rotate(45 50 51.5)" />
+            <rect x="26.5" y="72" width="3" height="3" transform="rotate(45 28 73.5)" />
+          </g>
+          <circle cx="50" cy="73" r="3" fill={dirt} />
+          <line x1="50" y1="95.5" x2="4" y2="50" stroke="white" strokeWidth="0.5" />
+          <line x1="50" y1="95.5" x2="96" y2="50" stroke="white" strokeWidth="0.5" />
+        </>,
+      );
+    }
+    case "cricket":
+      return svg(
+        82,
+        <>
+          <g {...white}>
+            <ellipse cx="41" cy="50" rx="39.5" ry="48.5" />
+            {/* The inner ring (30 yards) */}
+            <ellipse cx="41" cy="50" rx="24" ry="30" strokeDasharray="1.5 1.2" />
+          </g>
+          {/* The pitch, with the creases and stumps */}
+          <rect x="38.5" y="38" width="5" height="24" fill="rgba(214,190,140,0.9)" />
+          <g stroke="white" strokeWidth="0.35">
+            <line x1="37.5" y1="41" x2="44.5" y2="41" />
+            <line x1="37.5" y1="59" x2="44.5" y2="59" />
+          </g>
+          <rect x="40.4" y="38.8" width="1.2" height="0.8" fill="#7c2d12" />
+          <rect x="40.4" y="60.4" width="1.2" height="0.8" fill="#7c2d12" />
+        </>,
+      );
     case "afl":
       return svg(
         82,
@@ -180,6 +222,22 @@ export function ScoreIcon({ sport }: { sport: SportId }) {
           <ellipse cx="10" cy="10" rx="8.5" ry="5.5" fill="#b91c1c" stroke="rgba(0,0,0,0.5)" strokeWidth="1" transform="rotate(-30 10 10)" />
           <line x1="7" y1="11.5" x2="13" y2="8.5" stroke="white" strokeWidth="0.9" />
         </svg>
+      );
+    case "baseball":
+      return ball(
+        "#f8fafc",
+        <g fill="none" stroke="#dc2626" strokeWidth="0.9">
+          <path d="M 5 3.5 Q 9 10 5 16.5" />
+          <path d="M 15 3.5 Q 11 10 15 16.5" />
+        </g>,
+      );
+    case "cricket":
+      return ball(
+        "#b91c1c",
+        <g fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="0.8">
+          <path d="M 3 7 Q 10 11 17 7" />
+          <path d="M 3 9 Q 10 13 17 9" />
+        </g>,
       );
     case "ice-hockey":
       return (

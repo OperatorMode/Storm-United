@@ -53,6 +53,13 @@ function clean(state: LiveGame, team: Team): LiveGame {
     marks,
     teamMarks: counts(scores.team, 99),
     themMarks: counts(scores.them, 999),
+    wickets: sport.wickets ? { us: n(state.wickets?.us, 20), them: n(state.wickets?.them, 20) } : undefined,
+    batting: sport.batting
+      ? (() => {
+          const order = [...new Set((state.batting?.order ?? []).filter(ok))].slice(0, 40);
+          return { order, at: Math.min(n(state.batting?.at, 40), Math.max(0, order.length - 1)) };
+        })()
+      : undefined,
     scorers: {},
     ownGoals: 0,
     them: 0,

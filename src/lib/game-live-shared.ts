@@ -19,6 +19,8 @@ export type LiveGame = {
   marks?: Record<string, Counts>; // player id -> what they scored
   teamMarks?: Counts; // scored for us by the other team (own goal, rushed behind)
   themMarks?: Counts; // the other team's score
+  wickets?: { us: number; them: number }; // cricket: wickets lost by each side
+  batting?: { order: string[]; at: number }; // the batting order (set by the coach) and who's batting now
   // Before sports (soccer only): goals per player, own goals, their goals. Read through scoresOf().
   scorers: Record<string, number>;
   ownGoals: number;

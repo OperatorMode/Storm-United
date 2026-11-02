@@ -87,12 +87,14 @@ export function GameDay({
     // First open: the rotation's first line-up (or the first players available), where they usually play.
     const first = plan ? Object.keys(plan.spots).filter((id) => isOn(plan.spots[id][0])) : available.slice(0, onFieldCount);
     if (sp.positions) {
-      // Netball: a bib each, in order, standing in its area.
+      // Netball, baseball: a bib each, in order, standing in its area.
       const pos: Record<string, Spot> = {};
       const bibs: Record<string, string> = {};
       first.forEach((id, i) => {
         const p = sp.positions![i];
-        pos[id] = p ? { x: p.x, y: p.y } : { x: 50, y: 50 };
+        // More players than positions (T-ball): a row across the outfield, no bib.
+        const extra = i - sp.positions!.length;
+        pos[id] = p ? { x: p.x, y: p.y } : { x: 15 + ((extra * 23) % 70), y: 32 + Math.floor(extra / 4) * 8 };
         if (p) bibs[id] = p.name;
       });
       return { ...base, onField: first, pos, bibs };
@@ -274,19 +276,37 @@ export function GameDay({
   const mark = (id: string, kind: string, d: 1 | -1) => setG((st) => ({ ...st, marks: { ...(st.marks ?? {}), [id]: bump(st.marks?.[id], kind, d) } }));
   const teamMark = (d: 1 | -1) => sp.teamScore && setG((st) => ({ ...st, teamMarks: bump(st.teamMarks, sp.teamScore!.key, d) }));
   const themMark = (kind: string, d: 1 | -1) => setG((st) => ({ ...st, themMarks: bump(st.themMarks, kind, d) }));
-  // Basketball: take one point off theirs (a 2 becomes a 1, and so on).
+  // Basketball, cricket: take one point off theirs (their smallest score loses a point, e.g. a 2 becomes a 1).
   const themMinusPoint = () =>
     setG((st) => {
       const c = { ...(st.themMarks ?? {}) };
-      if (c.p1) c.p1--;
-      else if (c.p2) [c.p2, c.p1] = [c.p2 - 1, (c.p1 ?? 0) + 1];
-      else if (c.p3) [c.p3, c.p2] = [c.p3 - 1, (c.p2 ?? 0) + 1];
+      const k = [...sp.kinds].sort((a, b) => a.points - b.points).find((x) => (c[x.key] ?? 0) > 0);
+      if (!k) return st;
+      c[k.key]--;
+      if (k.points > 1) c[sp.kinds[0].key] = (c[sp.kinds[0].key] ?? 0) + k.points - 1;
       return { ...st, themMarks: c };
     });
+  // Cricket: wickets lost by each side.
+  const wicket = (side: "us" | "them", d: 1 | -1) =>
+    setG((st) => {
+      const w = { us: 0, them: 0, ...st.wickets };
+      return { ...st, wickets: { ...w, [side]: Math.max(0, Math.min(10, w[side] + d)) } };
+    });
+  // The batting order: everyone who's there, in the coach's order.
+  const order = sp.batting ? [...(g.batting?.order ?? []).filter((id) => available.includes(id)), ...available.filter((id) => !g.batting?.order.includes(id))] : [];
+  const batAt = Math.min(g.batting?.at ?? 0, Math.max(0, order.length - 1));
+  const setBatting = (o: string[], at: number) => setG((st) => ({ ...st, batting: { order: o, at } }));
+  const moveBatter = (i: number, d: -1 | 1) => {
+    const o = [...order];
+    const j = i + d;
+    if (j < 0 || j >= o.length) return;
+    [o[i], o[j]] = [o[j], o[i]];
+    setBatting(o, batAt === i ? j : batAt === j ? i : batAt);
+  };
   const badge = (c: Counts) => (sp.id === "afl" ? `${c.goal ?? 0}.${c.behind ?? 0}` : String(pointsOf(sp, c)));
   const [picker, setPicker] = useState<{ id: string; d: 1 | -1 } | null>(null);
   const single = sp.kinds.length === 1;
-  // Netball: tap a bib for the next free position (or none).
+  // Netball, baseball: tap a bib for the next free position (or none).
   const cycleBib = (id: string) =>
     setG((st) => {
       const names = (sp.positions ?? []).map((p) => p.name);
@@ -358,7 +378,8 @@ export function GameDay({
         <div className="flex items-center justify-between gap-2">
           <div className="text-center">
             <div className="text-[11px] uppercase tracking-wide text-zinc-500">Us</div>
-            <ScoreBig sport={sp} counts={ourCounts(g)} />
+            <ScoreBig sport={sp} counts={ourCounts(g)} wickets={g.wickets?.us} />
+            {sp.wickets && <WicketButtons onChange={(d) => wicket("us", d)} />}
             {sp.teamScore && (
               <>
                 <button type="button" onClick={() => teamMark(1)} className="text-[11px] text-zinc-500 underline">
@@ -381,7 +402,7 @@ export function GameDay({
                 onClick={running ? pause : start}
                 className={`mt-1 rounded-full px-4 py-1.5 text-sm font-semibold text-white ${running ? "bg-zinc-900" : "bg-emerald-600"}`}
               >
-                {running ? "Pause" : elapsed ? "Start again" : "Kick-off"}
+                {running ? "Pause" : elapsed ? "Start again" : sp.id === "soccer" || sp.id === "afl" ? "Kick-off" : "Start"}
               </button>
             )}
             {!g.ended && elapsed > 0 && (
@@ -399,9 +420,10 @@ export function GameDay({
           </div>
           <div className="text-center">
             <div className="text-[11px] uppercase tracking-wide text-zinc-500">{title.replace(/^vs |^@ /, "")}</div>
-            <ScoreBig sport={sp} counts={g.themMarks ?? {}} />
-            {sp.id === "basketball" ? (
-              <span className="flex justify-center gap-1.5 text-sm">
+            <ScoreBig sport={sp} counts={g.themMarks ?? {}} wickets={g.wickets?.them} />
+            {sp.wickets && <WicketButtons onChange={(d) => wicket("them", d)} />}
+            {sp.themByPoints ? (
+              <span className="flex max-w-32 flex-wrap justify-center gap-x-1.5 text-sm">
                 <button type="button" onClick={themMinusPoint} className="px-0.5 text-zinc-400">
                   −1
                 </button>
@@ -491,6 +513,46 @@ export function GameDay({
         </div>
       </div>
 
+      {sp.batting && order.length > 0 && (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-3 text-sm shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Batting order</h2>
+            <button
+              type="button"
+              onClick={() => setBatting(order, (batAt + 1) % order.length)}
+              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Next batter
+            </button>
+          </div>
+          <p className="mt-0.5 text-xs text-zinc-500">Use the arrows to set the order. Tap a name to make them the one batting now.</p>
+          <ol className="mt-2 divide-y divide-zinc-100">
+            {order.map((id, i) => (
+              <li key={id} className={`flex items-center gap-2 py-1 ${i === batAt ? "font-semibold" : ""}`}>
+                <span className="w-5 text-right text-xs tabular-nums text-zinc-400">{i + 1}</span>
+                <button type="button" onClick={() => setBatting(order, i)} className="flex-1 truncate text-left">
+                  {nameOf(id)}
+                </button>
+                {i === batAt && <span className="rounded bg-emerald-600 px-1.5 text-[10px] text-white">Batting</span>}
+                {i === (batAt + 1) % order.length && order.length > 1 && <span className="rounded bg-zinc-100 px-1.5 text-[10px] text-zinc-600">Next</span>}
+                <button type="button" aria-label={`Move ${nameOf(id)} up`} onClick={() => moveBatter(i, -1)} disabled={i === 0} className="px-1.5 text-zinc-500 disabled:opacity-25">
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Move ${nameOf(id)} down`}
+                  onClick={() => moveBatter(i, 1)}
+                  disabled={i === order.length - 1}
+                  className="px-1.5 text-zinc-500 disabled:opacity-25"
+                >
+                  ↓
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {!g.ended ? (
         <button
           type="button"
@@ -569,7 +631,14 @@ function alertNow() {
 const tidyBibs = (b: Record<string, string>) => Object.fromEntries(Object.entries(b).filter(([, v]) => v));
 
 /** A team's score, as the sport shows it: AFL as goals.behinds (points). */
-function ScoreBig({ sport, counts }: { sport: Sport; counts: Counts }) {
+function ScoreBig({ sport, counts, wickets }: { sport: Sport; counts: Counts; wickets?: number }) {
+  if (sport.wickets)
+    return (
+      <div className="text-3xl font-bold tabular-nums">
+        {pointsOf(sport, counts)}
+        <span className="text-xl text-zinc-500">/{wickets ?? 0}</span>
+      </div>
+    );
   if (sport.id !== "afl") return <div className="text-3xl font-bold tabular-nums">{pointsOf(sport, counts)}</div>;
   return (
     <div className="tabular-nums">
@@ -578,5 +647,20 @@ function ScoreBig({ sport, counts }: { sport: Sport; counts: Counts }) {
       </span>{" "}
       <span className="text-lg font-semibold text-zinc-500">({pointsOf(sport, counts)})</span>
     </div>
+  );
+}
+
+/** Cricket: a wicket down (or back, if tapped by mistake). */
+function WicketButtons({ onChange }: { onChange: (d: 1 | -1) => void }) {
+  return (
+    <span className="flex items-center justify-center gap-2 text-sm">
+      <span className="text-[11px] text-zinc-500">Out</span>
+      <button type="button" onClick={() => onChange(-1)} className="px-1 text-zinc-400">
+        −
+      </button>
+      <button type="button" onClick={() => onChange(1)} className="px-1 font-semibold">
+        +
+      </button>
+    </span>
   );
 }

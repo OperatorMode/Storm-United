@@ -2,7 +2,7 @@
 // usual game split and special role (set as defaults when the sport is picked,
 // the coach can still change them). No server code here: the phone uses it too.
 
-export type SportId = "soccer" | "basketball" | "afl" | "hockey" | "ice-hockey" | "netball";
+export type SportId = "soccer" | "basketball" | "afl" | "hockey" | "ice-hockey" | "netball" | "baseball" | "cricket";
 export type ScoreKind = { key: string; label: string; points: number };
 
 export type Sport = {
@@ -16,8 +16,11 @@ export type Sport = {
   teamScore: ScoreKind | null; // scored for us by the other team (own goal, rushed behind)
   keeper: { x: number; y: number; area: number } | null; // the keeper's spot; lower than `area` counts as in goal
   bench: string; // what the sideline is called
-  positions?: { name: string; x: number; y: number }[]; // netball: a bib per position, our goal at the bottom
+  positions?: { name: string; x: number; y: number }[]; // a bib per position (netball, baseball), our end at the bottom
   tally: string; // the tally's name in Manager's Corner
+  themByPoints?: boolean; // the other team's score is just points (+1, +2...), not kinds
+  wickets?: boolean; // cricket: wickets lost, shown as 45/3
+  batting?: boolean; // a batting order (set by hand) under the field
 };
 
 const goal: ScoreKind = { key: "goal", label: "Goal", points: 1 };
@@ -52,6 +55,7 @@ export const SPORTS: Sport[] = [
     keeper: null,
     bench: "Bench",
     tally: "Points",
+    themByPoints: true,
   },
   {
     id: "afl",
@@ -117,6 +121,54 @@ export const SPORTS: Sport[] = [
       { name: "GK", x: 50, y: 92 },
     ],
     tally: "Goals",
+  },
+  {
+    id: "baseball",
+    name: "Baseball / T-ball",
+    parts: { name: "Inning", count: 4 },
+    partMinutes: 15,
+    role: null,
+    onField: 9,
+    kinds: [{ key: "run", label: "Run", points: 1 }],
+    teamScore: null,
+    keeper: null,
+    bench: "Dugout",
+    // Fielding positions, home plate at the bottom.
+    positions: [
+      { name: "P", x: 50, y: 70 },
+      { name: "C", x: 50, y: 91 },
+      { name: "1B", x: 74, y: 68 },
+      { name: "2B", x: 62, y: 53 },
+      { name: "SS", x: 38, y: 53 },
+      { name: "3B", x: 26, y: 68 },
+      { name: "LF", x: 22, y: 30 },
+      { name: "CF", x: 50, y: 15 },
+      { name: "RF", x: 78, y: 30 },
+    ],
+    tally: "Runs",
+    batting: true,
+  },
+  {
+    id: "cricket",
+    name: "Cricket",
+    parts: { name: "Inning", count: 2 },
+    partMinutes: 45,
+    role: null,
+    onField: 11,
+    kinds: [
+      { key: "r1", label: "+1", points: 1 },
+      { key: "r2", label: "+2", points: 2 },
+      { key: "r3", label: "+3", points: 3 },
+      { key: "r4", label: "+4", points: 4 },
+      { key: "r6", label: "+6", points: 6 },
+    ],
+    teamScore: { key: "extra", label: "extra", points: 1 },
+    keeper: null,
+    bench: "Sideline",
+    tally: "Runs",
+    themByPoints: true,
+    wickets: true,
+    batting: true,
   },
 ];
 
