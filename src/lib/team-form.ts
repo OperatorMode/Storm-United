@@ -1,3 +1,4 @@
+import { isSportId } from "./sports";
 import { deleteTeam, getTeamRow, listTeams, savePlayers, upsertTeam, uploadLogo, type TeamRow } from "./store";
 import { competitionTeams, getCompetition } from "./league";
 import { getTeam, hashSecret, joinCodeFields, mergePlayers, slugify } from "./teams";
@@ -81,6 +82,7 @@ export async function applyTeamForm(formData: FormData, opts: TeamFormOptions): 
     role_name: get("role_name").slice(0, 30) || null,
     game_parts: Math.min(12, Math.max(1, Number(formData.get("game_parts")) || 2)),
     part_name: PART_PRESETS.some((p) => p.name === formData.get("part_name")) ? String(formData.get("part_name")) : "Half",
+    sport: isSportId(formData.get("sport")) ? String(formData.get("sport")) : (existing?.sport ?? null),
     roster_url: formData.has("roster_url") ? (get("roster_url") ? cleanLink(get("roster_url")) : null) : (existing?.roster_url ?? null),
   };
   await upsertTeam(row);

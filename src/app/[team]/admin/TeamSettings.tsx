@@ -3,8 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import { findTeamSquad, saveTeamSettings, teamSquadFromLink } from "./actions";
 import { SquadStatus, useSquadFinder } from "@/components/SquadFinder";
-import { RoleField } from "@/components/RoleField";
-import { PartsField } from "@/components/PartsField";
+import { SportField } from "@/components/SportField";
 
 export function TeamSettings({
   teamId,
@@ -17,6 +16,7 @@ export function TeamSettings({
   roleName,
   gameParts,
   partName,
+  sport,
   muteLeague,
 }: {
   teamId: string;
@@ -28,6 +28,7 @@ export function TeamSettings({
   rosterUrl: string | null;
   roleName: string | null;
   gameParts: number;
+  sport: string | null;
   partName: string;
   muteLeague: boolean | null; // null: the team isn't in a league
 }) {
@@ -88,8 +89,7 @@ export function TeamSettings({
         </span>
       </label>
 
-      <PartsField count={gameParts} name={partName} />
-      <RoleField enabled={goalieEnabled} name={roleName} />
+      <SportField sport={sport} gameParts={gameParts} partName={partName} goalieEnabled={goalieEnabled} roleName={roleName} />
 
       <label className="flex items-start gap-2">
         <input type="checkbox" name="mvp_enabled" defaultChecked={mvpEnabled} className="mt-1 size-4" />

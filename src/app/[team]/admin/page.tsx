@@ -33,6 +33,8 @@ import { competitionLabel, formatDay, getLeagueData, listCompetitions, roundLabe
 import { getAttendance, getBallots, getManualScores } from "@/lib/store";
 import { roleByPart, roleTally } from "@/lib/goalies";
 import { listLive } from "@/lib/game-live";
+import { pointsOf, scoresOf } from "@/lib/game-live-shared";
+import { sportOf } from "@/lib/sports";
 import { leagueMessagesFor } from "@/lib/league-messages";
 import { memberLabel, openReports } from "@/lib/dms";
 import { ReportedMessages } from "./ReportedMessages";
@@ -295,8 +297,8 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           allSaved={seasonRotations}
           actual={actual}
           defaults={{
-            shape: lastPlan?.shape ?? { parts: gp.count, partMinutes: gp.count >= 4 ? 10 : 20, swapEvery: gp.count >= 4 ? 0 : 10 },
-            onField: lastPlan?.onField ?? 6,
+            shape: lastPlan?.shape ?? { parts: gp.count, partMinutes: sportOf(team.sport).parts.count === gp.count ? sportOf(team.sport).partMinutes : gp.count >= 4 ? 10 : 20, swapEvery: gp.count >= 4 ? 0 : 10 },
+            onField: lastPlan?.onField ?? sportOf(team.sport).onField,
             goaliesStayOn: lastPlan?.goaliesStayOn ?? false,
           }}
           games={ourGames
@@ -319,22 +321,33 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
 
       {savedGames.length > 0 &&
         (() => {
+          const sport = sportOf(team.sport);
+          const afl = sport.id === "afl";
           const rows = team.allPlayers
-            .map((p) => ({
-              id: p.id,
-              goals: savedGames.reduce((n, r) => n + (r.state.scorers[p.id] ?? 0), 0),
-              games: savedGames.filter((r) => (r.state.saved!.played[p.id] ?? 0) > 0).length,
-            }))
-            .filter((r) => r.goals > 0 || team.players.some((p) => p.id === r.id))
-            .sort((a, b) => b.goals - a.goals || a.id.localeCompare(b.id));
+            .map((p) => {
+              const c: Record<string, number> = {};
+              for (const r of savedGames) for (const [k, v] of Object.entries(scoresOf(r.state).mine[p.id] ?? {})) c[k] = (c[k] ?? 0) + v;
+              return { id: p.id, c, points: pointsOf(sport, c), games: savedGames.filter((r) => (r.state.saved!.played[p.id] ?? 0) > 0).length };
+            })
+            .filter((r) => r.points > 0 || team.players.some((p) => p.id === r.id))
+            .sort((a, b) => b.points - a.points || a.id.localeCompare(b.id));
+          const teamKey = sport.teamScore?.key;
+          const teamTotal = teamKey ? savedGames.reduce((n, r) => n + (scoresOf(r.state).team[teamKey] ?? 0), 0) : 0;
           return (
-            <Section title="Goals" hint="Who scored, from the games saved in My Game (Save game data after full time).">
+            <Section title={sport.tally} hint="Who scored, from the games saved in My Game (Save game data after full time).">
               <table className="w-full text-sm tabular-nums">
                 <thead>
                   <tr className="text-left text-xs text-zinc-500">
                     <th className="py-1 font-medium">Player</th>
                     <th className="py-1 text-center font-medium">Games</th>
-                    <th className="py-1 text-right font-medium">Goals</th>
+                    {afl ? (
+                      <>
+                        <th className="py-1 text-center font-medium">Goals</th>
+                        <th className="py-1 text-right font-medium">Behinds</th>
+                      </>
+                    ) : (
+                      <th className="py-1 text-right font-medium">{sport.tally}</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -342,14 +355,21 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
                     <tr key={r.id} className="border-t border-zinc-100">
                       <td className="py-1.5 pr-2">{nameOf(r.id)}</td>
                       <td className="py-1.5 text-center text-zinc-600">{r.games}</td>
-                      <td className="py-1.5 text-right font-semibold">{r.goals}</td>
+                      {afl ? (
+                        <>
+                          <td className="py-1.5 text-center font-semibold">{r.c.goal ?? 0}</td>
+                          <td className="py-1.5 text-right">{r.c.behind ?? 0}</td>
+                        </>
+                      ) : (
+                        <td className="py-1.5 text-right font-semibold">{r.points}</td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
               <p className="mt-2 text-xs text-zinc-500">
                 {savedGames.length === 1 ? "1 game saved" : `${savedGames.length} games saved`}
-                {savedGames.some((r) => r.state.ownGoals > 0) ? `, plus ${savedGames.reduce((n, r) => n + r.state.ownGoals, 0)} own goal(s) by the other team` : ""}.
+                {teamTotal > 0 && sport.teamScore ? `, plus ${teamTotal} ${sport.teamScore.label}${teamTotal === 1 ? "" : "s"} for the team` : ""}.
               </p>
             </Section>
           );
@@ -582,6 +602,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[t
           roleName={team.role_name ?? null}
           gameParts={gp.count}
           partName={gp.name}
+          sport={team.sport ?? null}
           muteLeague={team.competition_id ? !!team.mute_league : null}
         />
       </Section>

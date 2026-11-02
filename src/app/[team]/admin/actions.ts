@@ -20,6 +20,7 @@ import type { RotationPlan } from "@/lib/rotation-plan";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { slotForPlayer } from "@/lib/goalies";
 import { gameParts, PART_PRESETS } from "@/lib/role";
+import { isSportId } from "@/lib/sports";
 import { findSquad, squadFromLink, type SquadResult } from "@/lib/squad";
 import { mergePlayer } from "@/lib/merge";
 import { MANAGER_COOKIE, OWNER_COOKIE, SUPER_COOKIE, adminCookie, isTeamAdmin } from "@/lib/session";
@@ -111,6 +112,7 @@ export async function saveTeamSettings(teamId: string, _: unknown, formData: For
     mute_league: team.competition_id ? formData.get("league_news") !== "on" : !!team.mute_league,
     game_parts: Math.min(12, Math.max(1, Number(formData.get("game_parts")) || 2)),
     part_name: PART_PRESETS.some((p) => p.name === formData.get("part_name")) ? String(formData.get("part_name")) : "Half",
+    sport: isSportId(formData.get("sport")) ? String(formData.get("sport")) : (team.sport ?? null),
     ...join,
   });
   await savePlayers(team.id, players);

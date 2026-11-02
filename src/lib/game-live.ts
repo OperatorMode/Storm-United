@@ -5,7 +5,7 @@ import { check, db, getTeamRow, readLocal, upsertTeam, writeLocal } from "./stor
 // reload (or a second phone) carries on where it was, and families see the
 // live score next to the team on their home screen.
 
-import { ourGoals, type LiveGame, type Spot } from "./game-live-shared";
+import { ourGoals, theirGoals, type LiveGame, type Spot } from "./game-live-shared";
 export { emptyLive, ourGoals, type LiveGame, type SavedStats, type Spot } from "./game-live-shared";
 
 type Row = { team_id: string; game_id: string; state: LiveGame; updated_at: string };
@@ -53,7 +53,7 @@ export async function liveScores(teamIds: string[]): Promise<Record<string, { us
       ? (check(await s.from("game_live").select("*").in("team_id", teamIds).gt("updated_at", since)) as Row[])
       : ((await readLocal()).game_live ?? []).filter((r) => teamIds.includes(r.team_id) && r.updated_at > since);
     const out: Record<string, { us: number; them: number }> = {};
-    for (const r of rows) if (r.state.startedAt && !r.state.ended) out[r.team_id] = { us: ourGoals(r.state), them: r.state.them };
+    for (const r of rows) if (r.state.startedAt && !r.state.ended) out[r.team_id] = { us: ourGoals(r.state), them: theirGoals(r.state) };
     return out;
   } catch {
     return {};

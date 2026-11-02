@@ -14,6 +14,7 @@ import { listRotations } from "@/lib/rotation";
 import { emptyLive, getLive } from "@/lib/game-live";
 import { roleInText, roleName } from "@/lib/role";
 import { now as clockNow } from "@/lib/clock";
+import { sportOf } from "@/lib/sports";
 import { GameDay } from "./GameDay";
 
 export const metadata: Metadata = { title: "My Game", robots: { index: false } };
@@ -125,10 +126,11 @@ export default async function GamePage({ params, searchParams }: PageProps<"/[te
                 }
               : null
           }
-          onFieldCount={plan?.onField ?? Math.min(available.length, 9)}
+          onFieldCount={plan?.onField ?? Math.min(available.length, sportOf(team.sport).onField)}
           layout={team.field_layout ?? {}}
           // Until kick-off, the line-up follows the latest saved rotation; after it, it's as the coach set it.
           initial={live?.startedAt ? live : emptyLive()}
+          sport={sportOf(team.sport).id}
           roleWord={team.goalie_enabled ? roleInText(roleName(team)) : null}
           keeperTag={!team.goalie_enabled || /^goal/i.test(roleName(team)) ? "GK" : roleName(team).slice(0, 3)}
         />

@@ -7,8 +7,10 @@ import { getLeagueData } from "@/lib/league";
 import { getAttendance, setAttendance, setManualScore } from "@/lib/store";
 import { slotForPlayer } from "@/lib/goalies";
 import { gameParts } from "@/lib/role";
-import { getLive, ourGoals, saveFieldLayout, saveLive, type LiveGame, type Spot } from "@/lib/game-live";
-import { keeperByPart, playedTime } from "@/lib/game-live-shared";
+import { getLive, saveFieldLayout, saveLive, type LiveGame, type Spot } from "@/lib/game-live";
+import { keeperByPart, ourGoals, playedTime, scoresOf, theirGoals, type Counts } from "@/lib/game-live-shared";
+import { sportOf } from "@/lib/sports";
+import type { Team } from "@/lib/teams";
 
 // My Game (managers only): saving the sideline screen as the coach goes, and
 // full time (the score goes into the team's results), and "Save game data"
@@ -22,26 +24,38 @@ async function managerTeam(teamId: string) {
 const n = (v: unknown, max: number) => Math.max(0, Math.min(max, Math.round(Number(v) || 0)));
 const pct = (v: unknown) => Math.max(0, Math.min(100, Number(v) || 0));
 
-/** Only this team's players, sensible numbers, nothing huge. */
-function clean(state: LiveGame, playerIds: string[]): LiveGame {
-  const ok = (id: string) => playerIds.includes(id);
+/** Only this team's players, the sport's own kinds of score, sensible numbers, nothing huge. */
+function clean(state: LiveGame, team: Team): LiveGame {
+  const ok = (id: string) => team.players.some((p) => p.id === id);
+  const sport = sportOf(team.sport);
+  const kinds = new Set([...sport.kinds.map((k) => k.key), ...(sport.teamScore ? [sport.teamScore.key] : [])]);
+  const counts = (c: Counts | undefined, max: number): Counts =>
+    Object.fromEntries(Object.entries(c ?? {}).filter(([k, v]) => kinds.has(k) && n(v, max)).map(([k, v]) => [k, n(v, max)]));
   const pos: Record<string, Spot> = {};
   for (const [id, p] of Object.entries(state.pos ?? {})) if (ok(id)) pos[id] = { x: pct(p?.x), y: pct(p?.y) };
-  const scorers: Record<string, number> = {};
-  for (const [id, g] of Object.entries(state.scorers ?? {})) if (ok(id) && n(g, 99)) scorers[id] = n(g, 99);
+  const names = new Set(sport.positions?.map((p) => p.name) ?? []);
+  const bibs = Object.fromEntries(Object.entries(state.bibs ?? {}).filter(([id, b]) => ok(id) && names.has(b)));
+  const scores = scoresOf(state);
+  const marks: Record<string, Counts> = {};
+  for (const [id, c] of Object.entries(scores.mine)) if (ok(id) && Object.keys(counts(c, 99)).length) marks[id] = counts(c, 99);
   const log = (Array.isArray(state.log) ? state.log : []).slice(-400).map((e) => ({
     at: n(e?.at, 6 * 3600_000),
-    on: [...new Set((Array.isArray(e?.on) ? e.on : []).filter(ok))].slice(0, 30),
+    on: [...new Set((Array.isArray(e?.on) ? e.on : []).filter(ok))].slice(0, 40),
     gk: e?.gk && ok(e.gk) ? e.gk : null,
   }));
   const since = state.clock?.runningSince && !Number.isNaN(Date.parse(state.clock.runningSince)) ? state.clock.runningSince : null;
   return {
-    onField: [...new Set((state.onField ?? []).filter(ok))].slice(0, 30),
+    sport: sport.id,
+    onField: [...new Set((state.onField ?? []).filter(ok))].slice(0, 40),
     pos,
+    bibs,
     clock: { elapsedMs: n(state.clock?.elapsedMs, 6 * 3600_000), runningSince: since },
-    scorers,
-    ownGoals: n(state.ownGoals, 99),
-    them: n(state.them, 99),
+    marks,
+    teamMarks: counts(scores.team, 99),
+    themMarks: counts(scores.them, 999),
+    scorers: {},
+    ownGoals: 0,
+    them: 0,
     doneSwaps: [...new Set((state.doneSwaps ?? []).map((m) => n(m, 600)))].slice(0, 60),
     ended: !!state.ended,
     startedAt: state.startedAt && !Number.isNaN(Date.parse(state.startedAt)) ? state.startedAt : null,
@@ -53,8 +67,7 @@ function clean(state: LiveGame, playerIds: string[]): LiveGame {
 export async function saveGame(teamId: string, gameId: string, state: LiveGame) {
   const team = await managerTeam(teamId);
   if (!team) return { error: "Managers only." };
-  const ids = team.players.map((p) => p.id);
-  const tidy = clean(state, ids);
+  const tidy = clean(state, team);
   tidy.saved = (await getLive(team.id, gameId.slice(0, 200)))?.saved ?? null;
   await saveLive(team.id, gameId.slice(0, 200), tidy);
   // Where they played: remembered for next game.
@@ -66,15 +79,15 @@ export async function saveGame(teamId: string, gameId: string, state: LiveGame) 
 export async function endGame(teamId: string, gameId: string, state: LiveGame) {
   const team = await managerTeam(teamId);
   if (!team) return { error: "Managers only." };
-  const tidy = { ...clean(state, team.players.map((p) => p.id)), ended: true, saved: (await getLive(team.id, gameId))?.saved ?? null };
+  const tidy = { ...clean(state, team), ended: true, saved: (await getLive(team.id, gameId))?.saved ?? null };
   const clock = tidy.clock;
   if (clock.runningSince) tidy.clock = { elapsedMs: clock.elapsedMs + (Date.now() - Date.parse(clock.runningSince)), runningSince: null };
   await saveLive(team.id, gameId, tidy);
   const game = (await getLeagueData(team)).ourGames.find((g) => g.id === gameId);
   if (game) {
-    const us = ourGoals(tidy);
+    const [us, them] = [ourGoals(tidy), theirGoals(tidy)];
     const home = game.home === team.league_name;
-    await setManualScore(team.id, gameId, home ? { home: us, away: tidy.them } : { home: tidy.them, away: us });
+    await setManualScore(team.id, gameId, home ? { home: us, away: them } : { home: them, away: us });
   }
   revalidatePath(`/${team.id}`, "layout");
   revalidatePath("/");

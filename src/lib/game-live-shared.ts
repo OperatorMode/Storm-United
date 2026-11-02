@@ -1,18 +1,28 @@
 // My Game: what the sideline screen and the server share (no server code here,
 // so the phone's side can use it too). See game-live.ts.
 
-export type Spot = { x: number; y: number }; // percent across (x) and down (y) the pitch, our goal at the bottom
+import { sportOf, type Sport, type SportId } from "./sports";
+
+export type Spot = { x: number; y: number }; // percent across (x) and down (y) the field, our goal at the bottom
 /** From `at` (ms of game time) on, these were on the field and this one in goal. */
 export type LogEntry = { at: number; on: string[]; gk: string | null };
 /** A finished game added to the season tallies (minutes per player). */
 export type SavedStats = { played: Record<string, number>; rested: Record<string, number>; gk: Record<string, number>; at: string };
+/** Scores by kind (see sports.ts): { goal: 2 }, { p2: 3, p3: 1 }, { goal: 5, behind: 3 }. */
+export type Counts = Record<string, number>;
 export type LiveGame = {
+  sport?: SportId; // set by the server from the team
   onField: string[]; // player ids on the field
   pos: Record<string, Spot>; // where each one is
+  bibs?: Record<string, string>; // netball: player id -> position (GS, GA...)
   clock: { elapsedMs: number; runningSince: string | null }; // paused: runningSince null
-  scorers: Record<string, number>; // player id -> goals
-  ownGoals: number; // goals for us scored by the other team
-  them: number; // their goals
+  marks?: Record<string, Counts>; // player id -> what they scored
+  teamMarks?: Counts; // scored for us by the other team (own goal, rushed behind)
+  themMarks?: Counts; // the other team's score
+  // Before sports (soccer only): goals per player, own goals, their goals. Read through scoresOf().
+  scorers: Record<string, number>;
+  ownGoals: number;
+  them: number;
   doneSwaps: number[]; // rotation swap times (minutes) already dealt with (done or skipped)
   ended: boolean;
   startedAt: string | null; // first kick-off
@@ -20,11 +30,14 @@ export type LiveGame = {
   saved?: SavedStats | null; // "Save game data" pressed: counts in the tallies
 };
 
-
 export const emptyLive = (): LiveGame => ({
   onField: [],
   pos: {},
+  bibs: {},
   clock: { elapsedMs: 0, runningSince: null },
+  marks: {},
+  teamMarks: {},
+  themMarks: {},
   scorers: {},
   ownGoals: 0,
   them: 0,
@@ -35,15 +48,41 @@ export const emptyLive = (): LiveGame => ({
   saved: null,
 });
 
-export const ourGoals = (g: LiveGame) => Object.values(g.scorers).reduce((a, b) => a + b, 0) + g.ownGoals;
+/** The scores, also from games saved before sports. */
+export function scoresOf(g: LiveGame): { mine: Record<string, Counts>; team: Counts; them: Counts } {
+  return {
+    mine: g.marks ?? Object.fromEntries(Object.entries(g.scorers ?? {}).map(([id, n]) => [id, { goal: n }])),
+    team: g.teamMarks ?? (g.ownGoals ? { own: g.ownGoals } : {}),
+    them: g.themMarks ?? (g.them ? { goal: g.them } : {}),
+  };
+}
 
-/** Lower than this on the pitch is the goal area. */
-export const GOAL_Y = 82;
+const add = (a: Counts, b: Counts) => {
+  const out = { ...a };
+  for (const [k, n] of Object.entries(b)) out[k] = (out[k] ?? 0) + n;
+  return out;
+};
 
-/** Who's in goal: the player furthest down in the goal area, if anyone. */
-export function inGoal(onField: string[], pos: Record<string, Spot>): string | null {
+/** Our score by kind: every player's plus the team's. */
+export function ourCounts(g: LiveGame): Counts {
+  const { mine, team } = scoresOf(g);
+  return Object.values(mine).reduce(add, team);
+}
+
+/** Points for these counts in this sport. */
+export function pointsOf(sport: Sport, c: Counts): number {
+  const kinds = [...sport.kinds, ...(sport.teamScore && !sport.kinds.some((k) => k.key === sport.teamScore!.key) ? [sport.teamScore] : [])];
+  return kinds.reduce((n, k) => n + (c[k.key] ?? 0) * k.points, 0);
+}
+
+export const ourGoals = (g: LiveGame) => pointsOf(sportOf(g.sport), ourCounts(g));
+export const theirGoals = (g: LiveGame) => pointsOf(sportOf(g.sport), scoresOf(g).them);
+
+/** Who's in goal: the player furthest down in the goal area, if the sport has one. */
+export function inGoal(onField: string[], pos: Record<string, Spot>, sport: Sport): string | null {
+  if (!sport.keeper) return null;
   let best: string | null = null;
-  for (const id of onField) if ((pos[id]?.y ?? 0) >= GOAL_Y && (!best || pos[id].y > pos[best].y)) best = id;
+  for (const id of onField) if ((pos[id]?.y ?? 0) >= sport.keeper.area && (!best || pos[id].y > pos[best].y)) best = id;
   return best;
 }
 
@@ -52,7 +91,7 @@ export const elapsedOf = (g: LiveGame, nowMs: number) => g.clock.elapsedMs + (g.
 /** Notes who's on and who's in goal from this moment (called after each change). */
 export function stamp(g: LiveGame, nowMs: number): LiveGame {
   const at = Math.round(elapsedOf(g, nowMs));
-  const entry: LogEntry = { at, on: [...g.onField].sort(), gk: inGoal(g.onField, g.pos) };
+  const entry: LogEntry = { at, on: [...g.onField].sort(), gk: inGoal(g.onField, g.pos, sportOf(g.sport)) };
   const log = g.log ?? [];
   const last = log.at(-1);
   if (last && last.gk === entry.gk && last.on.join() === entry.on.join()) return g;
@@ -63,7 +102,7 @@ export function stamp(g: LiveGame, nowMs: number): LiveGame {
 /** Each stretch of the game: from, to, who was on and in goal. */
 function stretches(g: LiveGame): { from: number; to: number; on: string[]; gk: string | null }[] {
   const end = g.clock.elapsedMs;
-  const log = g.log?.length ? g.log : [{ at: 0, on: g.onField, gk: inGoal(g.onField, g.pos) }];
+  const log = g.log?.length ? g.log : [{ at: 0, on: g.onField, gk: inGoal(g.onField, g.pos, sportOf(g.sport)) }];
   return log
     .map((e, i) => ({ from: Math.min(e.at, end), to: Math.min(log[i + 1]?.at ?? end, end), on: e.on, gk: e.gk }))
     .filter((s) => s.to > s.from);

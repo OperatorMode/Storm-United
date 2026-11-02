@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { endGame, saveGame, saveGameData } from "./actions";
-import { ourGoals, stamp, type LiveGame, type Spot } from "@/lib/game-live-shared";
+import { ourCounts, ourGoals, pointsOf, scoresOf, stamp, theirGoals, type Counts, type LiveGame, type Spot } from "@/lib/game-live-shared";
+import { sportOf, type Sport, type SportId } from "@/lib/sports";
+import { Field, FIELD_BOX, ScoreIcon } from "./fields";
 
 type Player = { id: string; name: string };
 type Plan = { minutes: number[]; spots: Record<string, ("on" | "rest" | "gk")[]>; parts: number | null; partMinutes: number | null } | null;
@@ -30,15 +32,16 @@ function swapsOf(plan: Plan): Swap[] {
 }
 
 /** A sensible starting spot for each player: the keeper in goal, the rest in rows. */
-function formation(ids: string[], keeper: string | null): Record<string, Spot> {
+function formation(ids: string[], keeper: string | null, sport: Sport): Record<string, Spot> {
   const pos: Record<string, Spot> = {};
   const rest = ids.filter((id) => id !== keeper);
-  if (keeper) pos[keeper] = { x: 50, y: 90 };
-  const rows = Math.max(1, Math.ceil(rest.length / 3));
+  if (keeper && sport.keeper) pos[keeper] = { x: sport.keeper.x, y: sport.keeper.y };
+  const per = rest.length > 9 ? 4 : 3;
+  const rows = Math.max(1, Math.ceil(rest.length / per));
   rest.forEach((id, i) => {
-    const row = Math.floor(i / 3);
-    const inRow = Math.min(3, rest.length - row * 3);
-    const col = i % 3;
+    const row = Math.floor(i / per);
+    const inRow = Math.min(per, rest.length - row * per);
+    const col = i % per;
     pos[id] = { x: ((col + 1) * 100) / (inRow + 1), y: 72 - (row * 52) / Math.max(1, rows - 1 || 1) };
   });
   return pos;
@@ -59,6 +62,7 @@ export function GameDay({
   initial,
   keeperTag,
   roleWord,
+  sport,
 }: {
   teamId: string;
   gameId: string;
@@ -71,14 +75,30 @@ export function GameDay({
   initial: LiveGame;
   keeperTag: string; // "GK", or the team's role ("Cat" for a catcher)
   roleWord: string | null; // "goalie" (or the team's role) when the team keeps that tally
+  sport: SportId;
 }) {
+  const sp = sportOf(sport);
   const nameOf = useCallback((id: string) => players.find((p) => p.id === id)?.name ?? "Player", [players]);
   const [g, setG] = useState<LiveGame>(() => {
-    if (initial.onField.length) return initial;
+    // Scores in the sport's kinds (games from before sports had goals only).
+    const sc = scoresOf(initial);
+    const base: LiveGame = { ...initial, sport: sp.id, marks: sc.mine, teamMarks: sc.team, themMarks: sc.them, scorers: {}, ownGoals: 0, them: 0 };
+    if (initial.onField.length) return base;
     // First open: the rotation's first line-up (or the first players available), where they usually play.
     const first = plan ? Object.keys(plan.spots).filter((id) => isOn(plan.spots[id][0])) : available.slice(0, onFieldCount);
-    const keeper = plan ? (Object.keys(plan.spots).find((id) => plan.spots[id][0] === "gk") ?? null) : null;
-    const auto = formation(first, keeper);
+    if (sp.positions) {
+      // Netball: a bib each, in order, standing in its area.
+      const pos: Record<string, Spot> = {};
+      const bibs: Record<string, string> = {};
+      first.forEach((id, i) => {
+        const p = sp.positions![i];
+        pos[id] = p ? { x: p.x, y: p.y } : { x: 50, y: 50 };
+        if (p) bibs[id] = p.name;
+      });
+      return { ...base, onField: first, pos, bibs };
+    }
+    const keeper = plan && sp.keeper ? (Object.keys(plan.spots).find((id) => plan.spots[id][0] === "gk") ?? null) : null;
+    const auto = formation(first, keeper, sp);
     // Where they usually play, except the keeper: always in goal. A usual spot in goal (they kept
     // goal last time) or on top of someone already placed goes back to the formation, so no card hides another.
     const pos: Record<string, Spot> = {};
@@ -86,9 +106,9 @@ export function GameDay({
     if (keeper && auto[keeper]) pos[keeper] = auto[keeper];
     for (const id of first.filter((p) => p !== keeper)) {
       const usual = layout[id];
-      pos[id] = usual && usual.y < 82 && !near(usual) ? usual : auto[id];
+      pos[id] = usual && usual.y < (sp.keeper?.area ?? 101) && !near(usual) ? usual : auto[id];
     }
-    return { ...initial, onField: first, pos };
+    return { ...base, onField: first, pos };
   });
   const [now, setNow] = useState(() => Date.now());
   const [savingData, setSavingData] = useState(false);
@@ -169,12 +189,14 @@ export function GameDay({
     setG((st) => {
       let onField = [...st.onField];
       const pos = { ...st.pos };
+      const bibs = { ...(st.bibs ?? {}) };
       for (const { on, off } of s.pairs) {
         if (!onField.includes(off) || onField.includes(on)) continue;
         onField = onField.map((id) => (id === off ? on : id));
         pos[on] = pos[off];
+        if (bibs[off]) [bibs[on], bibs[off]] = [bibs[off], ""];
       }
-      return stamp({ ...st, onField, pos, doneSwaps: [...st.doneSwaps, s.at] }, Date.now());
+      return stamp({ ...st, onField, pos, bibs: tidyBibs(bibs), doneSwaps: [...st.doneSwaps, s.at] }, Date.now());
     });
   const skip = (s: Swap) => setG((st) => ({ ...st, doneSwaps: [...st.doneSwaps, s.at] }));
 
@@ -204,7 +226,9 @@ export function GameDay({
       const fromField = st.onField.includes(id);
       let onField = [...st.onField];
       const pos = { ...st.pos };
+      const bibs = { ...(st.bibs ?? {}) }; // netball: the bib goes with the spot
       if (target && st.onField.includes(target)) {
+        [bibs[id], bibs[target]] = [bibs[target] ?? "", fromField ? (bibs[id] ?? "") : ""];
         if (fromField) [pos[id], pos[target]] = [pos[target], pos[id]]; // swap places
         else {
           onField = onField.map((p) => (p === target ? id : p)); // sideline player takes over
@@ -215,8 +239,9 @@ export function GameDay({
         if (!fromField) onField.push(id);
       } else if (onSide && fromField) {
         onField = onField.filter((p) => p !== id);
+        bibs[id] = "";
       } else return st;
-      return stamp({ ...st, onField, pos }, Date.now()); // playing time counts from here
+      return stamp({ ...st, onField, pos, bibs: tidyBibs(bibs) }, Date.now()); // playing time counts from here
     });
   };
 
@@ -244,11 +269,38 @@ export function GameDay({
     };
   }, [dragging]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const goal = (id: string, d: 1 | -1) =>
-    setG((st) => ({ ...st, scorers: { ...st.scorers, [id]: Math.max(0, (st.scorers[id] ?? 0) + d) } }));
+  // Scoring, in the sport's kinds (goal; +1, +2, +3; goal and behind).
+  const bump = (c: Counts | undefined, kind: string, d: number) => ({ ...(c ?? {}), [kind]: Math.max(0, (c?.[kind] ?? 0) + d) });
+  const mark = (id: string, kind: string, d: 1 | -1) => setG((st) => ({ ...st, marks: { ...(st.marks ?? {}), [id]: bump(st.marks?.[id], kind, d) } }));
+  const teamMark = (d: 1 | -1) => sp.teamScore && setG((st) => ({ ...st, teamMarks: bump(st.teamMarks, sp.teamScore!.key, d) }));
+  const themMark = (kind: string, d: 1 | -1) => setG((st) => ({ ...st, themMarks: bump(st.themMarks, kind, d) }));
+  // Basketball: take one point off theirs (a 2 becomes a 1, and so on).
+  const themMinusPoint = () =>
+    setG((st) => {
+      const c = { ...(st.themMarks ?? {}) };
+      if (c.p1) c.p1--;
+      else if (c.p2) [c.p2, c.p1] = [c.p2 - 1, (c.p1 ?? 0) + 1];
+      else if (c.p3) [c.p3, c.p2] = [c.p3 - 1, (c.p2 ?? 0) + 1];
+      return { ...st, themMarks: c };
+    });
+  const badge = (c: Counts) => (sp.id === "afl" ? `${c.goal ?? 0}.${c.behind ?? 0}` : String(pointsOf(sp, c)));
+  const [picker, setPicker] = useState<{ id: string; d: 1 | -1 } | null>(null);
+  const single = sp.kinds.length === 1;
+  // Netball: tap a bib for the next free position (or none).
+  const cycleBib = (id: string) =>
+    setG((st) => {
+      const names = (sp.positions ?? []).map((p) => p.name);
+      const bibs = { ...(st.bibs ?? {}) };
+      const taken = new Set(Object.entries(bibs).filter(([p]) => p !== id && st.onField.includes(p)).map(([, b]) => b));
+      const next = names.slice(bibs[id] ? names.indexOf(bibs[id]) + 1 : 0).find((n) => !taken.has(n));
+      bibs[id] = next ?? "";
+      return { ...st, bibs: tidyBibs(bibs) };
+    });
 
   const card = (id: string, field: boolean) => {
-    const goals = g.scorers[id] ?? 0;
+    const mine = g.marks?.[id] ?? {};
+    const scored = pointsOf(sp, mine) > 0;
+    const bib = g.bibs?.[id];
     return (
       <div
         key={id}
@@ -260,24 +312,35 @@ export function GameDay({
         {field && (
           <button
             type="button"
-            aria-label={`Goal for ${nameOf(id)}`}
+            aria-label={`Score for ${nameOf(id)}`}
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => goal(id, 1)}
+            onClick={() => (single ? mark(id, sp.kinds[0].key, 1) : setPicker({ id, d: 1 }))}
             className="grid size-6 place-items-center rounded-full bg-zinc-100 text-sm active:bg-emerald-200"
           >
-            ⚽
+            <ScoreIcon sport={sp.id} />
+          </button>
+        )}
+        {field && sp.positions && (
+          <button
+            type="button"
+            aria-label={`Position for ${nameOf(id)}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => cycleBib(id)}
+            className={`rounded px-1 text-[10px] font-bold ${bib ? "bg-amber-400 text-zinc-900" : "border border-dashed border-zinc-400 text-zinc-400"}`}
+          >
+            {bib || "Bib"}
           </button>
         )}
         <span className="max-w-20 truncate">{nameOf(id)}</span>
         {keepers.includes(id) && <span className="rounded bg-amber-400 px-1 text-[10px] font-bold text-zinc-900">{keeperTag}</span>}
-        {goals > 0 && (
+        {scored && (
           <span className="flex items-center gap-0.5">
-            <span className="rounded bg-emerald-600 px-1 text-[10px] text-white">{goals}</span>
+            <span className="rounded bg-emerald-600 px-1 text-[10px] text-white">{badge(mine)}</span>
             <button
               type="button"
-              aria-label="Take a goal off"
+              aria-label="Take a score off"
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => goal(id, -1)}
+              onClick={() => (single ? mark(id, sp.kinds[0].key, -1) : setPicker({ id, d: -1 }))}
               className="px-0.5 text-zinc-400"
             >
               −
@@ -295,14 +358,18 @@ export function GameDay({
         <div className="flex items-center justify-between gap-2">
           <div className="text-center">
             <div className="text-[11px] uppercase tracking-wide text-zinc-500">Us</div>
-            <div className="text-3xl font-bold tabular-nums">{ourGoals(g)}</div>
-            <button type="button" onClick={() => setG((s) => ({ ...s, ownGoals: s.ownGoals + 1 }))} className="text-[11px] text-zinc-500 underline">
-              + own goal
-            </button>
-            {g.ownGoals > 0 && (
-              <button type="button" onClick={() => setG((s) => ({ ...s, ownGoals: s.ownGoals - 1 }))} className="ml-1 text-[11px] text-zinc-400">
-                −
-              </button>
+            <ScoreBig sport={sp} counts={ourCounts(g)} />
+            {sp.teamScore && (
+              <>
+                <button type="button" onClick={() => teamMark(1)} className="text-[11px] text-zinc-500 underline">
+                  + {sp.teamScore.label}
+                </button>
+                {(g.teamMarks?.[sp.teamScore.key] ?? 0) > 0 && (
+                  <button type="button" onClick={() => teamMark(-1)} className="ml-1 text-[11px] text-zinc-400">
+                    −
+                  </button>
+                )}
+              </>
             )}
           </div>
           <div className="text-center">
@@ -332,15 +399,31 @@ export function GameDay({
           </div>
           <div className="text-center">
             <div className="text-[11px] uppercase tracking-wide text-zinc-500">{title.replace(/^vs |^@ /, "")}</div>
-            <div className="text-3xl font-bold tabular-nums">{g.them}</div>
-            <span className="flex justify-center gap-2 text-sm">
-              <button type="button" onClick={() => setG((s) => ({ ...s, them: Math.max(0, s.them - 1) }))} className="px-1 text-zinc-400">
-                −
-              </button>
-              <button type="button" onClick={() => setG((s) => ({ ...s, them: s.them + 1 }))} className="px-1 font-semibold">
-                +
-              </button>
-            </span>
+            <ScoreBig sport={sp} counts={g.themMarks ?? {}} />
+            {sp.id === "basketball" ? (
+              <span className="flex justify-center gap-1.5 text-sm">
+                <button type="button" onClick={themMinusPoint} className="px-0.5 text-zinc-400">
+                  −1
+                </button>
+                {sp.kinds.map((k) => (
+                  <button key={k.key} type="button" onClick={() => themMark(k.key, 1)} className="px-0.5 font-semibold">
+                    {k.label}
+                  </button>
+                ))}
+              </span>
+            ) : (
+              sp.kinds.map((k) => (
+                <span key={k.key} className="flex items-center justify-center gap-2 text-sm">
+                  {!single && <span className="text-[11px] text-zinc-500">{k.label}</span>}
+                  <button type="button" onClick={() => themMark(k.key, -1)} className="px-1 text-zinc-400">
+                    −
+                  </button>
+                  <button type="button" onClick={() => themMark(k.key, 1)} className="px-1 font-semibold">
+                    +
+                  </button>
+                </span>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -366,14 +449,42 @@ export function GameDay({
       ) : null}
 
       {/* The field */}
-      <div ref={pitch} className="relative aspect-[68/100] w-full overflow-hidden rounded-2xl bg-emerald-700 shadow-inner">
-        <Pitch />
+      <div ref={pitch} className={`relative w-full overflow-hidden rounded-2xl shadow-inner ${FIELD_BOX[sp.id]}`}>
+        <Field sport={sp.id} />
         {g.onField.map((id) => card(id, true))}
+        {picker && (
+          // What they scored (or what to take off), for sports with more than one kind of score.
+          <div className="absolute inset-x-2 bottom-2 z-20 rounded-xl bg-white p-2 text-sm shadow-xl">
+            <div className="mb-1.5 font-semibold">
+              {nameOf(picker.id)}: {picker.d === 1 ? "what did they score?" : "take off"}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {sp.kinds
+                .filter((k) => picker.d === 1 || (g.marks?.[picker.id]?.[k.key] ?? 0) > 0)
+                .map((k) => (
+                  <button
+                    key={k.key}
+                    type="button"
+                    onClick={() => {
+                      mark(picker.id, k.key, picker.d);
+                      setPicker(null);
+                    }}
+                    className={`rounded-lg px-3 py-1.5 font-semibold ${picker.d === 1 ? "bg-emerald-600 text-white" : "border border-zinc-300"}`}
+                  >
+                    {picker.d === 1 ? k.label : `− ${k.label.replace(/^\+/, "")}`}
+                  </button>
+                ))}
+              <button type="button" onClick={() => setPicker(null)} className="rounded-lg px-3 py-1.5 text-zinc-500">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* The sideline */}
       <div ref={side} className="min-h-14 rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 p-2">
-        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Sideline · drag onto a player to swap</div>
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{sp.bench} · drag onto a player to swap</div>
         <div className="flex flex-wrap gap-1.5">
           {bench.map((id) => card(id, false))}
           {!bench.length && <span className="text-xs text-zinc-400">Everyone’s on.</span>}
@@ -384,7 +495,7 @@ export function GameDay({
         <button
           type="button"
           onClick={() =>
-            confirm(`Full time? ${ourGoals(g)}–${g.them} goes into the team’s results.`) &&
+            confirm(`Full time? ${ourGoals(g)}–${theirGoals(g)} goes into the team’s results.`) &&
             endGame(teamId, gameId, { ...g, ended: true }).then(() => setG((s) => ({ ...s, ended: true, clock: { elapsedMs: elapsed, runningSince: null } })))
           }
           className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold"
@@ -393,7 +504,7 @@ export function GameDay({
         </button>
       ) : (
         <div className="space-y-2 text-center">
-          <p className="text-sm text-emerald-700">Full time: {ourGoals(g)}–{g.them}, saved to the team’s results.</p>
+          <p className="text-sm text-emerald-700">Full time: {ourGoals(g)}–{theirGoals(g)}, saved to the team’s results.</p>
           <button
             type="button"
             disabled={savingData}
@@ -412,8 +523,8 @@ export function GameDay({
           </button>
           <p className="text-xs text-zinc-500">
             {g.saved
-              ? "Saved: playing time, goals" + (roleWord ? ` and ${roleWord}` : "") + " are in the season tallies in Manager’s Corner."
-              : "Adds each player’s playing time, goals" + (roleWord ? ` and time as ${roleWord}` : "") + " to the season tallies in Manager’s Corner."}
+              ? `Saved: playing time, ${sp.tally.toLowerCase()}` + (roleWord ? ` and ${roleWord}` : "") + " are in the season tallies in Manager’s Corner."
+              : `Adds each player’s playing time, ${sp.tally.toLowerCase()}` + (roleWord ? ` and time as ${roleWord}` : "") + " to the season tallies in Manager’s Corner."}
           </p>
         </div>
       )}
@@ -454,22 +565,18 @@ function alertNow() {
   } catch {}
 }
 
-/** A soccer pitch from above: our goal at the bottom. */
-function Pitch() {
+/** Empty bibs (nobody in that position) are left out. */
+const tidyBibs = (b: Record<string, string>) => Object.fromEntries(Object.entries(b).filter(([, v]) => v));
+
+/** A team's score, as the sport shows it: AFL as goals.behinds (points). */
+function ScoreBig({ sport, counts }: { sport: Sport; counts: Counts }) {
+  if (sport.id !== "afl") return <div className="text-3xl font-bold tabular-nums">{pointsOf(sport, counts)}</div>;
   return (
-    <svg viewBox="0 0 68 100" className="absolute inset-0 size-full" preserveAspectRatio="none" aria-hidden>
-      <g fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="0.5">
-        <rect x="2" y="2" width="64" height="96" />
-        <line x1="2" y1="50" x2="66" y2="50" />
-        <circle cx="34" cy="50" r="8" />
-        <rect x="14" y="2" width="40" height="15" />
-        <rect x="24" y="2" width="20" height="5.5" />
-        <rect x="14" y="83" width="40" height="15" />
-        <rect x="24" y="92.5" width="20" height="5.5" />
-        <rect x="29" y="0.5" width="10" height="1.5" />
-        <rect x="29" y="98" width="10" height="1.5" />
-      </g>
-      <circle cx="34" cy="50" r="0.7" fill="rgba(255,255,255,0.8)" />
-    </svg>
+    <div className="tabular-nums">
+      <span className="text-2xl font-bold">
+        {counts.goal ?? 0}.{counts.behind ?? 0}
+      </span>{" "}
+      <span className="text-lg font-semibold text-zinc-500">({pointsOf(sport, counts)})</span>
+    </div>
   );
 }
