@@ -15,6 +15,7 @@ import { emptyLive, getLive } from "@/lib/game-live";
 import { roleInText, roleName } from "@/lib/role";
 import { now as clockNow } from "@/lib/clock";
 import { sportOf } from "@/lib/sports";
+import { guestName, isGuestId } from "@/lib/guests";
 import { GameDay } from "./GameDay";
 
 export const metadata: Metadata = { title: "My Game", robots: { index: false } };
@@ -72,8 +73,10 @@ export default async function GamePage({ params, searchParams }: PageProps<"/[te
 
   const [attendance, rotations, live] = await Promise.all([getAttendance(team.id), listRotations(team.id), getLive(team.id, game.id)]);
   const out = new Set(attendance.filter((a) => a.game_id === game.id && a.status === "no").map((a) => a.player_id));
-  const players = team.players.map((p) => ({ id: p.id, name: firstName(p.name) }));
   const plan = rotations[game.id] ?? null;
+  // Loan players come from this game's rotation.
+  const guests = plan ? Object.keys(plan.spots).filter(isGuestId) : [];
+  const players = [...team.players.map((p) => ({ id: p.id, name: firstName(p.name) })), ...guests.map((id) => ({ id, name: guestName(id) }))];
   const available = players.map((p) => p.id).filter((id) => !out.has(id));
   const title = `${game.home === us ? "vs" : "@"} ${opponent(game, us)}`;
 

@@ -10,6 +10,7 @@ import { gameParts } from "@/lib/role";
 import { getLive, saveFieldLayout, saveLive, type LiveGame, type Spot } from "@/lib/game-live";
 import { keeperByPart, ourGoals, playedTime, scoresOf, theirGoals, type Counts } from "@/lib/game-live-shared";
 import { sportOf } from "@/lib/sports";
+import { isGuestId } from "@/lib/guests";
 import type { Team } from "@/lib/teams";
 
 // My Game (managers only): saving the sideline screen as the coach goes, and
@@ -26,7 +27,8 @@ const pct = (v: unknown) => Math.max(0, Math.min(100, Number(v) || 0));
 
 /** Only this team's players, the sport's own kinds of score, sensible numbers, nothing huge. */
 function clean(state: LiveGame, team: Team): LiveGame {
-  const ok = (id: string) => team.players.some((p) => p.id === id);
+  // The team's players, and loan players (added to the game's rotation).
+  const ok = (id: string) => team.players.some((p) => p.id === id) || isGuestId(id);
   const sport = sportOf(team.sport);
   const kinds = new Set([...sport.kinds.map((k) => k.key), ...(sport.teamScore ? [sport.teamScore.key] : [])]);
   const counts = (c: Counts | undefined, max: number): Counts =>
@@ -78,7 +80,8 @@ export async function saveGame(teamId: string, gameId: string, state: LiveGame) 
   tidy.saved = (await getLive(team.id, gameId.slice(0, 200)))?.saved ?? null;
   await saveLive(team.id, gameId.slice(0, 200), tidy);
   // Where they played: remembered for next game.
-  if (Object.keys(tidy.pos).length) await saveFieldLayout(team.id, tidy.pos);
+  const usual = Object.fromEntries(Object.entries(tidy.pos).filter(([id]) => !isGuestId(id)));
+  if (Object.keys(usual).length) await saveFieldLayout(team.id, usual);
   return { ok: true };
 }
 
