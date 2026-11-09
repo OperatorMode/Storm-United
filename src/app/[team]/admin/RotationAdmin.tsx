@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { saveGameRotation } from "./actions";
 import { partPlural, roleInText, rolePlural, type GameParts } from "@/lib/role";
+import { guestId, guestName, isGuestId } from "@/lib/guests";
 import { blocksOf, buildRotation, seasonTotals, type GameShape, type RotationPlan, type Spot } from "@/lib/rotation-plan";
 
 type GameInfo = {
@@ -60,10 +61,13 @@ export function RotationAdmin({
   const [goaliesStayOn, setGoaliesStayOn] = useState(initial?.goaliesStayOn ?? defaults.goaliesStayOn);
   const [available, setAvailable] = useState<string[]>(initial ? Object.keys(initial.spots) : (game?.available ?? []));
   const [plan, setPlan] = useState<RotationPlan | null>(initial);
+  // Loan players for this game (from another team), added by name.
+  const [guests, setGuests] = useState<string[]>(initial ? Object.keys(initial.spots).filter(isGuestId) : []);
+  const [guestDraft, setGuestDraft] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const name = (id: string) => players.find((p) => p.id === id)?.name.split(" ")[0] ?? id;
+  const name = (id: string) => isGuestId(id) ? guestName(id) : players.find((p) => p.id === id)?.name.split(" ")[0] ?? id;
   // Minutes rested so far this season, not counting this game's own plan.
   // A game saved in My Game counts as it was really played, instead of its plan.
   const totals = useCallback(
@@ -92,6 +96,7 @@ export function RotationAdmin({
     setGameId(id);
     setPlan(p);
     setAvailable(p ? Object.keys(p.spots) : (g?.available ?? []));
+    setGuests(p ? Object.keys(p.spots).filter(isGuestId) : []);
     if (p?.shape) setShape(p.shape);
     if (p) setOnField(p.onField);
     if (p) setGoaliesStayOn(!!p.goaliesStayOn);
@@ -100,7 +105,7 @@ export function RotationAdmin({
 
   const make = () => {
     if (!game) return;
-    const ordered = players.map((p) => p.id).filter((id) => available.includes(id));
+    const ordered = [...players.map((p) => p.id).filter((id) => available.includes(id)), ...guests];
     setPlan(buildRotation({ players: ordered, shape, onField, goalies: game.goalies, gameParts, restedSoFar, goaliesStayOn }));
     setMsg(null);
   };
@@ -115,6 +120,18 @@ export function RotationAdmin({
       setPlan(null);
       setMsg("Cleared. Change the settings and make a new one.");
     });
+
+  const addGuest = () => {
+    const id = guestId(guestDraft);
+    if (!isGuestId(id)) return;
+    if (!guests.includes(id)) setGuests([...guests, id]);
+    setGuestDraft("");
+    setMsg(plan ? "Added. Tap Make a new rotation to include them." : null);
+  };
+  const removeGuest = (id: string) => {
+    setGuests(guests.filter((x) => x !== id));
+    setMsg(plan ? "Removed. Tap Make a new rotation to update it." : null);
+  };
 
   const cycle = (player: string, i: number) =>
     setPlan((p) => (p ? { ...p, spots: { ...p.spots, [player]: p.spots[player].map((s, j) => (j === i ? NEXT[s] : s)) } } : p));
@@ -201,7 +218,7 @@ export function RotationAdmin({
       )}
 
       <div>
-        <span className="mb-1 block font-medium">Who’s there ({available.length})</span>
+        <span className="mb-1 block font-medium">Who’s there ({available.length + guests.length})</span>
         <div className="flex flex-wrap gap-1.5">
           {players.map((p) => {
             const on = available.includes(p.id);
@@ -216,11 +233,45 @@ export function RotationAdmin({
               </button>
             );
           })}
+          {guests.map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => removeGuest(id)}
+              aria-label={`Remove ${guestName(id)}`}
+              className="rounded-full bg-sky-600 px-3 py-1 text-xs text-white"
+            >
+              {guestName(id)} (loan) ×
+            </button>
+          ))}
         </div>
-        <span className="mt-1 block text-xs text-zinc-400">Everyone except those marked Can’t make it.{role ? ` ${rolePlural(role)} come from the ${rolePlural(role)} section.` : ""}</span>
+        <div className="mt-2 flex gap-2">
+          <input
+            value={guestDraft}
+            onChange={(e) => setGuestDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addGuest();
+              }
+            }}
+            maxLength={30}
+            placeholder="Loan player’s name"
+            className={field}
+          />
+          <button
+            type="button"
+            onClick={addGuest}
+            disabled={!guestDraft.trim()}
+            className="shrink-0 rounded-xl border border-zinc-300 px-4 py-2 font-medium disabled:opacity-30"
+          >
+            Add
+          </button>
+        </div>
+        <span className="mt-1 block text-xs text-zinc-400">Everyone except those marked Can’t make it. Loan players are for this game only and don’t count in the season balance.{role ? ` ${rolePlural(role)} come from the ${rolePlural(role)} section.` : ""}</span>
       </div>
 
-      <button type="button" onClick={make} disabled={available.length === 0} className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white disabled:opacity-30">
+      <button type="button" onClick={make} disabled={available.length + guests.length === 0} className="w-full rounded-xl bg-zinc-900 px-4 py-2.5 font-semibold text-white disabled:opacity-30">
         {plan ? "Make a new rotation" : "Make rotation"}
       </button>
 

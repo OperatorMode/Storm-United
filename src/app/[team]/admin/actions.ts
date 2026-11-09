@@ -17,6 +17,7 @@ import { sendPush } from "@/lib/push";
 import { releaseDuty, saveDuties, takeDuty } from "@/lib/duties";
 import { saveRotation } from "@/lib/rotation";
 import type { RotationPlan } from "@/lib/rotation-plan";
+import { isGuestId } from "@/lib/guests";
 import { getTeam, isActivePlayer, joinCodeFields, mergePlayers, type Team } from "@/lib/teams";
 import { slotForPlayer } from "@/lib/goalies";
 import { gameParts, PART_PRESETS } from "@/lib/role";
@@ -310,7 +311,8 @@ export async function saveGameRotation(teamId: string, gameId: string, plan: Rot
     const ok =
       Number.isInteger(plan.periods) && plan.periods >= 1 && plan.periods <= 8 &&
       Number.isInteger(plan.onField) && plan.onField >= 1 && plan.onField <= 30 &&
-      Object.entries(plan.spots).every(([id, list]) => isActivePlayer(team, id) && Array.isArray(list) && list.length === plan.periods && list.every((s) => ["on", "rest", "gk"].includes(s)));
+      Object.keys(plan.spots).length <= 60 &&
+      Object.entries(plan.spots).every(([id, list]) => (isActivePlayer(team, id) || isGuestId(id)) && Array.isArray(list) && list.length === plan.periods && list.every((s) => ["on", "rest", "gk"].includes(s)));
     if (!ok) return { error: "That rotation doesn’t look right." };
   }
   await saveRotation(team.id, gameId, plan);
